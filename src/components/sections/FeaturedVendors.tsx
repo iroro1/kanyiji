@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, MapPin, Users, Award } from "lucide-react";
+import Link from "next/link";
 
 interface Vendor {
   id: string;
@@ -41,7 +42,8 @@ export default function FeaturedVendors() {
         id: "2",
         name: "Kemi Adebayo",
         business_name: "Nigeria Crafts",
-        description: "Handcrafted jewelry and accessories from Nigerian artisans",
+        description:
+          "Handcrafted jewelry and accessories from Nigerian artisans",
         image_url:
           "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
         location: "Abuja, Nigeria",
@@ -111,7 +113,9 @@ export default function FeaturedVendors() {
     <section className="py-12 sm:py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">Featured Vendors</h2>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
+            Featured Vendors
+          </h2>
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4">
             Meet the talented artisans behind our products
           </p>
@@ -119,75 +123,84 @@ export default function FeaturedVendors() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {vendors.map((vendor) => (
-            <div
+            <Link
               key={vendor.id}
-              className="card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              href={`/vendors/${vendor.id}`}
+              className="block"
             >
-              <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg">
-                <img
-                  src={vendor.image_url}
-                  alt={vendor.business_name}
-                  className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer">
+                <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg">
+                  <img
+                    src={vendor.image_url}
+                    alt={vendor.business_name}
+                    className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                {/* Rating Badge */}
-                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
-                  <Star className="w-3 h-3 text-warning fill-current" />
-                  <span className="text-xs font-semibold text-gray-900">
-                    {vendor.rating}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 sm:space-y-3">
-                <div>
-                  <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors duration-200 text-sm sm:text-base">
-                    {vendor.business_name}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-500">{vendor.name}</p>
-                </div>
-
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
-                  {vendor.description}
-                </p>
-
-                <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
-                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span>{vendor.location}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs sm:text-sm">
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                    <span className="text-gray-600">
-                      {vendor.product_count} products
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
+                  {/* Rating Badge */}
+                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
                     <Star className="w-3 h-3 text-warning fill-current" />
-                    <span className="text-gray-600">
-                      ({vendor.review_count})
+                    <span className="text-xs font-semibold text-gray-900">
+                      {vendor.rating}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <span className="inline-block bg-primary-100 text-primary-700 text-xs px-2 py-1 rounded-full">
-                    {vendor.specialty}
-                  </span>
-                </div>
+                <div className="space-y-2 sm:space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors duration-200 text-sm sm:text-base">
+                      {vendor.business_name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      {vendor.name}
+                    </p>
+                  </div>
 
-                <button className="w-full btn-outline text-xs sm:text-sm py-2">
-                  View Store
-                </button>
+                  <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                    {vendor.description}
+                  </p>
+
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
+                    <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>{vendor.location}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        {vendor.product_count} products
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-3 h-3 text-warning fill-current" />
+                      <span className="text-gray-600">
+                        ({vendor.review_count})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="inline-block bg-primary-100 text-primary-700 text-xs px-2 py-1 rounded-full">
+                      {vendor.specialty}
+                    </span>
+                  </div>
+
+                  <div className="w-full btn-outline text-xs sm:text-sm py-2 text-center">
+                    View Store
+                  </div>
+                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
         <div className="text-center mt-8 sm:mt-12">
-          <button className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3">View All Vendors</button>
+          <Link href="/vendors">
+            <button className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3">
+              View All Vendors
+            </button>
+          </Link>
         </div>
       </div>
     </section>

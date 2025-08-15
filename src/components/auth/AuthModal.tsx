@@ -11,16 +11,30 @@ interface AuthModalProps {
   initialMode?: "login" | "signup";
 }
 
-export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
+export default function AuthModal({
+  isOpen,
+  onClose,
+  initialMode = "login",
+}: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
 
   if (!isOpen) return null;
 
+  const handleForgotPassword = () => {
+    // For demo purposes, show an alert
+    alert(
+      "Password reset functionality will be implemented with Supabase integration. For now, please use the demo credentials: user@demo.com / password123"
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
-      
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={onClose}
+      />
+
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl">
@@ -38,10 +52,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               <LoginForm
                 onSuccess={onClose}
                 onSwitchToSignup={() => setMode("signup")}
-                onForgotPassword={() => {
-                  // TODO: Implement forgot password
-                  console.log("Forgot password clicked");
-                }}
+                onForgotPassword={handleForgotPassword}
               />
             ) : (
               <SignupForm

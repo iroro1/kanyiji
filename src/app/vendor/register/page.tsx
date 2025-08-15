@@ -122,11 +122,51 @@ export default function VendorRegistrationPage() {
     setStep(step - 1);
   };
 
-  const handleSubmit = () => {
-    if (validateStep(step)) {
-      console.log("Submitting vendor registration:", formData);
-      // TODO: Implement vendor registration
-      setStep(6); // Success step
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (step < 4) {
+      setStep(step + 1);
+      return;
+    }
+
+    try {
+      // Create vendor object
+      const vendor = {
+        id: `VENDOR-${Date.now()}`,
+        ...formData,
+        status: "pending",
+        registrationDate: new Date().toISOString(),
+        approved: false,
+      };
+
+      // Get existing vendors from localStorage
+      const existingVendors = JSON.parse(
+        localStorage.getItem("vendors") || "[]"
+      );
+      existingVendors.push(vendor);
+      localStorage.setItem("vendors", JSON.stringify(existingVendors));
+
+      // Update current user to be a vendor
+      const currentUser = JSON.parse(localStorage.getItem("demoUser") || "{}");
+      if (currentUser.isAuthenticated) {
+        currentUser.isVendor = true;
+        currentUser.vendorId = vendor.id;
+        localStorage.setItem("demoUser", JSON.stringify(currentUser));
+      }
+
+      // Show success message
+      alert(
+        "Vendor registration submitted successfully! Your application is under review."
+      );
+
+      // Redirect to vendor dashboard or profile
+      window.location.href = "/profile";
+    } catch (error) {
+      console.error("Error submitting vendor registration:", error);
+      alert(
+        "There was an error submitting your registration. Please try again."
+      );
     }
   };
 

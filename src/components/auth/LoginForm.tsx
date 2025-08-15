@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState } from "react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -19,7 +19,11 @@ interface LoginFormProps {
   onForgotPassword?: () => void;
 }
 
-export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPassword }: LoginFormProps) {
+export default function LoginForm({
+  onSuccess,
+  onSwitchToSignup,
+  onForgotPassword,
+}: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,14 +38,60 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Implement Supabase authentication
-      console.log('Login attempt:', data);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      // Demo authentication - replace with real Supabase auth in production
+      if (data.email === "user@demo.com" && data.password === "password123") {
+        // Regular user login
+        localStorage.setItem(
+          "demoUser",
+          JSON.stringify({
+            isAuthenticated: true,
+            isVendor: false,
+            email: data.email,
+            name: "Demo User",
+          })
+        );
+        window.location.reload(); // Refresh to update navbar state
+      } else if (
+        data.email === "vendor@demo.com" &&
+        data.password === "password123"
+      ) {
+        // Vendor login
+        localStorage.setItem(
+          "demoUser",
+          JSON.stringify({
+            isAuthenticated: true,
+            isVendor: true,
+            email: data.email,
+            name: "Demo Vendor",
+          })
+        );
+        window.location.reload(); // Refresh to update navbar state
+      } else {
+        // Invalid credentials
+        alert(
+          "Invalid credentials. Use:\nuser@demo.com / password123\nvendor@demo.com / password123"
+        );
+        return;
+      }
+
       onSuccess?.();
     } catch (error) {
-      console.error('Login error:', error);
+      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      // TODO: Implement actual Google OAuth with Supabase
+      // For demo purposes, show an alert
+      alert(
+        "Google authentication will be implemented with Supabase integration. For now, please use the demo credentials: user@demo.com / password123"
+      );
+    } catch (error) {
+      console.error("Google login error:", error);
+      // setError('Google authentication failed. Please try again.'); // This line was not in the original file, so I'm not adding it.
     }
   };
 
@@ -50,17 +100,35 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
         <p className="text-gray-600">Sign in to your Kanyiji account</p>
+
+        {/* Demo Credentials */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-800 font-medium mb-2">
+            Demo Credentials:
+          </p>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>
+              <strong>User:</strong> user@demo.com / password123
+            </p>
+            <p>
+              <strong>Vendor:</strong> vendor@demo.com / password123
+            </p>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Email Address
           </label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              {...register('email')}
+              {...register("email")}
               type="email"
               id="email"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -73,14 +141,17 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Password
           </label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
-              {...register('password')}
-              type={showPassword ? 'text' : 'password'}
+              {...register("password")}
+              type={showPassword ? "text" : "password"}
               id="password"
               className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter your password"
@@ -90,11 +161,17 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.password.message}
+            </p>
           )}
         </div>
 
@@ -120,7 +197,7 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
           disabled={isLoading}
           className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
         >
-          {isLoading ? 'Signing In...' : 'Sign In'}
+          {isLoading ? "Signing In..." : "Sign In"}
         </button>
 
         {/* Divider */}
@@ -129,17 +206,16 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
             <div className="w-full border-t border-gray-300" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            <span className="px-2 bg-white text-gray-500">
+              Or continue with
+            </span>
           </div>
         </div>
 
         {/* Google Sign In Button */}
         <button
           type="button"
-          onClick={() => {
-            // TODO: Implement Google authentication
-            console.log('Google sign in clicked');
-          }}
+          onClick={handleGoogleLogin}
           className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-lg border border-gray-300 transition-colors duration-200 flex items-center justify-center gap-3"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -166,7 +242,7 @@ export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPasswor
 
       <div className="mt-6 text-center">
         <p className="text-gray-600">
-          Don't have an account?{' '}
+          Don't have an account?{" "}
           <button
             onClick={onSwitchToSignup}
             className="text-primary-600 hover:text-primary-700 font-medium"

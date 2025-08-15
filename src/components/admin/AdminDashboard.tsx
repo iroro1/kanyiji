@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     "overview" | "vendors" | "products" | "orders" | "kyc"
   >("overview");
 
-  const vendors: Vendor[] = [
+  const [vendors, setVendors] = useState<Vendor[]>([
     {
       id: "1",
       businessName: "African Crafts Co.",
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
       joinDate: "2023-12-01",
       kycStatus: "verified",
     },
-  ];
+  ]);
 
   const products: Product[] = [
     {
@@ -214,19 +214,64 @@ export default function AdminDashboard() {
     }
   };
 
-  const approveVendor = (id: string) => {
-    console.log("Approving vendor:", id);
-    // TODO: Implement vendor approval
+  const handleApproveVendor = (vendorId: string) => {
+    // Get existing vendors from localStorage
+    const existingVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
+
+    // Find and update the vendor status
+    const vendorIndex = existingVendors.findIndex(
+      (v: any) => v.id === vendorId
+    );
+    if (vendorIndex >= 0) {
+      existingVendors[vendorIndex].status = "approved";
+      existingVendors[vendorIndex].approved = true;
+      existingVendors[vendorIndex].approvedDate = new Date().toISOString();
+      localStorage.setItem("vendors", JSON.stringify(existingVendors));
+
+      // Update the local state
+      // setVendors(existingVendors); // This line was removed as per the new_code
+      alert("Vendor approved successfully!");
+    }
   };
 
-  const rejectVendor = (id: string) => {
-    console.log("Rejecting vendor:", id);
-    // TODO: Implement vendor rejection
+  const handleRejectVendor = (vendorId: string) => {
+    // Get existing vendors from localStorage
+    const existingVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
+
+    // Find and update the vendor status
+    const vendorIndex = existingVendors.findIndex(
+      (v: any) => v.id === vendorId
+    );
+    if (vendorIndex >= 0) {
+      existingVendors[vendorIndex].status = "rejected";
+      existingVendors[vendorIndex].approved = false;
+      existingVendors[vendorIndex].rejectedDate = new Date().toISOString();
+      localStorage.setItem("vendors", JSON.stringify(existingVendors));
+
+      // Update the local state
+      setVendors(existingVendors);
+      alert("Vendor rejected successfully!");
+    }
   };
 
-  const suspendVendor = (id: string) => {
-    console.log("Suspending vendor:", id);
-    // TODO: Implement vendor suspension
+  const handleSuspendVendor = (vendorId: string) => {
+    // Get existing vendors from localStorage
+    const existingVendors = JSON.parse(localStorage.getItem("vendors") || "[]");
+
+    // Find and update the vendor status
+    const vendorIndex = existingVendors.findIndex(
+      (v: any) => v.id === vendorId
+    );
+    if (vendorIndex >= 0) {
+      existingVendors[vendorIndex].status = "suspended";
+      existingVendors[vendorIndex].approved = false;
+      existingVendors[vendorIndex].suspendedDate = new Date().toISOString();
+      localStorage.setItem("vendors", JSON.stringify(existingVendors));
+
+      // Update the local state
+      setVendors(existingVendors);
+      alert("Vendor suspended successfully!");
+    }
   };
 
   return (
@@ -471,13 +516,13 @@ export default function AdminDashboard() {
                           {vendor.status === "pending" && (
                             <>
                               <button
-                                onClick={() => approveVendor(vendor.id)}
+                                onClick={() => handleApproveVendor(vendor.id)}
                                 className="text-green-600 hover:text-green-900"
                               >
                                 <Check className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => rejectVendor(vendor.id)}
+                                onClick={() => handleRejectVendor(vendor.id)}
                                 className="text-red-600 hover:text-red-900"
                               >
                                 <XCircle className="w-4 h-4" />
@@ -486,7 +531,7 @@ export default function AdminDashboard() {
                           )}
                           {vendor.status === "approved" && (
                             <button
-                              onClick={() => suspendVendor(vendor.id)}
+                              onClick={() => handleSuspendVendor(vendor.id)}
                               className="text-orange-600 hover:text-orange-900"
                             >
                               <Ban className="w-4 h-4" />

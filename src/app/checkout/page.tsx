@@ -54,7 +54,7 @@ export default function CheckoutPage() {
         email: "customer@email.com", // This should come from form data
         amount: total * 100, // Paystack expects amount in kobo (smallest currency unit)
         currency: "NGN",
-        callback: function (response) {
+        callback: function (response: any) {
           // Handle successful payment
           console.log("Payment successful:", response);
           handlePlaceOrder();
@@ -95,10 +95,51 @@ export default function CheckoutPage() {
   const shipping = 800;
   const total = subtotal + shipping;
 
-  const handlePlaceOrder = () => {
-    console.log("Placing order...");
-    // TODO: Implement order placement
-    setStep(3);
+  const handlePlaceOrder = async () => {
+    if (
+      !shippingData.email ||
+      !shippingData.firstName ||
+      !shippingData.lastName ||
+      !shippingData.address
+    ) {
+      alert("Please fill in all required shipping information");
+      return;
+    }
+
+    try {
+      // Create order object
+      const order = {
+        id: `ORD-${Date.now()}`,
+        orderNumber: `ORD-${Date.now()}`,
+        date: new Date().toISOString(),
+        status: "pending",
+        total: total,
+        items: cartItems,
+        shippingAddress: `${shippingData.address}, ${shippingData.city}, ${shippingData.state}, ${shippingData.zipCode}`,
+        customerEmail: shippingData.email,
+        customerName: `${shippingData.firstName} ${shippingData.lastName}`,
+        customerPhone: shippingData.phone,
+      };
+
+      // Get existing orders from localStorage
+      const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+      existingOrders.push(order);
+      localStorage.setItem("orders", JSON.stringify(existingOrders));
+
+      // Clear cart
+      localStorage.removeItem("cart");
+
+      // Show success message
+      alert(
+        "Order placed successfully! You will receive a confirmation email shortly."
+      );
+
+      // Redirect to orders page
+      window.location.href = "/orders";
+    } catch (error) {
+      console.error("Error placing order:", error);
+      alert("There was an error placing your order. Please try again.");
+    }
   };
 
   return (
