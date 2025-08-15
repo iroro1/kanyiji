@@ -1,0 +1,75 @@
+PRODUCT REQUIREMENTS DOCUMENT
+Project Title:
+Kanyiji – Mul,-Vendor E-Commerce Marketplace for Made-in-Africa Products
+￼
+1. Overview
+1.1 Product Summary
+Kanyiji is a web e-commerce marketplace connec,ng African ar,sans, brands,
+and businesses with global buyers. The plaEorm enables mul,ple vendors from
+diﬀerent African countries to sell their products across categories such as
+fashion, food, beauty, home décor, art, and craIs. Buyers can browse, order,
+pay securely, and have products delivered locally or interna,onally.
+1.2 Goals & ObjecFves
+• Provide a trusted online marketplace for Made-in-Africa products.
+• Enable mulFple vendors to list, manage, and sell their products
+independently.
+• Oﬀer seamless shopping experiences across web and mobile.
+• Support secure payment gateways for African and interna,onal
+transac,ons.
+• Facilitate logisFcs & shipping integraFon for local and global deliveries.
+1.3 Target Audience
+• Vendors: African ar,sans, SMEs, manufacturers.
+• Buyers: Local African consumers & interna,onal customers seeking
+authen,c African products.
+• Partners: Logis,cs companies, payment processors, cultural promo,on
+agencies.
+￼
+2. Key Features & Requirements
+2.1 User Roles
+• Admin – Full control of the plaEorm, vendor approvals, product
+management, financial reports, Data analysis.
+• Vendors – Manage their store, upload products, track orders, process
+fulfillment.
+• Buyers – Browse, search, purchase products, track deliveries, leave
+reviews.
+￼
+2.2 Core Features
+A. Vendor Management
+• Vendor registra,on & onboarding (KYC verifica,on).
+• Vendor storefront with branding & profile details.
+• Product lis,ng management (images, descrip,ons, pricing, stock).
+• Order management dashboard.
+• Marke,ng and Adver,sing tools
+• Earnings dashboard, Payout & withdrawal system.
+• Vendor ra,ng & feedback system.
+B. Product Management
+• Mul,-category support (Fashion, Food, Beauty, Art, etc.).
+• Product varia,ons (size, color, packaging).
+• High-resolu,on image uploads.
+• Bulk upload (CSV).
+• Stock & inventory management.
+C. Buyer Experience
+• Guest & registered checkout.
+• Advanced search & filtering (by country, category, price, vendor).
+• Product reviews & ra,ngs.
+• Wishlist & favorites.
+• Mul,-currency display
+D. Payments & TransacFons
+• Integra,on with African-friendly payment gateways (Paystack,
+Flu[erwave, M-Pesa).
+• Interna,onal payment support (Stripe, PayPal).
+• Mul,-currency transac,ons (NGN, USD, EUR, GBP).
+• Commission model for vendors (percentage per sale).
+E. LogisFcs & Shipping
+• Integra,on with local & global courier services (DHL, FedEx, GIG
+Logis,cs, etc.).
+• Vendor-defined shipping rates.
+• Order tracking (real-,me).
+• Mul,ple shipping op,ons
+F. Security & Compliance
+• SSL encryp,on.
+• KYC for vendors.
+• Fraud detec,on & dispute resolu,on system.
+G. Admin Dashboard
+• Vendor approval & suspension.
+• Product modera,on.
