@@ -135,3 +135,35 @@ export interface PaginatedResponse<T> {
   limit: number;
   total_pages: number;
 }
+
+// UI State Types
+export interface UIState {
+  sidebarOpen: boolean;
+  searchQuery: string;
+  selectedCategory: string | null;
+  sortBy: 'price' | 'rating' | 'newest' | 'popular';
+  viewMode: 'grid' | 'list';
+}
+
+// Form Types
+export interface LoginForm {
+  email: string;
+  password: string;
+}
+
+export interface RegisterForm {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  fullName: string;
+  role: 'customer' | 'vendor';
+}
+
+export interface ProductForm {
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  stock_quantity: number;
+  images: File[];
+}

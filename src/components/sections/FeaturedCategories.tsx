@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
 interface Category {
   id: string;
@@ -16,8 +15,7 @@ export default function FeaturedCategories() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace with actual Supabase query
-    // For now, using mock data
+    // Mock data for UI development
     const mockCategories: Category[] = [
       {
         id: '1',

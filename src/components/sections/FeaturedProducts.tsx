@@ -21,8 +21,7 @@ export default function FeaturedProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace with actual Supabase query
-    // For now, using mock data
+    // Mock data for UI development
     const mockProducts: Product[] = [
       {
         id: '1',
@@ -98,12 +97,12 @@ export default function FeaturedProducts() {
     setLoading(false);
   }, []);
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(amount);
   };
 
   if (loading) {
