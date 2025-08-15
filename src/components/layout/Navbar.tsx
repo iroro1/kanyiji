@@ -148,7 +148,7 @@ const ActionIcons = ({
   onWishlistClick?: () => void;
   onCartClick?: () => void;
 }) => (
-  <div className="flex items-center space-x-1 lg:space-x-2">
+  <div className="flex items-center space-x-3 lg:space-x-4">
     {showMobileSearch && (
       <button
         onClick={onMobileSearchClick}
@@ -317,7 +317,9 @@ export default function Navbar() {
           <Logo />
 
           {/* Desktop Navigation */}
-          <NavigationLinks navigation={navigation} />
+          <div className="hidden md:flex items-center space-x-8 ml-8">
+            <NavigationLinks navigation={navigation} />
+          </div>
 
           {/* Center Search Bar */}
           <div className="hidden md:block flex-1 max-w-md mx-8">
@@ -325,7 +327,7 @@ export default function Navbar() {
           </div>
 
           {/* Right side - Search, Cart, User actions */}
-          <div className="flex items-center space-x-2 lg:space-x-4">
+          <div className="flex items-center space-x-4 lg:space-x-6">
             {/* Action Icons */}
             <ActionIcons
               showMobileSearch={true}
@@ -335,10 +337,10 @@ export default function Navbar() {
             />
 
             {/* Divider */}
-            <div className="hidden lg:block w-px h-8 bg-gray-200 mx-2"></div>
+            <div className="hidden lg:block w-px h-8 bg-gray-200 mx-4"></div>
 
             {/* Auth Buttons */}
-            <div className="hidden lg:flex items-center space-x-3">
+            <div className="hidden lg:flex items-center space-x-4">
               <AuthButtons
                 onSignIn={handleSignIn}
                 onBecomeVendor={handleBecomeVendor}
@@ -346,7 +348,7 @@ export default function Navbar() {
             </div>
 
             {/* Mobile Auth Buttons - Compact */}
-            <div className="lg:hidden flex items-center space-x-2">
+            <div className="lg:hidden flex items-center space-x-3">
               <button
                 onClick={handleSignIn}
                 className="text-gray-600 hover:text-primary-600 font-medium text-sm px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200"
