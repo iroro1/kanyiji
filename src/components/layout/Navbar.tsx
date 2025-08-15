@@ -11,6 +11,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
+import AuthModal from "@/components/auth/AuthModal";
 
 // Logo Component
 const Logo = () => (
@@ -254,6 +255,10 @@ const MobileMenu = ({
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
+    "login"
+  );
 
   const navigation = [
     { name: "Categories", href: "/categories", hasDropdown: true },
@@ -279,13 +284,12 @@ export default function Navbar() {
   };
 
   const handleSignIn = () => {
-    console.log("Sign In clicked");
-    // TODO: Implement sign in functionality
+    setAuthModalMode("login");
+    setShowAuthModal(true);
   };
 
   const handleBecomeVendor = () => {
-    console.log("Become a Vendor clicked");
-    // TODO: Implement vendor registration
+    window.location.href = "/vendor/register";
   };
 
   const handleWishlistClick = () => {
@@ -294,8 +298,7 @@ export default function Navbar() {
   };
 
   const handleCartClick = () => {
-    console.log("Cart clicked");
-    // TODO: Navigate to cart
+    window.location.href = "/cart";
   };
 
   const handleLanguageClick = () => {
@@ -389,6 +392,13 @@ export default function Navbar() {
           onBecomeVendor={handleBecomeVendor}
         />
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialMode={authModalMode}
+      />
     </nav>
   );
 }
