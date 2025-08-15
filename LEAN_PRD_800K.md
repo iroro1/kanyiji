@@ -17,13 +17,27 @@ Kanyiji is a focused, functional e-commerce marketplace that enables African art
 
 ### 1.2 Investment Justification
 
-The ₦800,000 investment covers:
+The ₦800,000 investment covers **ONLY development costs**:
 
 - **Core Platform Development** (₦400,000)
 - **Essential Features** (₦250,000)
 - **Basic Security & Testing** (₦150,000)
 
-### 1.3 Scope Limitations
+### 1.3 Client Operational Responsibilities
+
+**IMPORTANT:** The ₦800,000 covers development only. You are responsible for ongoing operational costs:
+
+- **Domain Registration:** Website domain costs (₦5,000-15,000/year)
+- **Hosting Services:** Supabase usage fees (₦20,000-50,000/month)
+- **Payment Gateway Fees:** Transaction processing costs (2-5% per transaction)
+- **SSL Certificates:** Security certificate renewal (₦10,000-20,000/year)
+- **CDN Services:** Content delivery network costs (₦10,000-30,000/month)
+- **Database Hosting:** Supabase database usage fees (included in hosting)
+- **Email Services:** Transactional email costs (₦5,000-15,000/month)
+
+**Total Monthly Operational Costs:** ₦50,000-150,000 depending on usage and scale.
+
+### 1.4 Scope Limitations
 
 - **No mobile apps** (responsive web only)
 - **No advanced AI features**
@@ -38,12 +52,12 @@ The ₦800,000 investment covers:
 
 ### 2.1 Technical Stack
 
-- **Frontend:** Next.js 15, TypeScript
-- **Backend:** Supabase
-- **Database:** PostgreSQL with basic caching Supabase
-- **Cloud Infrastructure:** Netlify hosting
-- **Payment Processing:** 1 payment gateways
-- **Security:** Standard SSL, basic authentication
+- **Frontend:** Next.js 13, React 17, TypeScript
+- **Backend:** Supabase (PostgreSQL database, authentication, real-time APIs)
+- **Database:** Supabase PostgreSQL with real-time capabilities
+- **Cloud Infrastructure:** Supabase cloud hosting with auto-scaling
+- **Payment Processing:** 2-3 payment gateways
+- **Security:** Standard SSL, Supabase built-in security
 
 ### 2.2 Scalability Features
 
