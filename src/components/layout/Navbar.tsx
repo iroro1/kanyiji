@@ -69,6 +69,12 @@ const NavigationLinks = ({
           <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform -translate-y-2 group-hover:translate-y-0 z-50">
             <div className="py-2">
               <Link
+                href={item.href}
+                className="block px-4 py-2 text-sm text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors duration-200 border-b border-gray-100"
+              >
+                All {item.name}
+              </Link>
+              <Link
                 href={`${item.href}/featured`}
                 className="block px-4 py-2 text-sm text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-colors duration-200"
               >
@@ -259,6 +265,16 @@ export default function Navbar() {
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
     "login"
   );
+  
+  // Mock user state - in real app this would come from authentication context
+  const [user, setUser] = useState<{
+    isAuthenticated: boolean;
+    isVendor: boolean;
+    email?: string;
+  }>({
+    isAuthenticated: false,
+    isVendor: false,
+  });
 
   const navigation = [
     { name: "Categories", href: "/categories", hasDropdown: true },
