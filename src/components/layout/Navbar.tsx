@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import AuthModal from "@/components/auth/AuthModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Logo Component
 const Logo = () => (
@@ -613,37 +614,13 @@ const AuthButtons = ({
 
 // Main Navbar Component
 export default function Navbar() {
+  const { user, isAuthenticated, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
     "login"
   );
-
-  // User state - loads from localStorage for demo, replace with auth context in production
-  const [user, setUser] = useState<{
-    isAuthenticated: boolean;
-    isVendor: boolean;
-    email?: string;
-    name?: string;
-  }>({
-    isAuthenticated: false,
-    isVendor: false,
-  });
-
-  // Load user state from localStorage on component mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem("demoUser");
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-      } catch (error) {
-        console.error("Error parsing saved user data:", error);
-        localStorage.removeItem("demoUser");
-      }
-    }
-  }, []);
 
   const navigation = [
     { name: "Categories", href: "/categories", hasDropdown: true },
@@ -681,33 +658,11 @@ export default function Navbar() {
     window.location.href = "/vendor/register";
   };
 
-  const handleLogout = () => {
-    setUser({ isAuthenticated: false, isVendor: false });
-    localStorage.removeItem("demoUser");
+  const handleLogout = async () => {
+    await logout();
   };
 
-  // Test functions for demonstration - remove in production
-  const simulateLogin = () => {
-    const userData = {
-      isAuthenticated: true,
-      isVendor: false,
-      email: "user@example.com",
-      name: "Demo User",
-    };
-    setUser(userData);
-    localStorage.setItem("demoUser", JSON.stringify(userData));
-  };
-
-  const simulateVendorLogin = () => {
-    const userData = {
-      isAuthenticated: true,
-      isVendor: true,
-      email: "vendor@example.com",
-      name: "Demo Vendor",
-    };
-    setUser(userData);
-    localStorage.setItem("demoUser", JSON.stringify(userData));
-  };
+  // Test functions removed - now using real Appwrite authentication
 
   const handleWishlistClick = () => {
     // Navigate to wishlist page
@@ -767,14 +722,19 @@ export default function Navbar() {
               <AuthButtons
                 onSignIn={handleSignIn}
                 onBecomeVendor={handleBecomeVendor}
-                user={user}
+                user={{
+                  isAuthenticated,
+                  isVendor: user?.role === "vendor",
+                  email: user?.email,
+                  name: user?.name,
+                }}
                 onLogout={handleLogout}
               />
             </div>
 
             {/* Mobile Auth Buttons - Compact */}
             <div className="lg:hidden flex items-center space-x-3">
-              {!user.isAuthenticated ? (
+              {!isAuthenticated ? (
                 <>
                   <button
                     onClick={handleSignIn}
@@ -782,7 +742,7 @@ export default function Navbar() {
                   >
                     Sign In
                   </button>
-                  {!user.isVendor && (
+                  {user?.role !== 'vendor' && (
                     <button
                       onClick={handleBecomeVendor}
                       className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-3 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
@@ -847,7 +807,12 @@ export default function Navbar() {
           onSearch={handleSearch}
           onSignIn={handleSignIn}
           onBecomeVendor={handleBecomeVendor}
-          user={user}
+          user={{
+            isAuthenticated,
+            isVendor: user?.role === 'vendor',
+            email: user?.email,
+            name: user?.name,
+          }}
           onLogout={handleLogout}
         />
       </div>
@@ -883,6 +848,7 @@ const MobileMenu = ({
     isAuthenticated: boolean;
     isVendor: boolean;
     email?: string;
+    name?: string;
   };
   onLogout?: () => void;
 }) =>
