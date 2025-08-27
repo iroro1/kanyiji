@@ -5,6 +5,9 @@ import { Eye, EyeOff, Mail, Lock, User, Phone, Building } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/authService";
+import { toast } from "react-hot-toast";
 
 const signupSchema = z
   .object({
@@ -31,6 +34,7 @@ export default function SignupForm({
   onSuccess,
   onSwitchToLogin,
 }: SignupFormProps) {
+  const { register: registerUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,20 +51,19 @@ export default function SignupForm({
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual Supabase authentication
-      // For demo purposes, simulate successful registration
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const userData = {
+        email: data.email,
+        password: data.password,
+        fullName: `${data.firstName} ${data.lastName}`,
+        role: "customer" as const, // Default role for new users
+      };
 
-      // Show success message
-      alert(
-        "Account created successfully! Please check your email to verify your account."
-      );
-
-      // Close modal or redirect
-      onSuccess?.();
+      const success = await registerUser(userData);
+      if (success) {
+        onSuccess?.();
+      }
     } catch (error) {
       console.error("Signup error:", error);
-      // setError('Failed to create account. Please try again.'); // This line was not in the original file, so I'm not adding it.
     } finally {
       setIsLoading(false);
     }
@@ -68,14 +71,20 @@ export default function SignupForm({
 
   const handleGoogleSignup = async () => {
     try {
-      // TODO: Implement actual Google OAuth with Supabase
-      // For demo purposes, show an alert
-      alert(
-        "Google authentication will be implemented with Supabase integration. For now, please use the regular signup form."
-      );
+      setIsLoading(true);
+      const response = await authService.loginWithGoogle();
+
+      if (response.success) {
+        // User will be redirected to Google OAuth
+        // The callback page will handle the result
+      } else {
+        toast.error(response.error || "Google authentication failed");
+      }
     } catch (error) {
       console.error("Google signup error:", error);
-      // setError('Google authentication failed. Please try again.'); // This line was not in the original file, so I'm not adding it.
+      toast.error("Google authentication failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 

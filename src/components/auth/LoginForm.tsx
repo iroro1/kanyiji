@@ -5,6 +5,9 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/authService";
+import { toast } from "react-hot-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -24,6 +27,7 @@ export default function LoginForm({
   onSwitchToSignup,
   onForgotPassword,
 }: LoginFormProps) {
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,43 +42,10 @@ export default function LoginForm({
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // Demo authentication - replace with real Supabase auth in production
-      if (data.email === "user@demo.com" && data.password === "password123") {
-        // Regular user login
-        localStorage.setItem(
-          "demoUser",
-          JSON.stringify({
-            isAuthenticated: true,
-            isVendor: false,
-            email: data.email,
-            name: "Demo User",
-          })
-        );
-        window.location.reload(); // Refresh to update navbar state
-      } else if (
-        data.email === "vendor@demo.com" &&
-        data.password === "password123"
-      ) {
-        // Vendor login
-        localStorage.setItem(
-          "demoUser",
-          JSON.stringify({
-            isAuthenticated: true,
-            isVendor: true,
-            email: data.email,
-            name: "Demo Vendor",
-          })
-        );
-        window.location.reload(); // Refresh to update navbar state
-      } else {
-        // Invalid credentials
-        alert(
-          "Invalid credentials. Use:\nuser@demo.com / password123\nvendor@demo.com / password123"
-        );
-        return;
+      const success = await login(data.email, data.password);
+      if (success) {
+        onSuccess?.();
       }
-
-      onSuccess?.();
     } catch (error) {
       console.error("Login error:", error);
     } finally {
@@ -84,14 +55,20 @@ export default function LoginForm({
 
   const handleGoogleLogin = async () => {
     try {
-      // TODO: Implement actual Google OAuth with Supabase
-      // For demo purposes, show an alert
-      alert(
-        "Google authentication will be implemented with Supabase integration. For now, please use the demo credentials: user@demo.com / password123"
-      );
+      setIsLoading(true);
+      const response = await authService.loginWithGoogle();
+
+      if (response.success) {
+        // User will be redirected to Google OAuth
+        // The callback page will handle the result
+      } else {
+        toast.error(response.error || "Google authentication failed");
+      }
     } catch (error) {
       console.error("Google login error:", error);
-      // setError('Google authentication failed. Please try again.'); // This line was not in the original file, so I'm not adding it.
+      toast.error("Google authentication failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
