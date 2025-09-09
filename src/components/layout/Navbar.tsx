@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Menu,
   X,
@@ -606,6 +606,27 @@ export default function Navbar() {
     "login"
   );
 
+  // Track if login is in progress to prevent modal from closing
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+
+  // Prevent modal from closing if login is in progress
+  const shouldCloseModal = () => {
+    if (isLoginInProgress) {
+      console.log("Preventing modal close - login in progress");
+      return false;
+    }
+    return true;
+  };
+
+  console.log(
+    "Navbar render - showAuthModal:",
+    showAuthModal,
+    "isAuthenticated:",
+    isAuthenticated,
+    "isLoginInProgress:",
+    isLoginInProgress
+  );
+
   const navigation = [
     { name: "Categories", href: "/categories", hasDropdown: true },
     { name: "Products", href: "/products", hasDropdown: true },
@@ -806,8 +827,37 @@ export default function Navbar() {
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={() => {
+          console.log(
+            "AuthModal onClose called - closing modal, isLoginInProgress:",
+            isLoginInProgress
+          );
+          if (shouldCloseModal()) {
+            console.log("Closing modal - login not in progress");
+            setShowAuthModal(false);
+          } else {
+            console.log("Blocking close - login in progress");
+          }
+        }}
         initialMode={authModalMode}
+        onLoginStart={() => {
+          console.log("Login starting - setting isLoginInProgress to true");
+          setIsLoginInProgress(true);
+          // Ensure the state is set before any potential close attempts
+          setTimeout(() => {
+            console.log("isLoginInProgress confirmed as true");
+          }, 0);
+        }}
+        onLoginEnd={(success) => {
+          console.log("Login ended, success:", success);
+          setIsLoginInProgress(false);
+          if (success) {
+            console.log("Login successful - closing modal");
+            setShowAuthModal(false);
+          } else {
+            console.log("Login failed - keeping modal open");
+          }
+        }}
       />
     </nav>
   );

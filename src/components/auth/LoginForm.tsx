@@ -44,15 +44,20 @@ export default function LoginForm({
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log("LoginForm onSubmit called with:", data.email);
     setIsLoading(true);
     onLoginStart?.(); // Notify that login is starting
 
     try {
       const success = await login(data.email, data.password);
+      console.log("Login result:", success);
       onLoginEnd?.(success); // Notify of login result
 
       if (success) {
+        console.log("Calling onSuccess");
         onSuccess?.();
+      } else {
+        console.log("Login failed - not calling onSuccess");
       }
       // If login fails, we don't call onSuccess, so modal stays open
     } catch (error) {
