@@ -48,6 +48,34 @@ export default function ProfilePage() {
     country: "Nigeria",
   });
 
+  // Helper function to check if user is logged in with Google OAuth
+  const [isGoogleUser, setIsGoogleUser] = useState(false);
+
+  // Check if user is Google OAuth user by getting raw Supabase user
+  useEffect(() => {
+    const checkGoogleUser = async () => {
+      try {
+        const {
+          data: { user: supabaseUser },
+        } = await supabase.auth.getUser();
+        const isGoogle =
+          supabaseUser?.app_metadata?.provider === "google" ||
+          supabaseUser?.user_metadata?.provider === "google" ||
+          supabaseUser?.identities?.some(
+            (identity: any) => identity.provider === "google"
+          );
+        setIsGoogleUser(isGoogle);
+      } catch (error) {
+        console.error("Error checking Google user:", error);
+        setIsGoogleUser(false);
+      }
+    };
+
+    if (user) {
+      checkGoogleUser();
+    }
+  }, [user]);
+
   const [formData, setFormData] = useState(userData);
 
   // Fetch user profile data from database
@@ -575,10 +603,26 @@ export default function ProfilePage() {
                             </p>
                           </div>
                           <button
-                            onClick={() => setShowPasswordModal(true)}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                            onClick={() => {
+                              if (!isGoogleUser) {
+                                setShowPasswordModal(true);
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                              isGoogleUser
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : "bg-primary-600 text-white hover:bg-primary-700"
+                            }`}
+                            disabled={isGoogleUser}
+                            title={
+                              isGoogleUser
+                                ? "Password change not available for Google accounts"
+                                : "Change your password"
+                            }
                           >
-                            Change Password
+                            {isGoogleUser
+                              ? "Change Password (Google)"
+                              : "Change Password"}
                           </button>
                         </div>
                       </div>
@@ -643,7 +687,8 @@ export default function ProfilePage() {
                             Delete Account
                           </h4>
                           <p className="text-red-600 text-sm">
-                            Permanently delete your account and all data. This action cannot be undone.
+                            Permanently delete your account and all data. This
+                            action cannot be undone.
                           </p>
                         </div>
                         <button
@@ -666,18 +711,19 @@ export default function ProfilePage() {
       <PasswordChangeModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
+        user={user}
       />
-      
+
       <NotificationsSettings
         isOpen={showNotificationsModal}
         onClose={() => setShowNotificationsModal(false)}
       />
-      
+
       <PrivacySettings
         isOpen={showPrivacyModal}
         onClose={() => setShowPrivacyModal(false)}
       />
-      
+
       <DeleteAccountModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
