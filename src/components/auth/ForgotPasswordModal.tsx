@@ -4,7 +4,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Mail, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  X,
+  Mail,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 
@@ -12,7 +21,24 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
+const otpVerificationSchema = z
+  .object({
+    otp: z
+      .string()
+      .min(6, "OTP must be 6 digits")
+      .max(6, "OTP must be 6 digits"),
+    newPassword: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type OTPVerificationFormData = z.infer<typeof otpVerificationSchema>;
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -26,29 +52,40 @@ export default function ForgotPasswordModal({
   onBackToLogin,
 }: ForgotPasswordModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [step, setStep] = useState<"email" | "otp" | "success">("email");
   const [userEmail, setUserEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
+    register: registerEmail,
+    handleSubmit: handleEmailSubmit,
+    formState: { errors: emailErrors },
+    reset: resetEmail,
   } = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
   });
 
-  const onSubmit = async (data: ForgotPasswordFormData) => {
+  const {
+    register: registerOTP,
+    handleSubmit: handleOTPSubmit,
+    formState: { errors: otpErrors },
+    reset: resetOTP,
+  } = useForm<OTPVerificationFormData>({
+    resolver: zodResolver(otpVerificationSchema),
+  });
+
+  const onEmailSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
       const response = await supabaseAuthService.resetPassword(data.email);
 
       if (response.success) {
         setUserEmail(data.email);
-        setIsEmailSent(true);
-        toast.success("Password reset email sent successfully!");
+        setStep("otp");
+        toast.success("Password reset OTP sent successfully!");
       } else {
-        toast.error(response.error || "Failed to send password reset email");
+        toast.error(response.error || "Failed to send password reset OTP");
       }
     } catch (error) {
       console.error("Password reset error:", error);
@@ -58,18 +95,48 @@ export default function ForgotPasswordModal({
     }
   };
 
+  const onOTPSubmit = async (data: OTPVerificationFormData) => {
+    setIsLoading(true);
+    try {
+      const response = await supabaseAuthService.verifyPasswordResetOTP(
+        userEmail,
+        data.otp,
+        data.newPassword
+      );
+
+      if (response.success) {
+        setStep("success");
+        toast.success("Password updated successfully!");
+      } else {
+        toast.error(response.error || "Failed to update password");
+      }
+    } catch (error) {
+      console.error("Password update error:", error);
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleClose = () => {
-    reset();
-    setIsEmailSent(false);
+    resetEmail();
+    resetOTP();
+    setStep("email");
     setUserEmail("");
     onClose();
   };
 
   const handleBackToLogin = () => {
-    reset();
-    setIsEmailSent(false);
+    resetEmail();
+    resetOTP();
+    setStep("email");
     setUserEmail("");
     onBackToLogin();
+  };
+
+  const handleBackToEmail = () => {
+    resetOTP();
+    setStep("email");
   };
 
   if (!isOpen) return null;
@@ -95,7 +162,7 @@ export default function ForgotPasswordModal({
 
           {/* Content */}
           <div className="p-6">
-            {!isEmailSent ? (
+            {step === "email" && (
               <>
                 {/* Header */}
                 <div className="text-center mb-6">
@@ -107,12 +174,15 @@ export default function ForgotPasswordModal({
                   </h2>
                   <p className="text-gray-600">
                     No worries! Enter your email address and we'll send you a
-                    link to reset your password.
+                    verification code to reset your password.
                   </p>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <form
+                  onSubmit={handleEmailSubmit(onEmailSubmit)}
+                  className="space-y-6"
+                >
                   <div>
                     <label
                       htmlFor="email"
@@ -123,16 +193,16 @@ export default function ForgotPasswordModal({
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
-                        {...register("email")}
+                        {...registerEmail("email")}
                         type="email"
                         id="email"
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                         placeholder="Enter your email address"
                       />
                     </div>
-                    {errors.email && (
+                    {emailErrors.email && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.email.message}
+                        {emailErrors.email.message}
                       </p>
                     )}
                   </div>
@@ -146,10 +216,10 @@ export default function ForgotPasswordModal({
                     {isLoading ? (
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Sending Reset Link...
+                        Sending OTP...
                       </div>
                     ) : (
-                      "Send Reset Link"
+                      "Send Verification Code"
                     )}
                   </button>
                 </form>
@@ -165,7 +235,156 @@ export default function ForgotPasswordModal({
                   </button>
                 </div>
               </>
-            ) : (
+            )}
+
+            {step === "otp" && (
+              <>
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Lock className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Enter Verification Code
+                  </h2>
+                  <p className="text-gray-600">
+                    We've sent a 6-digit code to{" "}
+                    <span className="font-medium text-gray-900">
+                      {userEmail}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Form */}
+                <form
+                  onSubmit={handleOTPSubmit(onOTPSubmit)}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label
+                      htmlFor="otp"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Verification Code
+                    </label>
+                    <input
+                      {...registerOTP("otp")}
+                      type="text"
+                      id="otp"
+                      maxLength={6}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-center text-2xl tracking-widest"
+                      placeholder="000000"
+                    />
+                    {otpErrors.otp && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {otpErrors.otp.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="newPassword"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        {...registerOTP("newPassword")}
+                        type={showPassword ? "text" : "password"}
+                        id="newPassword"
+                        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                        placeholder="Enter new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                    {otpErrors.newPassword && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {otpErrors.newPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="confirmPassword"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        {...registerOTP("confirmPassword")}
+                        type={showConfirmPassword ? "text" : "password"}
+                        id="confirmPassword"
+                        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                    {otpErrors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {otpErrors.confirmPassword.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-primary-500 to-secondary-600 hover:from-primary-600 hover:to-secondary-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Updating Password...
+                      </div>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </button>
+                </form>
+
+                {/* Back to Email */}
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={handleBackToEmail}
+                    className="flex items-center justify-center text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-1" />
+                    Back to Email
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === "success" && (
               <>
                 {/* Success State */}
                 <div className="text-center">
@@ -173,30 +392,12 @@ export default function ForgotPasswordModal({
                     <CheckCircle className="w-8 h-8 text-green-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Check Your Email
+                    Password Updated!
                   </h2>
                   <p className="text-gray-600 mb-6">
-                    We've sent a password reset link to{" "}
-                    <span className="font-medium text-gray-900">
-                      {userEmail}
-                    </span>
+                    Your password has been successfully updated. You can now
+                    sign in with your new password.
                   </p>
-
-                  {/* Instructions */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-                    <div className="flex items-start">
-                      <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">Next Steps:</p>
-                        <ul className="space-y-1 text-xs">
-                          <li>• Check your email inbox (and spam folder)</li>
-                          <li>• Click the reset link in the email</li>
-                          <li>• Create a new password</li>
-                          <li>• Sign in with your new password</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Actions */}
                   <div className="space-y-3">
@@ -205,17 +406,6 @@ export default function ForgotPasswordModal({
                       className="w-full bg-gradient-to-r from-primary-500 to-secondary-600 hover:from-primary-600 hover:to-secondary-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
                     >
                       Back to Sign In
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setIsEmailSent(false);
-                        setUserEmail("");
-                        reset();
-                      }}
-                      className="w-full text-gray-600 hover:text-primary-600 transition-colors text-sm"
-                    >
-                      Try Different Email
                     </button>
                   </div>
                 </div>
