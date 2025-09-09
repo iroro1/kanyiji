@@ -238,9 +238,27 @@ const AuthButtons = ({
             </div>
             <button
               onClick={onLogout}
-              className="w-full text-gray-600 hover:text-primary-600 font-medium text-sm px-4 py-2 rounded-lg hover:bg-gray-50 border border-gray-200 hover:border-primary-200 transition-all duration-200"
+              className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
             >
-              Sign Out
+              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
+                <svg
+                  className="w-4 h-4 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-red-600">Sign Out</p>
+                <p className="text-xs text-red-500">Logout from account</p>
+              </div>
             </button>
           </div>
         )}
@@ -595,7 +613,7 @@ const AuthButtons = ({
                         />
                       </svg>
                     </div>
-                    <div>
+                    <div className="text-left">
                       <p className="font-medium text-red-600">Sign Out</p>
                       <p className="text-xs text-red-500">
                         Logout from account
@@ -699,20 +717,22 @@ export default function Navbar() {
             <NavigationLinks navigation={navigation} />
           </div>
 
-          {/* Center Search Bar */}
-          <div className="hidden md:block flex-1 max-w-md mx-8">
+          {/* Search Bar - Visible on all screens */}
+          <div className="flex-1 max-w-md mx-4 md:mx-8">
             <SearchBar onSearch={handleSearch} />
           </div>
 
           {/* Right side - Search, Cart, User actions */}
           <div className="flex items-center space-x-4 lg:space-x-6">
-            {/* Action Icons */}
-            <ActionIcons
-              showMobileSearch={true}
-              onMobileSearchClick={() => {}}
-              onWishlistClick={handleWishlistClick}
-              onCartClick={handleCartClick}
-            />
+            {/* Action Icons - Hidden on mobile */}
+            <div className="hidden md:flex">
+              <ActionIcons
+                showMobileSearch={false}
+                onMobileSearchClick={() => {}}
+                onWishlistClick={handleWishlistClick}
+                onCartClick={handleCartClick}
+              />
+            </div>
 
             {/* Divider */}
             <div className="hidden lg:block w-px h-8 bg-gray-200 mx-4"></div>
@@ -732,8 +752,8 @@ export default function Navbar() {
               />
             </div>
 
-            {/* Mobile Auth Buttons - Compact */}
-            <div className="lg:hidden flex items-center space-x-3">
+            {/* Mobile Auth Buttons - Hidden on mobile */}
+            <div className="hidden">
               {!isAuthenticated ? (
                 <>
                   <button
@@ -742,7 +762,7 @@ export default function Navbar() {
                   >
                     Sign In
                   </button>
-                  {user?.role !== 'vendor' && (
+                  {user?.role !== "vendor" && (
                     <button
                       onClick={handleBecomeVendor}
                       className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-3 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
@@ -809,7 +829,7 @@ export default function Navbar() {
           onBecomeVendor={handleBecomeVendor}
           user={{
             isAuthenticated,
-            isVendor: user?.role === 'vendor',
+            isVendor: user?.role === "vendor",
             email: user?.email,
             name: user?.name,
           }}
@@ -827,7 +847,7 @@ export default function Navbar() {
   );
 }
 
-// Mobile Menu Component - moved here to access handleLogout
+// Mobile Menu Component - Complete user menu
 const MobileMenu = ({
   isOpen,
   navigation,
@@ -853,22 +873,288 @@ const MobileMenu = ({
   onLogout?: () => void;
 }) =>
   isOpen && (
-    <div className="md:hidden bg-white border-t border-gray-100 shadow-lg animate-in slide-in-from-top-2 duration-300">
+    <div className="md:hidden bg-white border-t border-gray-100 shadow-lg animate-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
       <div className="px-4 py-6 space-y-4">
-        <SearchBar isMobile={true} onSearch={onSearch} />
         <NavigationLinks
           navigation={navigation}
           isMobile={true}
           onLinkClick={onLinkClick}
         />
-        <div className="pt-4 border-t border-gray-100">
-          <AuthButtons
-            isMobile={true}
-            onSignIn={onSignIn}
-            onBecomeVendor={onBecomeVendor}
-            user={user}
-            onLogout={onLogout}
-          />
+
+        {/* User Profile Section */}
+        {user.isAuthenticated ? (
+          <div className="pt-4 border-t border-gray-100">
+            {/* User Info Header */}
+            <div className="bg-gradient-to-r from-yellow-100 to-yellow-50 rounded-2xl p-4 mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
+                    {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">
+                    {user.name || "User"}
+                  </h3>
+                  <p className="text-gray-600 text-sm">{user.email}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Account Menu */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+                Personal Account
+              </h4>
+
+              <Link
+                href="/profile"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Profile</p>
+                  <p className="text-xs text-gray-500">Manage your account</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/orders"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">My Orders</p>
+                  <p className="text-xs text-gray-500">Track your purchases</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/cart"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Shopping Cart</p>
+                  <p className="text-xs text-gray-500">View your cart</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/wishlist"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Wishlist</p>
+                  <p className="text-xs text-gray-500">Saved items</p>
+                </div>
+              </Link>
+            </div>
+
+            {/* Business & App Settings */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+                Business & App Settings
+              </h4>
+
+              {!user.isVendor && (
+                <Link
+                  href="/vendor/register"
+                  className="flex items-center px-3 py-3 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors group"
+                  onClick={onLinkClick}
+                >
+                  <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-orange-200 transition-colors">
+                    <svg
+                      className="w-4 h-4 text-orange-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-orange-600">
+                      Become a Vendor
+                    </p>
+                    <p className="text-xs text-orange-500">
+                      Start selling your products
+                    </p>
+                  </div>
+                </Link>
+              )}
+
+              <Link
+                href="/settings"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Settings</p>
+                  <p className="text-xs text-gray-500">Account preferences</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/help"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Help & Support</p>
+                  <p className="text-xs text-gray-500">Get assistance</p>
+                </div>
+              </Link>
+            </div>
+
+            {/* Sign Out */}
+            <div className="pt-2 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  onLogout?.();
+                  onLinkClick();
+                }}
+                className="flex items-center w-full px-3 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors group"
+              >
+                <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-red-600">Sign Out</p>
+                  <p className="text-xs text-red-500">Logout from account</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="pt-4 border-t border-gray-100">
+            <AuthButtons
+              isMobile={true}
+              onSignIn={onSignIn}
+              onBecomeVendor={onBecomeVendor}
+              user={user}
+              onLogout={onLogout}
+            />
+          </div>
+        )}
+
+        {/* Scroll indicator */}
+        <div className="flex justify-center py-2 pb-4">
+          <div className="w-8 h-1 bg-gray-200 rounded-full opacity-50"></div>
         </div>
       </div>
     </div>

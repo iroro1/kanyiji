@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
-import { authService } from "@/services/authService";
+import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 
 const signupSchema = z
@@ -55,12 +55,17 @@ export default function SignupForm({
         email: data.email,
         password: data.password,
         fullName: `${data.firstName} ${data.lastName}`,
+        phone: data.phone,
         role: "customer" as const, // Default role for new users
       };
 
-      const success = await registerUser(userData);
-      if (success) {
-        onSuccess?.();
+      const result = await registerUser(userData);
+      if (result.success) {
+        // If verification is required, the AuthContext will handle the redirect
+        // If no verification is required, close the modal
+        if (!result.requiresVerification) {
+          onSuccess?.();
+        }
       }
     } catch (error) {
       console.error("Signup error:", error);
@@ -72,7 +77,7 @@ export default function SignupForm({
   const handleGoogleSignup = async () => {
     try {
       setIsLoading(true);
-      const response = await authService.loginWithGoogle();
+      const response = await supabaseAuthService.loginWithGoogle();
 
       if (response.success) {
         // User will be redirected to Google OAuth
@@ -113,7 +118,7 @@ export default function SignupForm({
                 {...register("firstName")}
                 type="text"
                 id="firstName"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 placeholder="First name"
               />
             </div>
@@ -134,7 +139,7 @@ export default function SignupForm({
               {...register("lastName")}
               type="text"
               id="lastName"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Last name"
             />
             {errors.lastName && (
@@ -159,7 +164,7 @@ export default function SignupForm({
               {...register("email")}
               type="email"
               id="email"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Enter your email"
             />
           </div>
@@ -181,7 +186,7 @@ export default function SignupForm({
               {...register("phone")}
               type="tel"
               id="phone"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Enter your phone number"
             />
           </div>
@@ -204,7 +209,7 @@ export default function SignupForm({
               {...register("password")}
               type={showPassword ? "text" : "password"}
               id="password"
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Create a password"
             />
             <button
@@ -239,7 +244,7 @@ export default function SignupForm({
               {...register("confirmPassword")}
               type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Confirm your password"
             />
             <button

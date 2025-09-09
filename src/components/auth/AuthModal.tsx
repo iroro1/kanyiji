@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
+import ForgotPasswordModal from "./ForgotPasswordModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,14 +18,37 @@ export default function AuthModal({
   initialMode = "login",
 }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+
+  const handleClose = () => {
+    if (!isLoginInProgress) {
+      onClose();
+    }
+    // If login is in progress, block the close
+  };
+
+  const handleLoginStart = () => {
+    setIsLoginInProgress(true);
+  };
+
+  const handleLoginEnd = (success: boolean) => {
+    setIsLoginInProgress(false);
+    if (success) {
+      onClose();
+    }
+    // If login failed, modal stays open
+  };
 
   if (!isOpen) return null;
 
   const handleForgotPassword = () => {
-    // For demo purposes, show an alert
-    alert(
-      "Password reset functionality will be implemented with Supabase integration. For now, please use the demo credentials: user@demo.com / password123"
-    );
+    setShowForgotPassword(true);
+  };
+
+  const handleBackToLogin = () => {
+    setShowForgotPassword(false);
+    setMode("login");
   };
 
   return (
@@ -32,15 +56,18 @@ export default function AuthModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl">
+        <div
+          className="relative w-full max-w-md bg-white rounded-2xl shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Close Button */}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
@@ -53,16 +80,25 @@ export default function AuthModal({
                 onSuccess={onClose}
                 onSwitchToSignup={() => setMode("signup")}
                 onForgotPassword={handleForgotPassword}
+                onLoginStart={handleLoginStart}
+                onLoginEnd={handleLoginEnd}
               />
             ) : (
               <SignupForm
-                onSuccess={onClose}
+                onSuccess={handleClose}
                 onSwitchToLogin={() => setMode("login")}
               />
             )}
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onBackToLogin={handleBackToLogin}
+      />
     </div>
   );
 }
