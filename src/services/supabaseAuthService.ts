@@ -315,15 +315,19 @@ class SupabaseAuthService {
   // User logout
   async logout(): Promise<AuthResponse> {
     try {
+      console.log("SupabaseAuthService logout called");
       const { error } = await supabase.auth.signOut();
+      console.log("Supabase signOut result:", { error });
 
       if (error) {
+        console.log("Logout error:", error.message);
         return {
           success: false,
           error: error.message || "Logout failed",
         };
       }
 
+      console.log("Logout successful");
       return { success: true };
     } catch (error: any) {
       console.error("Logout error:", error);

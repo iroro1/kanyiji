@@ -611,11 +611,7 @@ export default function Navbar() {
 
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
-    if (isLoginInProgress) {
-      console.log("Preventing modal close - login in progress");
-      return false;
-    }
-    return true;
+    return !isLoginInProgress;
   };
 
   console.log(
@@ -664,7 +660,13 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
-    await logout();
+    console.log("Navbar handleLogout called");
+    try {
+      await logout();
+      console.log("Logout completed successfully");
+    } catch (error) {
+      console.error("Logout error in Navbar:", error);
+    }
   };
 
   // Test functions removed - now using real Appwrite authentication
@@ -828,34 +830,29 @@ export default function Navbar() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => {
-          console.log(
-            "AuthModal onClose called - closing modal, isLoginInProgress:",
-            isLoginInProgress
-          );
           if (shouldCloseModal()) {
-            console.log("Closing modal - login not in progress");
             setShowAuthModal(false);
-          } else {
-            console.log("Blocking close - login in progress");
           }
         }}
         initialMode={authModalMode}
         onLoginStart={() => {
-          console.log("Login starting - setting isLoginInProgress to true");
+          console.log("Navbar onLoginStart called");
           setIsLoginInProgress(true);
-          // Ensure the state is set before any potential close attempts
-          setTimeout(() => {
-            console.log("isLoginInProgress confirmed as true");
-          }, 0);
         }}
         onLoginEnd={(success) => {
-          console.log("Login ended, success:", success);
+          console.log("Navbar onLoginEnd called with success:", success);
           setIsLoginInProgress(false);
           if (success) {
             console.log("Login successful - closing modal");
             setShowAuthModal(false);
           } else {
-            console.log("Login failed - keeping modal open");
+            console.log("Login failed - reopening modal in 100ms");
+            // Reopen the modal after a short delay
+            setTimeout(() => {
+              console.log("Reopening modal now");
+              setShowAuthModal(true);
+              setAuthModalMode("login");
+            }, 100);
           }
         }}
       />
