@@ -10,12 +10,16 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: "login" | "signup";
+  onLoginStart?: () => void;
+  onLoginEnd?: (success: boolean) => void;
 }
 
 export default function AuthModal({
   isOpen,
   onClose,
   initialMode = "login",
+  onLoginStart,
+  onLoginEnd,
 }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -29,15 +33,15 @@ export default function AuthModal({
   };
 
   const handleLoginStart = () => {
+    console.log("Login starting - setting isLoginInProgress to true");
     setIsLoginInProgress(true);
+    onLoginStart?.();
   };
 
   const handleLoginEnd = (success: boolean) => {
+    console.log("Login ended, success:", success);
     setIsLoginInProgress(false);
-    if (success) {
-      onClose();
-    }
-    // If login failed, modal stays open
+    onLoginEnd?.(success);
   };
 
   if (!isOpen) return null;
