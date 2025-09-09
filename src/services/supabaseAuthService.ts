@@ -336,7 +336,7 @@ class SupabaseAuthService {
 
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
-      console.log("Starting password reset for:", email);
+      console.log("Starting password reset OTP for:", email);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -346,17 +346,63 @@ class SupabaseAuthService {
         console.error("Password reset error:", error);
         return {
           success: false,
-          error: error.message || "Failed to send password reset email",
+          error: error.message || "Failed to send password reset OTP",
         };
       }
 
-      console.log("Password reset email sent successfully");
+      console.log("Password reset OTP sent successfully");
       return { success: true };
     } catch (error: any) {
       console.error("Password reset error:", error);
       return {
         success: false,
-        error: error.message || "Failed to send password reset email",
+        error: error.message || "Failed to send password reset OTP",
+      };
+    }
+  }
+
+  async verifyPasswordResetOTP(
+    email: string,
+    token: string,
+    newPassword: string
+  ): Promise<AuthResponse> {
+    try {
+      console.log("Verifying password reset OTP for:", email);
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "recovery",
+      });
+
+      if (error) {
+        console.error("OTP verification error:", error);
+        return {
+          success: false,
+          error: error.message || "Invalid or expired OTP",
+        };
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        return {
+          success: false,
+          error: updateError.message || "Failed to update password",
+        };
+      }
+
+      console.log("Password updated successfully");
+      return { success: true };
+    } catch (error: any) {
+      console.error("Password reset verification error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to verify OTP",
       };
     }
   }

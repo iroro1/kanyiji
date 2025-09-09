@@ -77,7 +77,7 @@ export default function AuthModal({
           <div className="p-6">
             {mode === "login" ? (
               <LoginForm
-                onSuccess={onClose}
+                onSuccess={handleClose}
                 onSwitchToSignup={() => setMode("signup")}
                 onForgotPassword={handleForgotPassword}
                 onLoginStart={handleLoginStart}
