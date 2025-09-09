@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'vendor' | 'customer';
+  role: "admin" | "vendor" | "customer";
   created_at: string;
   updated_at: string;
 }
@@ -15,7 +15,7 @@ export interface Vendor {
   business_name: string;
   description: string;
   logo_url: string;
-  status: 'pending' | 'approved' | 'suspended';
+  status: "pending" | "approved" | "suspended";
   created_at: string;
   updated_at: string;
 }
@@ -31,7 +31,7 @@ export interface Product {
   category: string;
   images: string[];
   stock_quantity: number;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   created_at: string;
   updated_at: string;
 }
@@ -53,7 +53,7 @@ export interface Order {
   product_id: string;
   quantity: number;
   total_amount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   shipping_address: string;
   created_at: string;
   updated_at: string;
@@ -74,7 +74,7 @@ export interface Payment {
   order_id: string;
   amount: number;
   currency: string;
-  status: 'pending' | 'completed' | 'failed';
+  status: "pending" | "completed" | "failed";
   payment_method: string;
   created_at: string;
 }
@@ -85,7 +85,7 @@ export interface Shipping {
   order_id: string;
   tracking_number: string;
   carrier: string;
-  status: 'pending' | 'shipped' | 'delivered';
+  status: "pending" | "shipped" | "delivered";
   estimated_delivery: string;
   created_at: string;
 }
@@ -106,7 +106,7 @@ export interface Notification {
   user_id: string;
   title: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   read: boolean;
   created_at: string;
 }
@@ -141,8 +141,8 @@ export interface UIState {
   sidebarOpen: boolean;
   searchQuery: string;
   selectedCategory: string | null;
-  sortBy: 'price' | 'rating' | 'newest' | 'popular';
-  viewMode: 'grid' | 'list';
+  sortBy: "price" | "rating" | "newest" | "popular";
+  viewMode: "grid" | "list";
 }
 
 // Form Types
@@ -156,7 +156,7 @@ export interface RegisterForm {
   password: string;
   confirmPassword: string;
   fullName: string;
-  role: 'customer' | 'vendor';
+  role: "customer" | "vendor";
 }
 
 export interface ProductForm {

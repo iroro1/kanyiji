@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
-import { authService } from "@/services/authService";
+import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 
 const loginSchema = z.object({
@@ -20,12 +20,16 @@ interface LoginFormProps {
   onSuccess?: () => void;
   onSwitchToSignup?: () => void;
   onForgotPassword?: () => void;
+  onLoginStart?: () => void;
+  onLoginEnd?: (success: boolean) => void;
 }
 
 export default function LoginForm({
   onSuccess,
   onSwitchToSignup,
   onForgotPassword,
+  onLoginStart,
+  onLoginEnd,
 }: LoginFormProps) {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -41,13 +45,20 @@ export default function LoginForm({
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    onLoginStart?.(); // Notify that login is starting
+
     try {
       const success = await login(data.email, data.password);
+      onLoginEnd?.(success); // Notify of login result
+
       if (success) {
         onSuccess?.();
       }
+      // If login fails, we don't call onSuccess, so modal stays open
     } catch (error) {
       console.error("Login error:", error);
+      onLoginEnd?.(false); // Notify that login failed
+      // If there's an error, we don't call onSuccess, so modal stays open
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +67,7 @@ export default function LoginForm({
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      const response = await authService.loginWithGoogle();
+      const response = await supabaseAuthService.loginWithGoogle();
 
       if (response.success) {
         // User will be redirected to Google OAuth
@@ -77,24 +88,17 @@ export default function LoginForm({
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
         <p className="text-gray-600">Sign in to your Kanyiji account</p>
-
-        {/* Demo Credentials */}
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-800 font-medium mb-2">
-            Demo Credentials:
-          </p>
-          <div className="text-xs text-blue-700 space-y-1">
-            <p>
-              <strong>User:</strong> user@demo.com / password123
-            </p>
-            <p>
-              <strong>Vendor:</strong> vendor@demo.com / password123
-            </p>
-          </div>
-        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSubmit(onSubmit)(e);
+        }}
+        className="space-y-6"
+        noValidate
+      >
         <div>
           <label
             htmlFor="email"
@@ -108,7 +112,7 @@ export default function LoginForm({
               {...register("email")}
               type="email"
               id="email"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Enter your email"
             />
           </div>
@@ -130,7 +134,7 @@ export default function LoginForm({
               {...register("password")}
               type={showPassword ? "text" : "password"}
               id="password"
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               placeholder="Enter your password"
             />
             <button

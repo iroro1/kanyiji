@@ -47,6 +47,19 @@ class AuthService {
   // User registration
   async register(userData: RegisterForm): Promise<AuthResponse> {
     try {
+      // Validate Appwrite configuration
+      if (
+        !appwriteConfig.projectId ||
+        !appwriteConfig.databaseId ||
+        !appwriteConfig.usersCollectionId
+      ) {
+        return {
+          success: false,
+          error:
+            "Appwrite configuration is missing. Please check your environment variables.",
+        };
+      }
+
       // Create user account in Appwrite
       const accountResponse = await account.create(
         ID.unique(),
@@ -100,6 +113,14 @@ class AuthService {
   // User login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      // Validate Appwrite configuration
+      if (!appwriteConfig.projectId) {
+        return {
+          success: false,
+          error:
+            "Appwrite configuration is missing. Please check your environment variables.",
+        };
+      }
       // Authenticate with Appwrite
       const session = await account.createSession(
         credentials.email,
