@@ -187,15 +187,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async (): Promise<void> => {
     try {
+      console.log("AuthContext logout called");
       setIsLoading(true);
       const response = await supabaseAuthService.logout();
+      console.log("Supabase logout response:", response);
 
       if (response.success) {
+        console.log("Logout successful - clearing user and redirecting");
         setUser(null);
         toast.success("Logged out successfully");
         // Redirect to home page after successful logout
         router.push("/");
       } else {
+        console.log("Logout failed:", response.error);
         toast.error(response.error || "Logout failed");
       }
     } catch (error) {
