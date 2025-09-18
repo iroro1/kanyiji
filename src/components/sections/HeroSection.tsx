@@ -1,6 +1,7 @@
 "use client";
 
 import { Users, ShoppingBag, Globe, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function HeroSection() {
   return (
@@ -66,10 +67,13 @@ export default function HeroSection() {
 
         {/* CTA Button */}
         <div className="flex justify-center">
-          <button className="group bg-primary-500 hover:bg-primary-600 text-white font-semibold text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex items-center">
+          <Link
+            href={"/products"}
+            className="group bg-primary-500 hover:bg-primary-600 text-white font-semibold text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex items-center"
+          >
             Start Shopping
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
-          </button>
+          </Link>
         </div>
       </div>
     </section>
