@@ -11,9 +11,36 @@ import {
   Linkedin,
   Youtube,
 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthModal from "../auth/AuthModal";
 
 export default function Footer() {
+  const { user } = useAuth();
+
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
+    "signup"
+  );
+
+  const router = useRouter();
+
+  // Function to open the modal by setting state to true
+  const openAuthModal = () => setShowAuthModal(true);
+
+  // function to retroute to vendors/register
+  const vendorRegistration = () => router.push("/vendor/register");
+
+  // Track if login is in progress to prevent modal from closing
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+
+  // Prevent modal from closing if login is in progress
+  const shouldCloseModal = () => {
+    return !isLoginInProgress;
+  };
+
   const currentYear = new Date().getFullYear();
 
   const footerSections = [
@@ -30,7 +57,7 @@ export default function Footer() {
     {
       title: "For Vendors",
       links: [
-        { name: "Become a Vendor", href: "/vendor/register" },
+        { name: "Become a Vendor", action: "openAuthModal" },
         { name: "Vendor Dashboard", href: "/vendor/dashboard" },
         { name: "Vendor Guidelines", href: "/vendor/guidelines" },
         { name: "Success Stories", href: "/vendor/success-stories" },
@@ -69,6 +96,36 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-900 text-white">
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          if (shouldCloseModal()) {
+            setShowAuthModal(false);
+          }
+        }}
+        initialMode={authModalMode}
+        onLoginStart={() => {
+          console.log("Navbar onLoginStart called");
+          setIsLoginInProgress(true);
+        }}
+        onLoginEnd={(success) => {
+          console.log("Navbar onLoginEnd called with success:", success);
+          setIsLoginInProgress(false);
+          if (success) {
+            console.log("Login successful - closing modal");
+            setShowAuthModal(false);
+          } else {
+            console.log("Login failed - reopening modal in 100ms");
+            // Reopen the modal after a short delay
+            setTimeout(() => {
+              console.log("Reopening modal now");
+              setShowAuthModal(true);
+              setAuthModalMode("login");
+            }, 100);
+          }
+        }}
+      />
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
@@ -112,12 +169,21 @@ export default function Footer() {
               <ul className="space-y-2">
                 {section.links.map((link) => (
                   <li key={link.name}>
-                    <Link
-                      href={link.href}
-                      className="text-gray-300 hover:text-primary-400 transition-colors duration-200 text-sm"
-                    >
-                      {link.name}
-                    </Link>
+                    {link.action === "openAuthModal" ? (
+                      <button
+                        onClick={!user ? openAuthModal : vendorRegistration}
+                        className="text-gray-300 hover:text-blue-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
+                      >
+                        {link.name}
+                      </button>
+                    ) : (
+                      <Link
+                        href={link.href ? link.href : ""}
+                        className="text-gray-300 hover:text-primary-400 transition-colors duration-200 text-sm"
+                      >
+                        {link.name}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,17 +37,19 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
       <body className="font-sans antialiased bg-gray-50">
         <AuthProvider>
-          <LayoutWrapper>{children}</LayoutWrapper>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: "#363636",
-                color: "#fff",
-              },
-            }}
-          />
+          <CartProvider>
+            <LayoutWrapper>{children}</LayoutWrapper>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "#363636",
+                  color: "#fff",
+                },
+              }}
+            />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

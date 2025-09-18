@@ -1,6 +1,7 @@
 "use client";
 
 import { Shield, Truck, Heart, Star, Users, Globe } from "lucide-react";
+import Link from "next/link";
 
 const features = [
   {
@@ -118,12 +119,18 @@ export default function WhyChooseUs() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
-            <button className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto">
+            <Link
+              href={"/products"}
+              className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto"
+            >
               Start Shopping Now
-            </button>
-            <button className="btn-outline text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto">
+            </Link>
+            <Link
+              href={"/about"}
+              className="btn-outline text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 w-full sm:w-auto"
+            >
               Learn More About Us
-            </button>
+            </Link>
           </div>
         </div>
       </div>

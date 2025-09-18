@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   ArrowLeft,
   Upload,
@@ -16,15 +18,17 @@ import {
 import Link from "next/link";
 
 export default function VendorRegistrationPage() {
+  const { user } = useAuth();
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     // Personal Information
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
+    // firstName: "",
+    // lastName: "",
+    // email: "",
+    // phone: "",
+    // password: "",
+    // confirmPassword: "",
 
     // Business Information
     businessName: "",
@@ -65,18 +69,18 @@ export default function VendorRegistrationPage() {
   const validateStep = (currentStep: number) => {
     const newErrors: Record<string, string> = {};
 
-    if (currentStep === 1) {
-      if (!formData.firstName) newErrors.firstName = "First name is required";
-      if (!formData.lastName) newErrors.lastName = "Last name is required";
-      if (!formData.email) newErrors.email = "Email is required";
-      if (!formData.phone) newErrors.phone = "Phone number is required";
-      if (!formData.password) newErrors.password = "Password is required";
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords do not match";
-      }
-    }
+    // if (currentStep === 1) {
+    //   if (!formData.firstName) newErrors.firstName = "First name is required";
+    //   if (!formData.lastName) newErrors.lastName = "Last name is required";
+    //   if (!formData.email) newErrors.email = "Email is required";
+    //   if (!formData.phone) newErrors.phone = "Phone number is required";
+    //   if (!formData.password) newErrors.password = "Password is required";
+    //   if (formData.password !== formData.confirmPassword) {
+    //     newErrors.confirmPassword = "Passwords do not match";
+    //   }
+    // }
 
-    if (currentStep === 2) {
+    if (currentStep === 1) {
       if (!formData.businessName)
         newErrors.businessName = "Business name is required";
       if (!formData.businessType)
@@ -85,14 +89,14 @@ export default function VendorRegistrationPage() {
         newErrors.businessDescription = "Business description is required";
     }
 
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       if (!formData.address) newErrors.address = "Address is required";
       if (!formData.city) newErrors.city = "City is required";
       if (!formData.state) newErrors.state = "State is required";
       if (!formData.zipCode) newErrors.zipCode = "ZIP code is required";
     }
 
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       if (!formData.businessLicense)
         newErrors.businessLicense = "Business license is required";
       if (!formData.taxCertificate)
@@ -101,7 +105,7 @@ export default function VendorRegistrationPage() {
         newErrors.bankStatement = "Bank statement is required";
     }
 
-    if (currentStep === 5) {
+    if (currentStep === 4) {
       if (!formData.agreeToTerms)
         newErrors.agreeToTerms = "You must agree to the terms";
       if (!formData.agreeToPrivacy)
@@ -122,11 +126,90 @@ export default function VendorRegistrationPage() {
     setStep(step - 1);
   };
 
+  function sanitizeFileName(name: string) {
+    return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  }
+
+  // FUNCTION TO HANDLE FILE UPLOADING TO SUPABASE
+  const uploadFile = async (file: any) => {
+    if (!file) return null;
+    const safeFileName = sanitizeFileName(file.name);
+
+    // Create a unique file path.
+    const filePath = `private/${user?.id}/${Date.now()}_${safeFileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("vendor-documents")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError.message);
+      return null;
+    }
+
+    // Get the public URL of the uploaded file.
+    const { data: urlData } = supabase.storage
+      .from("vendor-documents")
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (step < 4) {
+    if (step === 4) {
+      console.log("from submit function");
       setStep(step + 1);
+
+      console.log("This point is after the supabase storage");
+
+      const businessLicenseUrl = await uploadFile(formData.businessLicense);
+      const taxCertificateUrl = await uploadFile(formData.taxCertificate);
+      const bankStatementUrl = await uploadFile(formData.bankStatement);
+
+      console.log(
+        "licenseUrl",
+        businessLicenseUrl,
+        "taxUrl:",
+        taxCertificateUrl,
+        "bankUrl:",
+        bankStatementUrl
+      );
+
+      const { data, error } = await supabase
+        .from("vendors")
+        .insert({
+          user_id: user?.id, // Foreign key linking to the auth.users table
+          business_name: formData.businessName,
+          business_type: formData.businessType,
+          business_description: formData.businessDescription,
+          website_url: formData.website,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postal_code: formData.zipCode,
+          country: formData.country,
+          kyc_documents: [
+            {
+              business_license_url: businessLicenseUrl,
+              tax_certificate_url: taxCertificateUrl,
+              bank_statement_url: bankStatementUrl,
+            },
+          ],
+        })
+        .select(); // Use .select() to get the inserted data back
+
+      if (error) {
+        console.error("Error inserting data:", error);
+        alert("Failed to save vendor details: " + error.message);
+      } else {
+        console.log("Successfully inserted data:", data);
+        alert("Vendor registration successful!");
+        // Optionally, redirect the user or clear the form
+      }
+
+      console.log("confirmed that the function ran here");
+
       return;
     }
 
@@ -178,12 +261,20 @@ export default function VendorRegistrationPage() {
   };
 
   const steps = [
-    { number: 1, title: "Personal Info", icon: User },
-    { number: 2, title: "Business Info", icon: Building },
-    { number: 3, title: "Address", icon: MapPin },
-    { number: 4, title: "Documents", icon: FileText },
-    { number: 5, title: "Terms", icon: CheckCircle },
+    // { number: 1, title: "Personal Info", icon: User },
+    { number: 1, title: "Business Info", icon: Building },
+    { number: 2, title: "Address", icon: MapPin },
+    { number: 3, title: "Documents", icon: FileText },
+    { number: 4, title: "Terms", icon: CheckCircle },
   ];
+
+  function validateFileSize(file: File, maxSizeMB = 5): string | null {
+    const maxSize = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSize) {
+      return `File size must not exceed ${maxSizeMB}MB`;
+    }
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -243,7 +334,7 @@ export default function VendorRegistrationPage() {
 
         {/* Form Content */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          {step === 1 && (
+          {/* {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Personal Information
@@ -370,9 +461,9 @@ export default function VendorRegistrationPage() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
-          {step === 2 && (
+          {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Business Information
@@ -468,7 +559,7 @@ export default function VendorRegistrationPage() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Business Address
@@ -573,14 +664,15 @@ export default function VendorRegistrationPage() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Business Documents
               </h2>
               <p className="text-gray-600 mb-6">
                 Please upload the following documents to verify your business.
-                All documents should be in PDF, JPG, or PNG format.
+                All documents should be in PDF, JPG, or PNG format and maximum
+                of 5MB.
               </p>
 
               <div className="space-y-6">
@@ -598,12 +690,21 @@ export default function VendorRegistrationPage() {
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          const error = validateFileSize(file);
+                          if (error) {
+                            alert(error);
+                            e.target.value = "";
+                            return;
+                          }
+                        }
                         handleFileUpload(
                           "businessLicense",
                           e.target.files?.[0] || null
-                        )
-                      }
+                        );
+                      }}
                       className="hidden"
                       id="businessLicense"
                     />
@@ -635,12 +736,21 @@ export default function VendorRegistrationPage() {
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          const error = validateFileSize(file);
+                          if (error) {
+                            alert(error);
+                            e.target.value = "";
+                            return;
+                          }
+                        }
                         handleFileUpload(
                           "taxCertificate",
                           e.target.files?.[0] || null
-                        )
-                      }
+                        );
+                      }}
                       className="hidden"
                       id="taxCertificate"
                     />
@@ -672,12 +782,21 @@ export default function VendorRegistrationPage() {
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          const error = validateFileSize(file);
+                          if (error) {
+                            alert(error);
+                            e.target.value = "";
+                            return;
+                          }
+                        }
                         handleFileUpload(
                           "bankStatement",
                           e.target.files?.[0] || null
-                        )
-                      }
+                        );
+                      }}
                       className="hidden"
                       id="bankStatement"
                     />
@@ -698,7 +817,7 @@ export default function VendorRegistrationPage() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Terms & Conditions
@@ -766,7 +885,7 @@ export default function VendorRegistrationPage() {
             </div>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
@@ -794,7 +913,7 @@ export default function VendorRegistrationPage() {
           )}
 
           {/* Navigation Buttons */}
-          {step < 6 && (
+          {step < 5 ? (
             <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
               <button
                 onClick={handlePrevious}
@@ -805,12 +924,14 @@ export default function VendorRegistrationPage() {
               </button>
 
               <button
-                onClick={step === 5 ? handleSubmit : handleNext}
+                onClick={step === 4 ? handleSubmit : handleNext}
                 className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
               >
-                {step === 5 ? "Submit Application" : "Next"}
+                {step === 4 ? "Submit Application" : "Next"}
               </button>
             </div>
+          ) : (
+            ""
           )}
         </div>
       </div>

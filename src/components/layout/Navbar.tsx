@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 
 // Logo Component
 const Logo = () => (
@@ -150,11 +151,13 @@ const ActionIcons = ({
   onMobileSearchClick,
   onWishlistClick,
   onCartClick,
+  cartNumber,
 }: {
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;
   onCartClick?: () => void;
+  cartNumber: number;
 }) => (
   <div className="flex items-center space-x-3 lg:space-x-4">
     {showMobileSearch && (
@@ -182,7 +185,7 @@ const ActionIcons = ({
     >
       <ShoppingCart className="w-4 h-4 lg:w-5 lg:h-5" />
       <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        0
+        {cartNumber}
       </span>
     </button>
   </div>
@@ -278,7 +281,7 @@ const AuthButtons = ({
           </button>
           {!user.isVendor && (
             <button
-              onClick={onBecomeVendor}
+              onClick={onSignIn}
               className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-4 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg border border-primary-500 hover:border-primary-600 hover:scale-105"
             >
               Become a Vendor
@@ -606,6 +609,9 @@ export default function Navbar() {
     "login"
   );
 
+  // cart number
+  const { state } = useCart();
+
   // Track if login is in progress to prevent modal from closing
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
@@ -720,6 +726,7 @@ export default function Navbar() {
                 onMobileSearchClick={() => {}}
                 onWishlistClick={handleWishlistClick}
                 onCartClick={handleCartClick}
+                cartNumber={state.items.length}
               />
             </div>
 

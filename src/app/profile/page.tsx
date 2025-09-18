@@ -64,7 +64,8 @@ export default function ProfilePage() {
           supabaseUser?.identities?.some(
             (identity: any) => identity.provider === "google"
           );
-        setIsGoogleUser(isGoogle);
+
+        setIsGoogleUser(isGoogle ? isGoogle : false);
       } catch (error) {
         console.error("Error checking Google user:", error);
         setIsGoogleUser(false);
