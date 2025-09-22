@@ -14,10 +14,10 @@ export default function HomePage() {
       <Suspense fallback={<LoadingSpinner />}>
         <FeaturedCategories />
       </Suspense>
-
+      {/* 
       <Suspense fallback={<LoadingSpinner />}>
-        <FeaturedProducts />
-      </Suspense>
+      </Suspense> */}
+      <FeaturedProducts />
 
       <Suspense fallback={<LoadingSpinner />}>
         <FeaturedVendors />
