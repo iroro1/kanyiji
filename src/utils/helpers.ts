@@ -1,7 +1,7 @@
 // Format currency (Nigerian Naira)
-export const formatCurrency = (amount: number, currency = 'NGN'): string => {
-  return new Intl.NumberFormat('en-NG', {
-    style: 'currency',
+export const formatCurrency = (amount: number, currency = "NGN"): string => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
     currency,
     minimumFractionDigits: 0,
   }).format(amount);
@@ -9,30 +9,35 @@ export const formatCurrency = (amount: number, currency = 'NGN'): string => {
 
 // Format date
 export const formatDate = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('en-NG', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("en-NG", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   }).format(dateObj);
 };
 
 // Format relative time
 export const formatRelativeTime = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const dateObj = typeof date === "string" ? new Date(date) : date;
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 60) return "Just now";
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+  if (diffInSeconds < 2592000)
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  if (diffInSeconds < 31536000)
+    return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
   return `${Math.floor(diffInSeconds / 31536000)}y ago`;
 };
 
 // Calculate discount percentage
-export const calculateDiscount = (originalPrice: number, currentPrice: number): number => {
+export const calculateDiscount = (
+  originalPrice: number,
+  currentPrice: number
+): number => {
   if (originalPrice <= currentPrice) return 0;
   return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
 };
@@ -89,33 +94,33 @@ export const capitalize = (str: string): string => {
 // Truncate text
 export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
+  return text.slice(0, maxLength) + "...";
 };
 
 // Format file size
 export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 // Check if object is empty
 export const isEmpty = (obj: any): boolean => {
   if (obj == null) return true;
-  if (Array.isArray(obj) || typeof obj === 'string') return obj.length === 0;
+  if (Array.isArray(obj) || typeof obj === "string") return obj.length === 0;
   if (obj instanceof Map || obj instanceof Set) return obj.size === 0;
-  if (typeof obj === 'object') return Object.keys(obj).length === 0;
+  if (typeof obj === "object") return Object.keys(obj).length === 0;
   return false;
 };
 
 // Deep clone object
 export const deepClone = <T>(obj: T): T => {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj === null || typeof obj !== "object") return obj;
   if (obj instanceof Date) return new Date(obj.getTime()) as T;
-  if (obj instanceof Array) return obj.map(item => deepClone(item)) as T;
-  if (typeof obj === 'object') {
+  if (obj instanceof Array) return obj.map((item) => deepClone(item)) as T;
+  if (typeof obj === "object") {
     const clonedObj = {} as T;
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
@@ -126,3 +131,29 @@ export const deepClone = <T>(obj: T): T => {
   }
   return obj;
 };
+
+export function slugify(text: string): string {
+  const a =
+    "àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";
+  const b =
+    "aaaaaaaaaacccddeeeeeeeegghiiiiiilmnnnnoooooooooprrsssssttuuuuuuuuuwxyyzzz------";
+  const p = new RegExp(a.split("").join("|"), "g");
+
+  return (
+    text
+      .toString()
+      .toLowerCase()
+      // Replace special characters with their Latin equivalents
+      .replace(p, (c) => b.charAt(a.indexOf(c)))
+      // Replace spaces with a single hyphen
+      .replace(/\s+/g, "-")
+      // Remove all characters that are not a word character (a-z, 0-9, _), a hyphen, or a space
+      .replace(/[^\w\-]+/g, "")
+      // Replace multiple hyphens with a single one
+      .replace(/\-\-+/g, "-")
+      // Remove any leading hyphens
+      .replace(/^-+/, "")
+      // Remove any trailing hyphens
+      .replace(/-+$/, "")
+  );
+}

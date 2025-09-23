@@ -5,14 +5,17 @@ import {
   Plus,
   Image,
   Info,
-  Check,
-  Palette,
   Shirt,
   Tag,
   Trash2,
+  CheckCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { uploadProductImage } from "@/utils/supabase-images";
 import { supabase } from "@/lib/supabase";
+import { slugify } from "@/utils/helpers";
+import LoadingSpinner from "../ui/LoadingSpinner";
+import { SuccessModal } from "../ui/ProductSuccessModal";
 
 // Define type for a single product variant
 type Variant = {
@@ -28,13 +31,69 @@ type ImagePreview = {
   alt: string;
 };
 
+// --- Variant Management ---
+const colors = [
+  "blue",
+  "purple",
+  "green",
+  "yellow",
+  "orange",
+  "red",
+  "pink",
+  "black",
+  "white",
+  "gray",
+];
+const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+
 // Main App Component
-export default function AddProductPage() {
+function AddProductPage() {
   const { user } = useAuth();
+  // You may want to define a Vendor type for better type safety, e.g.:
+  // type Vendor = { id: string; user_id: string; ... };
+  // const [vendorData, setVendorData] = useState<Vendor[]>([]);
+  const [vendorData, setVendorData] = useState<any[]>([]);
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const openDialog = () => {
+    dialogRef.current?.showModal(); // opens the dialog
+  };
+
+  const closeDialog = () => {
+    dialogRef.current?.close(); // closes the dialog
+  };
+  //GET VENDORS DETAILS
+
+  useEffect(() => {
+    async function getVendorDetails() {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("*")
+        .eq("user_id", user?.id);
+
+      if (error) {
+        console.error(error);
+      } else {
+        console.log(data); // <-- actual array of vendors
+        setVendorData(data);
+      }
+    }
+
+    getVendorDetails();
+  }, []);
+
+  // MODAL DESIGNS
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
   // State for image previews with alt text
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [productLoading, setProductLoading] = useState<boolean>();
+  const [productUploadSuccess, setProductUploadSuccess] =
+    useState<boolean>(false);
 
   // State for managing product variants
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -45,23 +104,32 @@ export default function AddProductPage() {
   });
 
   // Consolidated state for the new product
+  const [slug, setSlug] = useState("");
+  console.log(slug);
   const [newProduct, setNewProduct] = useState({
-    vendor_id: user?.id || null,
-    name: "Lightweight Air Mesh Shoes",
-    price: "1700.00",
-    original_price: "2000",
-    description: `We have been doing shoes business for many years together with our partners.
-
-Availability
-• We offer our customers a stylish and comfortable use, so we make them comfortable
-• We supply the sins of our shoes from very special sleeted customers.`,
-    category: "Fashion & Clothing",
-    status: "pending",
+    vendor_id: vendorData,
+    name: "",
+    slug: slug,
+    price: "",
+    original_price: "",
+    description: ``,
+    category: "",
+    status: "active",
     material: "",
     type: "",
     weight: "",
     // stock_quantity, colors, sizes are now handled by variants
   });
+
+  // Update vendor_id when vendorData is loaded
+  useEffect(() => {
+    if (vendorData && vendorData.length > 0 && vendorData[0].id) {
+      setNewProduct((prev) => ({
+        ...prev,
+        vendor_id: vendorData[0].id,
+      }));
+    }
+  }, [vendorData]);
 
   // This effect will log the combined state whenever it changes
   useEffect(() => {
@@ -83,22 +151,11 @@ Availability
       ...prev,
       [name]: value,
     }));
-  };
 
-  // --- Variant Management ---
-  const colors = [
-    "blue",
-    "purple",
-    "green",
-    "yellow",
-    "orange",
-    "red",
-    "pink",
-    "black",
-    "white",
-    "gray",
-  ];
-  const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+    if (name === "name") {
+      setSlug(slugify(value));
+    }
+  };
 
   const handleVariantChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -171,6 +228,72 @@ Availability
       prev.filter((_, index) => index !== indexToRemove)
     );
   };
+
+  async function addProduct() {
+    setProductLoading(true);
+
+    // 1. Insert product
+
+    console.log("product uploading here");
+    const { data: productData, error: productError } = await supabase
+      .from("products")
+      .insert({
+        vendor_id: newProduct.vendor_id,
+        name: newProduct.name,
+        slug: slug,
+        price: newProduct.price,
+        original_price: newProduct.original_price,
+        description: newProduct.description,
+        status: newProduct.status,
+      })
+      .select() // important: return inserted row
+      .single();
+
+    console.log("second check");
+
+    if (productError) {
+      console.error("Error saving product:", productError);
+      return;
+    }
+    const productId = productData.id;
+
+    console.log("third check after product upload");
+
+    // PRODUCT IMAGE UPLOAD
+
+    // 2. Loop through all images in imagePreviews
+    // for (const preview of imagePreviews) {
+    //   const file = preview.file; // ✅ actual image file
+
+    //   const vendorId = user ? user.id : "";
+    //   const publicUrl = await uploadProductImage(vendorId, productId, file);
+
+    //   console.log("imagePublicUrl", publicUrl);
+
+    //   // 5. Save image record into product_images table
+    //   const { error: imageError } = await supabase
+    //     .from("product_images")
+    //     .insert({
+    //       product_id: productId,
+    //       url: publicUrl,
+    //     });
+
+    //   if (imageError) {
+    //     console.error("Error saving image URL:", imageError);
+    //   }
+    // }
+
+    setProductLoading(false);
+    setProductUploadSuccess(true);
+
+    console.log("Product + Image saved successfully!");
+  }
+
+  if (productLoading) {
+    return <LoadingSpinner />;
+  } else if (productUploadSuccess) {
+    return <SuccessModal isOpen={openModal} onClose={closeModal} />;
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800">
@@ -585,7 +708,10 @@ Availability
           <button className="bg-gray-200 text-gray-800 rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-gray-300 transition-colors">
             Save as Draft
           </button>
-          <button className="bg-blue-600 text-white rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+          <button
+            onClick={addProduct}
+            className="bg-blue-600 text-white rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
             Publish Product
           </button>
         </footer>
@@ -593,3 +719,5 @@ Availability
     </div>
   );
 }
+
+export default AddProductPage;
