@@ -5,12 +5,12 @@ export async function uploadProductImage(
   productId: string,
   file: File
 ) {
-  const filePath = `vendors/${file.name}`;
+  const filePath = `vendors/${vendorId}/${file.name}`;
 
   console.log("from filePath", filePath);
 
   const { data, error } = await supabase.storage
-    .from("product-images") // bucket name
+    .from("vendor-product-images") // bucket name
     .upload(filePath, file, {
       cacheControl: "3600",
       upsert: true, // overwrite if same name
@@ -20,7 +20,7 @@ export async function uploadProductImage(
 
   // Get public URL
   const { data: publicUrl } = supabase.storage
-    .from("product-images")
+    .from("vendor-product-images")
     .getPublicUrl(filePath);
 
   return publicUrl.publicUrl;
