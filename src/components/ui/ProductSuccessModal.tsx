@@ -56,15 +56,17 @@ export const SuccessModal = ({ isOpen, onClose }: any) => {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="#" // In a real app, this would navigate to the dashboard
+          <Link
+            href="/" // In a real app, this would navigate to the dashboard
+            onClick={onClose}
             className="w-full sm:w-auto bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:-translate-y-1"
           >
             Go to Dashboard
-          </a>
+          </Link>
           {/* This button now closes the modal */}
           <Link
-            href={'/vendor/dashboard/add-product'}
+            href={"/vendor/dashboard/add-product"}
+            onClick={onClose}
             className="w-full sm:w-auto bg-gray-100 text-gray-800 font-semibold py-3 px-6 rounded-lg border border-gray-300 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all duration-300 transform hover:-translate-y-1"
           >
             Add Another Product

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { supabase } from "@/lib/supabase";
 import {
   Package,
   ShoppingBag,
@@ -55,6 +56,50 @@ interface VendorStats {
 
 export default function VendorDashboard() {
   const { user } = useAuth();
+  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
+  const [vendorDetails, setVendorDetails] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function getVendorDetails() {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("*")
+        .eq("user_id", user?.id);
+
+      if (error) {
+        console.error("Vendor fetch error:", error);
+      } else {
+        setVendorDetails(data);
+        console.log("Vendor details:", data);
+      }
+    }
+
+    if (user?.id) {
+      getVendorDetails();
+    }
+  }, [user?.id]);
+
+  // 2. Fetch vendor products once vendorDetails is loaded
+  useEffect(() => {
+    async function getVendorProducts(vendorId: string) {
+      console.log(vendorId);
+      const { data, error } = await supabase
+        .from("products")
+        .select(`*, product_images( id, image_url )`)
+        .eq("vendor_id", vendorId);
+
+      if (error) {
+        console.error("Product fetch error:", error);
+      } else {
+        setVendorProducts(data);
+        console.log("Vendor products:", data);
+      }
+    }
+
+    if (vendorDetails.length > 0) {
+      getVendorProducts(vendorDetails[0].id);
+    }
+  }, [vendorDetails]);
 
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -297,7 +342,7 @@ export default function VendorDashboard() {
                   Total Products
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats.totalProducts}
+                  {vendorProducts.length}
                 </p>
               </div>
             </div>
@@ -510,12 +555,12 @@ export default function VendorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map((product) => (
+                    {vendorProducts.map((product) => (
                       <tr key={product.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <img
-                              src={product.image}
+                              src={product.product_images?.[0]?.image_url}
                               alt={product.name}
                               className="w-10 h-10 object-cover rounded-lg mr-3"
                             />
