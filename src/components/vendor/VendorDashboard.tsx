@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import {
   Package,
@@ -36,6 +38,8 @@ interface Order {
 }
 
 export default function VendorDashboard() {
+
+
   const [activeTab, setActiveTab] = useState<
     "overview" | "products" | "orders" | "analytics"
   >("overview");

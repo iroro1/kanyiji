@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense } from "react";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { Suspense, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import {
   Search,
   Filter,
@@ -16,8 +16,27 @@ import { useCart } from "@/contexts/CartContext";
 
 export default function ProductsPage() {
   const { dispatch, state } = useCart();
+  const [products, setProducts] = useState<any[]>([]);
 
-  console.log(state);
+  console.log(products);
+
+  // 2. Fetch vendor products once vendorDetails is loaded
+  useEffect(() => {
+    async function getVendorProducts() {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`*, product_images( id, image_url )`);
+
+      if (error) {
+        console.error("Product fetch error:", error);
+      } else {
+        setProducts(data);
+        console.log("Vendor products:", data);
+      }
+    }
+
+    getVendorProducts();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,15 +90,15 @@ export default function ProductsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {/* Product Card 1 */}
-          {PRODUCTS.map((product) => (
+          {products.map((product) => (
             <div
               key={product.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
               <div className="relative">
                 <img
-                  src={product.productImage}
-                  alt="African Beaded Necklace"
+                  src={product.product_images?.[0]?.image_url}
+                  alt={product?.name}
                   className="w-full h-48 object-cover rounded-t-xl"
                 />
                 <button className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
@@ -112,9 +131,7 @@ export default function ProductsPage() {
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-500 ml-2">
-                    ({product.reviews})
-                  </span>
+                  <span className="text-sm text-gray-500 ml-2">17 reviews</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-bold text-gray-900">
