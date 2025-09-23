@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS products (
   sku TEXT,
   price DECIMAL(12,2) NOT NULL,
   original_price DECIMAL(12,2),
+  discount DECIMAL(12, 2),
   cost_price DECIMAL(12,2),
   compare_at_price DECIMAL(12,2),
   currency TEXT DEFAULT 'NGN',
