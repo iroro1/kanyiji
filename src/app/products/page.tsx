@@ -11,18 +11,23 @@ import {
   Heart,
   ShoppingCart,
 } from "lucide-react";
-import { PRODUCTS } from "./MOCK_PRODUCTS";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import WishlistButton from "@/components/ui/Wishlist";
 
 export default function ProductsPage() {
   const { dispatch, state } = useCart();
+  const { user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>();
 
   console.log(products);
 
   // 2. Fetch vendor products once vendorDetails is loaded
   useEffect(() => {
     async function getVendorProducts() {
+      setLoadingProducts(true);
       const { data, error } = await supabase
         .from("products")
         .select(`*, product_images( id, image_url )`);
@@ -31,6 +36,7 @@ export default function ProductsPage() {
         console.error("Product fetch error:", error);
       } else {
         setProducts(data);
+        setLoadingProducts(false);
         console.log("Vendor products:", data);
       }
     }
@@ -87,85 +93,93 @@ export default function ProductsPage() {
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {/* Product Card 1 */}
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-            >
-              <div className="relative">
-                <img
-                  src={product.product_images?.[0]?.image_url}
-                  alt={product?.name}
-                  className="w-full h-48 object-cover rounded-t-xl"
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
-                  <Heart className="w-4 h-4 text-gray-600" />
-                </button>
 
-                {product.featured ? (
-                  <div className="absolute top-3 left-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                    Featured
-                  </div>
-                ) : (
-                  ""
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  {product.name}
-                </h3>
-                <p className="text-sm text-gray-600 mb-3">{product.title}</p>
-                <div className="flex items-center mb-3">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < product.avgRatings
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-500 ml-2">17 reviews</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-gray-900">
-                    ₦{product.price}
-                  </span>
-                  <button
-                    className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                    onClick={() =>
-                      dispatch({
-                        type: "ADD_TO_CART",
-                        product: {
-                          ...product,
-                          id: String(product.id),
-                          price: Number(product.price),
-                        },
-                      })
-                    }
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span className="text-sm">Add to Cart</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      {loadingProducts ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {/* Product Card 1 */}
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="relative">
+                  <img
+                    src={product.product_images?.[0]?.image_url}
+                    alt={product?.name}
+                    className="w-full h-48 object-cover rounded-t-xl"
+                  />
+                  <WishlistButton
+                    productId={product?.id}
+                    userId={user ? user.id : ""}
+                  />
 
-        {/* Load More Button */}
-        <div className="text-center mt-12">
-          <button className="bg-white hover:bg-gray-50 text-gray-800 font-semibold px-8 py-3 rounded-lg border border-gray-300 transition-colors">
-            Load More Products
-          </button>
+                  {product.featured ? (
+                    <div className="absolute top-3 left-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                      Featured
+                    </div>
+                  ) : (
+                    ""
+                  )}
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {product.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">{product.title}</p>
+                  <div className="flex items-center mb-3">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < product.avgRatings
+                              ? "text-yellow-400 fill-current"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-500 ml-2">
+                      17 reviews
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-bold text-gray-900">
+                      ₦{product.price}
+                    </span>
+                    <button
+                      className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
+                      onClick={() =>
+                        dispatch({
+                          type: "ADD_TO_CART",
+                          product: {
+                            ...product,
+                            id: String(product.id),
+                            price: Number(product.price),
+                          },
+                        })
+                      }
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span className="text-sm">Add to Cart</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Load More Button */}
+          <div className="text-center mt-12">
+            <button className="bg-white hover:bg-gray-50 text-gray-800 font-semibold px-8 py-3 rounded-lg border border-gray-300 transition-colors">
+              Load More Products
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
