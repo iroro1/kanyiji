@@ -8,57 +8,7 @@ import { useCart } from "@/contexts/CartContext";
 export default function CartPage() {
   const { state, dispatch } = useCart();
 
-  console.log(state.items.length);
-
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Handcrafted African Beaded Necklace",
-      price: 2500,
-      quantity: 2,
-      image:
-        "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-      vendor: "African Crafts Co.",
-    },
-    {
-      id: 2,
-      name: "Traditional Nigerian Ankara Fabric",
-      price: 3500,
-      quantity: 1,
-      image:
-        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-      vendor: "Nigerian Textiles Ltd",
-    },
-    {
-      id: 3,
-      name: "Wooden African Mask",
-      price: 4500,
-      quantity: 1,
-      image:
-        "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-      vendor: "Ghana Artisans",
-    },
-  ]);
-
-  const updateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  const removeItem = (id: number) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
-  };
-
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-  const shipping = subtotal > 0 ? 800 : 0;
-  const total = subtotal + shipping;
+  console.log(state.items);
 
   if (state.items.length === 0) {
     return (
@@ -115,7 +65,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-4">
                       {/* Product Image */}
                       <img
-                        src={item.productImage}
+                        src={item?.product_images[0]?.image_url}
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />
@@ -192,7 +142,11 @@ export default function CartPage() {
                     Continue Shopping
                   </Link>
                   <button
-                    onClick={() => setCartItems([])}
+                    onClick={() =>
+                      dispatch({
+                        type: "CLEAR_CART",
+                      })
+                    }
                     className="text-gray-600 hover:text-red-600 font-medium"
                   >
                     Clear Cart
@@ -213,7 +167,7 @@ export default function CartPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    Subtotal ({cartItems.length} items)
+                    Subtotal ({state.items.length} items)
                   </span>
                   <span className="font-medium">
                     ₦{state.total.toLocaleString()}
@@ -222,7 +176,7 @@ export default function CartPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
-                    ₦{shipping.toLocaleString()}
+                    {/* ₦{shipping.toLocaleString()} */}
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
