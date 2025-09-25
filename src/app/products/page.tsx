@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 import {
   Search,
   Filter,
@@ -105,69 +106,74 @@ export default function ProductsPage() {
                 key={product.id}
                 className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="relative">
-                  <img
-                    src={product.product_images?.[0]?.image_url}
-                    alt={product?.name}
-                    className="w-full h-48 object-cover rounded-t-xl"
-                  />
-                  <WishlistButton
-                    productId={product?.id}
-                    userId={user ? user.id : ""}
-                  />
+                <Link href={`/products/${product.id}`}>
+                  <div className="relative">
+                    <img
+                      src={product.product_images?.[0]?.image_url}
+                      alt={product?.name}
+                      className="w-full h-48 object-cover rounded-t-xl"
+                    />
+                    <WishlistButton
+                      productId={product?.id}
+                      userId={user ? user.id : ""}
+                    />
 
-                  {product.featured ? (
-                    <div className="absolute top-3 left-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                      Featured
-                    </div>
-                  ) : (
-                    ""
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">{product.title}</p>
-                  <div className="flex items-center mb-3">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < product.avgRatings
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-500 ml-2">
-                      17 reviews
-                    </span>
+                    {product.featured ? (
+                      <div className="absolute top-3 left-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                        Featured
+                      </div>
+                    ) : (
+                      ""
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-gray-900">
-                      ₦{product.price}
-                    </span>
-                    <button
-                      className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                      onClick={() =>
-                        dispatch({
-                          type: "ADD_TO_CART",
-                          product: {
-                            ...product,
-                            id: String(product.id),
-                            price: Number(product.price),
-                          },
-                        })
-                      }
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span className="text-sm">Add to Cart</span>
-                    </button>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      {product.name}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 mb-3">
+                      {product.title}
+                    </p>
+                    <div className="flex items-center mb-3">
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < product.avgRatings
+                                ? "text-yellow-400 fill-current"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-500 ml-2">
+                        17 reviews
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-gray-900">
+                        ₦{product.price}
+                      </span>
+                      <button
+                        className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
+                        onClick={() =>
+                          dispatch({
+                            type: "ADD_TO_CART",
+                            product: {
+                              ...product,
+                              id: String(product.id),
+                              price: Number(product.price),
+                            },
+                          })
+                        }
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        <span className="text-sm">Add to Cart</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </Link>
               </div>
             ))}
           </div>

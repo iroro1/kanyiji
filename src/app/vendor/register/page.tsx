@@ -16,9 +16,16 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
+import CustomError from "@/app/error";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export default function VendorRegistrationPage() {
   const { user } = useAuth();
+  const [vendorRegistrationError, setvendorRegistrationError] =
+    useState<boolean>(false);
+  const [vendorLoadingState, setVendorLoadingState] = useState<boolean>(true);
+  const [vendorSuccessState, setVendorSuccessState] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -144,6 +151,7 @@ export default function VendorRegistrationPage() {
 
     if (uploadError) {
       console.error("Upload error:", uploadError.message);
+      setvendorRegistrationError(true);
       return null;
     }
 
@@ -157,29 +165,34 @@ export default function VendorRegistrationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step === 4) {
-      console.log("from submit function");
-      setStep(step + 1);
 
-      console.log("This point is after the supabase storage");
+    // 1. First, validate the final step to make sure the terms are checked
+    if (!validateStep(4)) {
+      return; // Stop submission if validation fails
+    }
 
+    setIsSubmitting(true); // Set loading state to true
+
+    try {
+      // 2. Perform all async operations (file uploads)
+      console.log("Uploading files...");
       const businessLicenseUrl = await uploadFile(formData.businessLicense);
       const taxCertificateUrl = await uploadFile(formData.taxCertificate);
       const bankStatementUrl = await uploadFile(formData.bankStatement);
 
-      console.log(
-        "licenseUrl",
-        businessLicenseUrl,
-        "taxUrl:",
-        taxCertificateUrl,
-        "bankUrl:",
-        bankStatementUrl
-      );
+      // Add a check to ensure all files were uploaded successfully before proceeding
+      if (!businessLicenseUrl || !taxCertificateUrl || !bankStatementUrl) {
+        // The uploadFile function already sets the error state, but we can throw to be safe
+        throw new Error("One or more file uploads failed.");
+      }
 
+      console.log("Files uploaded. Inserting data...");
+
+      // 3. Insert the data into Supabase
       const { data, error } = await supabase
         .from("vendors")
         .insert({
-          user_id: user?.id, // Foreign key linking to the auth.users table
+          user_id: user?.id,
           business_name: formData.businessName,
           business_type: formData.businessType,
           business_description: formData.businessDescription,
@@ -197,59 +210,23 @@ export default function VendorRegistrationPage() {
             },
           ],
         })
-        .select(); // Use .select() to get the inserted data back
+        .select();
 
       if (error) {
-        console.error("Error inserting data:", error);
-        alert("Failed to save vendor details: " + error.message);
-      } else {
-        console.log("Successfully inserted data:", data);
-        alert("Vendor registration successful!");
-        // Optionally, redirect the user or clear the form
+        // Let the catch block handle this
+        throw error;
       }
 
-      console.log("confirmed that the function ran here");
-
-      return;
-    }
-
-    try {
-      // Create vendor object
-      const vendor = {
-        id: `VENDOR-${Date.now()}`,
-        ...formData,
-        status: "pending",
-        registrationDate: new Date().toISOString(),
-        approved: false,
-      };
-
-      // Get existing vendors from localStorage
-      const existingVendors = JSON.parse(
-        localStorage.getItem("vendors") || "[]"
-      );
-      existingVendors.push(vendor);
-      localStorage.setItem("vendors", JSON.stringify(existingVendors));
-
-      // Update current user to be a vendor
-      const currentUser = JSON.parse(localStorage.getItem("demoUser") || "{}");
-      if (currentUser.isAuthenticated) {
-        currentUser.isVendor = true;
-        currentUser.vendorId = vendor.id;
-        localStorage.setItem("demoUser", JSON.stringify(currentUser));
-      }
-
-      // Show success message
-      alert(
-        "Vendor registration submitted successfully! Your application is under review."
-      );
-
-      // Redirect to vendor dashboard or profile
-      window.location.href = "/profile";
+      // 4. On success, update the final states
+      console.log("Successfully inserted data:", data);
+      setVendorSuccessState(true);
+      setStep(step + 1); // <-- Now we change the step to show the success screen
     } catch (error) {
-      console.error("Error submitting vendor registration:", error);
-      alert(
-        "There was an error submitting your registration. Please try again."
-      );
+      console.error("Error during submission:", error);
+      setvendorRegistrationError(true); // Show the full-page error component
+    } finally {
+      // 5. Always turn off the specific loading state
+      setIsSubmitting(false);
     }
   };
 
@@ -274,6 +251,17 @@ export default function VendorRegistrationPage() {
       return `File size must not exceed ${maxSizeMB}MB`;
     }
     return null;
+  }
+
+  if (vendorRegistrationError) {
+    return (
+      <CustomError
+        statusCode={500}
+        title="Something went wrong"
+        message="We are unable to complete your vendor application at this time, please try again later"
+        retry={false}
+      />
+    );
   }
 
   return (
@@ -462,7 +450,6 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )} */}
-
           {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -558,7 +545,6 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )}
-
           {step === 2 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -663,7 +649,6 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )}
-
           {step === 3 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -816,7 +801,6 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )}
-
           {step === 4 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -884,8 +868,9 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )}
+          {isSubmitting ? <LoadingSpinner /> : ""}
 
-          {step === 5 && (
+          {vendorSuccessState && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
@@ -911,7 +896,6 @@ export default function VendorRegistrationPage() {
               </Link>
             </div>
           )}
-
           {/* Navigation Buttons */}
           {step < 5 ? (
             <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
@@ -925,6 +909,7 @@ export default function VendorRegistrationPage() {
 
               <button
                 onClick={step === 4 ? handleSubmit : handleNext}
+                disabled={isSubmitting} // Disable button while submitting
                 className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
               >
                 {step === 4 ? "Submit Application" : "Next"}
