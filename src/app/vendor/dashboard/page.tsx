@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import CustomError from "@/app/error";
 
 interface Product {
   id: string;
@@ -293,8 +294,20 @@ export default function VendorDashboard() {
     }
   };
 
+  if (!user) {
+    return (
+      <CustomError
+        statusCode={403}
+        title="Access Denied"
+        message="User must be a registered vendor to access the dashboard."
+        retry={false}
+      />
+    );
+  }
+
   useEffect(() => {
     // Once user data is available, check their role.
+
     if (user?.role !== "customer") {
       router.replace("/vendor/register");
     } else {
