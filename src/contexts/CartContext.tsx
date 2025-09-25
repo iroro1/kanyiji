@@ -13,7 +13,10 @@ type Product = {
   id: string;
   name: string;
   price: number;
-  productImage: string;
+  product_images: {
+    id: string;
+    image_url: string;
+  }[];
   title: string;
 };
 

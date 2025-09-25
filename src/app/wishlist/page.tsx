@@ -31,7 +31,7 @@ export default function WishlistPage() {
   const { dispatch } = useCart();
 
   useEffect(() => {
-    console.log("check for loop");
+    if (!user) return;
     async function getWishList() {
       try {
         setLoading(true);
