@@ -14,6 +14,7 @@ interface WishlistItem {
   originalPrice?: number;
   image: string;
   // vendor: string;
+  product_images: { id: string; image_url: string };
   rating: number;
   reviewCount: number;
 }
@@ -70,10 +71,10 @@ export default function WishlistPage() {
           return {
             id: product?.id || item.id,
             name: product?.name || "",
-            vendor: product?.vendor || "",
             price: product?.price || 0,
             originalPrice: product?.original_price,
             image: product?.product_images?.[0]?.image_url || "",
+            product_images: product?.product_images?.[0] || { id: "", image_url: "" },
             rating: product?.rating || 0,
             reviewCount: product?.review_count || 0,
           };
@@ -238,8 +239,10 @@ export default function WishlistPage() {
                             ...item,
                             id: String(item.id),
                             price: Number(item.price),
-                            productImage: "",
                             title: "",
+                            product_images: item.image
+                              ? [{ id: item.id, image_url: item.image }]
+                              : [],
                           },
                         })
                       }
