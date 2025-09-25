@@ -14,6 +14,8 @@ export default function WishlistButton({
   productId,
 }: WishlistButtonProps) {
   useEffect(() => {
+    if (!userId) return;
+
     const checkWishlist = async () => {
       const { data, error } = await supabase
         .from("wishlist_items")
