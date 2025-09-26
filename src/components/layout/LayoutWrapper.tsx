@@ -20,8 +20,6 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
     return <ConfigError />;
   }
 
-  console.log(isLoading);
-
   // Show loading state while checking auth
   if (isLoading) {
     return (
