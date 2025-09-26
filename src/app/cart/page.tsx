@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Trash2, Minus, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";

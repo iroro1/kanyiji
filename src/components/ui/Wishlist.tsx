@@ -27,6 +27,8 @@ export default function WishlistButton({
       if (!error && data) {
         setIsWishlisted(true);
       }
+
+      console.log(data);
     };
 
     checkWishlist();
