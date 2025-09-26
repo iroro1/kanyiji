@@ -16,6 +16,7 @@ import WishlistButton from "@/components/ui/Wishlist";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CustomError from "@/app/error";
+import { useFetchSingleProduct } from "@/components/http/QueryHttp";
 
 export default function ProductDetailPage({
   params,
@@ -23,40 +24,13 @@ export default function ProductDetailPage({
   params: { id: string };
 }) {
   const { user } = useAuth();
+  const [retry, setRetry] = useState<boolean>(false);
+  const { data, isPending, isError } = useFetchSingleProduct(params?.id, retry);
+
+  console.log(data);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [singleProduct, setSingleProduct] = useState<any[]>();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState(false);
-  const [retry, setRetry] = useState<boolean>(false);
 
-  console.log(singleProduct);
-
-  console.log(error);
-
-  useEffect(() => {
-    async function getSingleProduct(params: string) {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select(`*, product_images (id, image_url)`)
-        .eq("id", params);
-
-      if (error) {
-        console.log(error);
-        setError(true);
-      }
-
-      if (data && data.length !== 0) {
-        setSingleProduct(data);
-        setRetry(false);
-      }
-
-      setLoading(false);
-    }
-
-    getSingleProduct(params.id);
-  }, [retry]);
 
   // Mock product data - in real app this would come from API
   const shipping = {
@@ -67,11 +41,11 @@ export default function ProductDetailPage({
     },
   };
 
-  if (loading) {
+  if (isPending) {
     return <LoadingSpinner />;
   }
 
-  if (error || singleProduct === undefined) {
+  if (isError) {
     return (
       <CustomError
         statusCode={500}
@@ -97,7 +71,7 @@ export default function ProductDetailPage({
           </Link>
         </div>
       </div>
-      {singleProduct?.map((product) => (
+      {data?.map((product) => (
         <div
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
           key={product.id}

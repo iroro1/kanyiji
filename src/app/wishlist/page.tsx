@@ -1,95 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, Heart, ShoppingCart, Trash2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-interface WishlistItem {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  // vendor: string;
-  product_images: { id: string; image_url: string };
-  rating: number;
-  reviewCount: number;
-}
+import { useFetchWishlist } from "@/components/http/QueryHttp";
 
 export default function WishlistPage() {
   const { user } = useAuth();
-
   const userId = user ? user.id : "";
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0); // <-- trigger refetch
-
-  console.log(loading);
+  const { data, isError, isLoading, error } = useFetchWishlist(userId, refresh);
 
   const { dispatch } = useCart();
-
-  useEffect(() => {
-    if (!user) return;
-    async function getWishList() {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from("wishlist_items")
-          .select(
-            `
-    id,
-    created_at,
-    products (
-      id,
-      name,
-      price,
-      original_price,
-      rating,
-      review_count,
-      product_images (
-        id,
-        image_url
-      )
-    )
-  `
-          )
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching wishlist:", error.message);
-          setWishlistItems([]);
-          return;
-        }
-
-        // Map the returned data to WishlistItem[]
-        const mappedItems: WishlistItem[] = (data || []).map((item: any) => {
-          const product = item.products;
-          return {
-            id: product?.id || item.id,
-            name: product?.name || "",
-            price: product?.price || 0,
-            originalPrice: product?.original_price,
-            image: product?.product_images?.[0]?.image_url || "",
-            product_images: product?.product_images?.[0] || { id: "", image_url: "" },
-            rating: product?.rating || 0,
-            reviewCount: product?.review_count || 0,
-          };
-        });
-
-        setWishlistItems(mappedItems);
-        setLoading(false);
-      } catch (err) {
-        console.error("Unexpected error:", err);
-        return [];
-      }
-    }
-
-    getWishList();
-  }, [userId, refresh]);
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -113,7 +39,7 @@ export default function WishlistPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner />;
   }
 
@@ -142,17 +68,17 @@ export default function WishlistPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
               <p className="text-gray-600">
-                {wishlistItems.length} item
-                {wishlistItems.length !== 1 ? "s" : ""} saved for later
+                {data?.length} item
+                {data?.length !== 1 ? "s" : ""} saved for later
               </p>
             </div>
           </div>
         </div>
 
         {/* Wishlist Items */}
-        {wishlistItems.length > 0 ? (
+        {data && data.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {wishlistItems.map((item) => (
+            {data?.map((item) => (
               <div
                 key={item.id}
                 className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
@@ -160,7 +86,7 @@ export default function WishlistPage() {
                 {/* Image */}
                 <div className="relative">
                   <img
-                    src={item.image}
+                    src={item.product_images[0].image_url}
                     alt={item.name}
                     className="w-full h-48 object-cover"
                   />
@@ -174,11 +100,11 @@ export default function WishlistPage() {
                   </button>
 
                   {/* Discount Badge */}
-                  {item.originalPrice && (
+                  {item.original_price && (
                     <div className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
                       {Math.round(
-                        ((item.originalPrice - item.price) /
-                          item.originalPrice) *
+                        ((item.original_price - item.price) /
+                          item.original_price) *
                           100
                       )}
                       % OFF
@@ -203,7 +129,7 @@ export default function WishlistPage() {
                         <Star
                           key={i}
                           className={`w-4 h-4 ${
-                            i < Math.floor(item.rating)
+                            i < Math.floor(5)
                               ? "text-yellow-400 fill-current"
                               : "text-gray-300"
                           }`}
@@ -211,7 +137,7 @@ export default function WishlistPage() {
                       ))}
                     </div>
                     <span className="text-sm text-gray-500 ml-2">
-                      ({item.reviewCount})
+                      20 reviews
                     </span>
                   </div>
 
@@ -221,9 +147,9 @@ export default function WishlistPage() {
                       <span className="text-lg font-bold text-gray-900">
                         {formatPrice(item.price)}
                       </span>
-                      {item.originalPrice && (
+                      {item.original_price && (
                         <span className="text-sm text-gray-500 line-through">
-                          {formatPrice(item.originalPrice)}
+                          {formatPrice(item.original_price)}
                         </span>
                       )}
                     </div>
@@ -240,8 +166,13 @@ export default function WishlistPage() {
                             id: String(item.id),
                             price: Number(item.price),
                             title: "",
-                            product_images: item.image
-                              ? [{ id: item.id, image_url: item.image }]
+                            product_images: item.product_images[0].image_url
+                              ? [
+                                  {
+                                    id: item.id,
+                                    image_url: item.product_images[0].image_url,
+                                  },
+                                ]
                               : [],
                           },
                         })
@@ -283,7 +214,7 @@ export default function WishlistPage() {
         )}
 
         {/* Quick Actions */}
-        {wishlistItems.length > 0 && (
+        {data && data?.length > 0 && (
           <div className="mt-12 text-center">
             <div className="inline-flex items-center space-x-4 bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4">
               <span className="text-gray-700">Quick actions:</span>
