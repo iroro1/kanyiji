@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     setIsLoading(false);
-  }, [isLoading]);
+  }, []);
 
   const checkAuthStatus = async () => {
     try {
