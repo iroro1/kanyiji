@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    setIsLoading(true);
+    // setIsLoading(true);
     // First validate configuration
     const configValid = validateSupabaseConfig();
     setIsConfigValid(configValid);
@@ -63,11 +63,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("User exists:", !!session?.user);
 
         if (event === "SIGNED_IN" && session) {
-          console.log("User signed in, getting current user...");
-          const currentUser = await supabaseAuthService.getCurrentUser();
-          console.log("Current user:", currentUser);
-          setUser(currentUser);
-          setIsLoading(false);
+          try {
+            console.log("User signed in, getting current user...");
+            const currentUser = await supabaseAuthService.getCurrentUser();
+
+            if (!currentUser)
+              throw new Error("No current user found after sign-in");
+            console.log("Current user:", currentUser);
+            setUser(currentUser);
+            setIsLoading(false);
+          } catch (error) {
+            console.log(error);
+          }
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
           setUser(null);
