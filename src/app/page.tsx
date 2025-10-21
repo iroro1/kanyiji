@@ -11,17 +11,17 @@ export default function HomePage() {
     <>
       <HeroSection />
 
-      <Suspense fallback={<LoadingSpinner />}>
-        <FeaturedCategories />
-      </Suspense>
+      {/* <Suspense fallback={<LoadingSpinner />}>
+      </Suspense> */}
+      <FeaturedCategories />
       {/* 
       <Suspense fallback={<LoadingSpinner />}>
       </Suspense> */}
       <FeaturedProducts />
 
-      <Suspense fallback={<LoadingSpinner />}>
-        <FeaturedVendors />
-      </Suspense>
+      {/* <Suspense fallback={<LoadingSpinner />}>
+      </Suspense> */}
+      <FeaturedVendors />
 
       <WhyChooseUs />
     </>

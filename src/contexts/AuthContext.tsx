@@ -36,15 +36,22 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
 
+  // console.log("from auth context", isLoading);
+
   // Check authentication status on mount
   useEffect(() => {
+    setIsLoading(true);
     // First validate configuration
     const configValid = validateSupabaseConfig();
     setIsConfigValid(configValid);
+
+    console.log(configValid);
+
+    console.log("after supabase validation");
 
     if (configValid) {
       // Listen for auth state changes
@@ -67,17 +74,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setIsLoading(false);
         } else if (event === "INITIAL_SESSION") {
           console.log("Initial session check");
+          setIsLoading(false);
+
           // Handle initial session restoration
           if (session) {
             console.log(
               "Session found on initial load, getting current user..."
             );
-            const currentUser = await supabaseAuthService.getCurrentUser();
-            console.log("Current user from initial session:", currentUser);
-            setUser(currentUser);
+
+            try {
+              const currentUser = await supabaseAuthService.getCurrentUser();
+              console.log("Current user from initial session:", currentUser);
+              setUser(currentUser);
+              setIsLoading(false);
+            } catch (error) {
+              console.log(error);
+            }
           } else {
             console.log("No session found on initial load");
+            setIsLoading(false);
           }
+          console.log("after user has been successfully validated");
           setIsLoading(false);
         }
       });
@@ -86,7 +103,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       setIsLoading(false);
     }
-  }, []);
+
+    setIsLoading(false);
+  }, [isLoading]);
 
   const checkAuthStatus = async () => {
     try {
