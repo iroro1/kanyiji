@@ -12,10 +12,12 @@ import {
   Youtube,
 } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "../auth/AuthModal";
+import kanyiyi from "../../assets/Kanyiji-dark.png";
 
 export default function Footer() {
   const { user } = useAuth();
@@ -132,10 +134,13 @@ export default function Footer() {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-lg flex items-center justify-center">
-                <Globe className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold font-display">Kanyiji</span>
+              <Image
+                src={kanyiyi}
+                alt="Kanyiyi"
+                height={150}
+                width={150}
+                priority
+              />
             </div>
             <p className="text-gray-300 mb-6 max-w-md">
               Connecting Nigerian artisans, brands, and businesses with

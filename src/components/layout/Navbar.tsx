@@ -10,24 +10,17 @@ import {
   Globe,
   ChevronDown,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import kanyiyi from "../../assets/Kanyiji-light.png";
 
 // Logo Component
 const Logo = () => (
   <Link href="/" className="flex items-center space-x-3 group">
-    <div className="flex-shrink-0">
-      <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-        <Globe className="w-6 h-6 text-white" />
-      </div>
-    </div>
-    <div className="hidden sm:block">
-      <h1 className="text-2xl font-bold text-primary-600 group-hover:text-primary-700 transition-all duration-300">
-        Kanyiji
-      </h1>
-    </div>
+    <Image src={kanyiyi} alt="Kanyiyi" height={130} width={130} priority />
   </Link>
 );
 
