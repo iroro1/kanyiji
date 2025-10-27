@@ -1,28 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import {
-  Search,
-  Filter,
-  Grid,
-  List,
-  Star,
-  Heart,
-  ShoppingCart,
-} from "lucide-react";
+import { Search, Filter, Grid, List, Star, ShoppingCart } from "lucide-react";
+import Image from "next/image";
 import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import WishlistButton from "@/components/ui/Wishlist";
 import { useFetchAllProducts } from "@/components/http/QueryHttp";
 import CustomError from "../error";
+import { useDebounce } from "@/components/http/useDebounce";
+import EmptyState from "@/components/ui/EmptyState";
 
 export default function ProductsPage() {
   const { dispatch } = useCart();
-  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const debounce = useDebounce(searchQuery, 500);
 
   const { products, productsIsLoading, productsError, isError } =
-    useFetchAllProducts();
+    useFetchAllProducts(debounce);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,6 +43,7 @@ export default function ProductsPage() {
                 <input
                   type="text"
                   placeholder="Search products..."
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
@@ -82,7 +79,12 @@ export default function ProductsPage() {
         />
       )}
 
-      {products?.length === 0 && "No products found, please try again later"}
+      {products?.length === 0 && (
+        <EmptyState
+          title="No products found"
+          message="Please clear filters or check back later"
+        />
+      )}
 
       {/* Products Grid */}
       {productsIsLoading ? (
@@ -97,18 +99,28 @@ export default function ProductsPage() {
                 className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="relative">
-                  <img
+                  <Image
                     src={product.product_images?.[0]?.image_url}
                     alt={product?.name}
+                    width={600}
+                    height={500}
                     className="w-full h-48 object-cover rounded-t-xl"
                   />
-                  <WishlistButton
+                  {/* <WishlistButton
                     productId={product?.id}
                     userId={user ? user.id : ""}
-                  />
+                  /> */}
 
-                  {product.featured ? (
-                    <div className="absolute top-3 left-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                  {product.discount_percent ? (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-2xl">
+                      {`-${Math.floor(product.discount_percent)}%`}
+                    </div>
+                  ) : (
+                    ""
+                  )}
+
+                  {product.is_featured ? (
+                    <div className="absolute top-3 right-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
                       Featured
                     </div>
                   ) : (
@@ -117,7 +129,9 @@ export default function ProductsPage() {
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 mb-2">
-                    <Link href={`/products/${product.id}`}>{product.name}</Link>
+                    <Link href={`/products/${product?.slug}`}>
+                      {product.name}
+                    </Link>
                   </h3>
 
                   <p className="text-sm text-gray-600 mb-3">{product.title}</p>
@@ -139,9 +153,16 @@ export default function ProductsPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-gray-900">
-                      ₦{product.price}
-                    </span>
+                    <div>
+                      <span className="text-lg pr-2 font-bold text-gray-900">
+                        ₦{product.price.toLocaleString()}
+                      </span>
+
+                      <span className="text-sm line-through text-gray-500">
+                        ₦{product.original_price.toLocaleString()}
+                      </span>
+                    </div>
+
                     <button
                       className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
                       onClick={() =>

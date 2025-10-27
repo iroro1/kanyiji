@@ -1,22 +1,40 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getAllProducts, getWishlist, getSingleProduct } from "./Api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  LoginUser,
+  getAllProducts,
+  getWishlist,
+  getSingleProduct,
+} from "./Api";
+
+// AUTHENTICATE NEW USER
+export function useLoginUser() {
+  const { mutate: login, isPending } = useMutation({
+    mutationFn: (credentials: { email: string; password: string }) =>
+      LoginUser(credentials),
+
+    onSuccess: () => {
+      console.log("user signed in successfully");
+    },
+  });
+
+  return { login, isPending };
+}
 
 // PRODUCTS QUERY SECTION
 
-export function useFetchAllProducts() {
+export function useFetchAllProducts(searchQuery: string) {
   const {
     data: products,
     isPending: productsIsLoading,
     error: productsError,
     isError,
   } = useQuery({
-    queryKey: ["allproducts"],
-    queryFn: getAllProducts,
+    queryKey: ["allproducts", searchQuery],
+    queryFn: () => getAllProducts(searchQuery),
     staleTime: 15 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
-    retry: 5,
   });
 
   return { products, productsIsLoading, productsError, isError };
