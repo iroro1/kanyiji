@@ -58,14 +58,18 @@ interface VendorStats {
 export default function VendorDashboard() {
   const { user } = useAuth();
   const [vendorProducts, setVendorProducts] = useState<any[]>([]);
-  const [vendorDetails, setVendorDetails] = useState<any[]>([]);
+  const [vendorDetails, setVendorDetails] = useState<{
+    id: string;
+    business_name: string;
+  }>();
 
   useEffect(() => {
     async function getVendorDetails() {
       const { data, error } = await supabase
         .from("vendors")
         .select("*")
-        .eq("user_id", user?.id);
+        .eq("user_id", user?.id)
+        .single();
 
       if (error) {
         console.error("Vendor fetch error:", error);
@@ -82,12 +86,12 @@ export default function VendorDashboard() {
 
   // 2. Fetch vendor products once vendorDetails is loaded
   useEffect(() => {
-    async function getVendorProducts(vendorId: string) {
-      console.log(vendorId);
+    async function getVendorProducts() {
+      if (!vendorDetails) return;
       const { data, error } = await supabase
         .from("products")
         .select(`*, product_images( id, image_url )`)
-        .eq("vendor_id", vendorId);
+        .eq("vendor_id", vendorDetails?.id);
 
       if (error) {
         console.error("Product fetch error:", error);
@@ -97,9 +101,7 @@ export default function VendorDashboard() {
       }
     }
 
-    if (vendorDetails.length > 0) {
-      getVendorProducts(vendorDetails[0].id);
-    }
+    getVendorProducts();
   }, [vendorDetails]);
 
   const router = useRouter();
@@ -294,7 +296,7 @@ export default function VendorDashboard() {
     }
   };
 
-  if (!user) {
+  if (user?.role !== "vendor") {
     return (
       <CustomError
         statusCode={403}
@@ -305,20 +307,7 @@ export default function VendorDashboard() {
     );
   }
 
-  useEffect(() => {
-    // Once user data is available, check their role.
-
-    if (user?.role !== "customer") {
-      router.replace("/vendor/register");
-    } else {
-      setIsCheckingAuth(false);
-    }
-  }, [user, router]);
-
-  // While we are checking the user's role, display a loading screen.
-  if (isCheckingAuth) {
-    return <LoadingSpinner />;
-  }
+  console.log(vendorDetails);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -328,7 +317,7 @@ export default function VendorDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Vendor Dashboard
+                {vendorDetails?.business_name}
               </h1>
               <p className="text-gray-600">Manage your products and orders</p>
             </div>

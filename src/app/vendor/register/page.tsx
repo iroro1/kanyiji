@@ -217,6 +217,13 @@ export default function VendorRegistrationPage() {
         throw error;
       }
 
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ role: "vendor" })
+        .eq("id", user?.id);
+
+      if (updateError) throw updateError;
+
       // 4. On success, update the final states
       console.log("Successfully inserted data:", data);
       setVendorSuccessState(true);
