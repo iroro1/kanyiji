@@ -28,9 +28,10 @@ export default function ProductDetailPage({
   const { data, isPending, isError } = useFetchSingleProduct(params?.id, retry);
 
   console.log(data);
+
+  console.log(data);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-
 
   // Mock product data - in real app this would come from API
   const shipping = {
@@ -168,19 +169,14 @@ export default function ProductDetailPage({
                   <span className="text-3xl font-bold text-gray-900">
                     ₦{product.price.toLocaleString()}
                   </span>
-                  {product.originalPrice > product.price && (
+                  {product.original_price > product.price && (
                     <span className="text-lg text-gray-500 line-through">
-                      ₦{product.originalPrice.toLocaleString()}
+                      ₦{product.original_price.toLocaleString()}
                     </span>
                   )}
-                  {product.originalPrice > product.price && (
+                  {product.original_price > product.price && (
                     <span className="bg-red-100 text-red-800 text-sm font-semibold px-2 py-1 rounded-full">
-                      {Math.round(
-                        ((product.originalPrice - product.price) /
-                          product.originalPrice) *
-                          100
-                      )}
-                      % OFF
+                      {product.discount_percent}% OFF
                     </span>
                   )}
                 </div>
@@ -230,12 +226,12 @@ export default function ProductDetailPage({
                 <div className="flex items-center gap-2">
                   <div
                     className={`w-3 h-3 rounded-full ${
-                      product.inStock ? "bg-green-500" : "bg-red-500"
+                      product.stock_quantity ? "bg-green-500" : "bg-red-500"
                     }`}
                   />
                   <span className="text-sm text-gray-600">
-                    {product.inStock
-                      ? `${product.stockCount} in stock`
+                    {product.stock_quantity
+                      ? `${product.stock_quantity} in stock`
                       : "Out of stock"}
                   </span>
                 </div>
@@ -245,7 +241,7 @@ export default function ProductDetailPage({
               <div className="flex gap-4 mb-8">
                 <button
                   // onClick={handleAddToCart}
-                  disabled={!product.inStock}
+                  disabled={!product.stock_quantity}
                   className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <ShoppingCart className="w-5 h-5" />

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import axios from "axios";
 
 export type Product = {
   id: string;
@@ -13,21 +14,41 @@ export type Product = {
   }[];
 };
 
-// PRODUCTS SECTION
-export async function getAllProducts() {
-  const { data, error } = await supabase
-    .from("products")
-    .select(`*, product_images( id, image_url )`);
+// AUTHENTICATION
+export async function LoginUser(body: { email: string; password: string }) {
+  if (!body.email || body.password)
+    throw new Error("Email and password are required");
+  const user = await axios.post("/api/login", body);
 
-  if (error) throw error;
-  return data;
+  console.log(user);
 }
 
-export async function getSingleProduct(productId: string) {
+// PRODUCTS SECTION
+export async function getAllProducts(searchQuery: string) {
+  console.log(searchQuery);
+  if (searchQuery) {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`)
+      .ilike("name", `%${searchQuery}%`);
+
+    if (error) throw error;
+    return data;
+  } else {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`);
+
+    if (error) throw error;
+    return data;
+  }
+}
+
+export async function getSingleProduct(productSlug: string) {
   const { data, error } = await supabase
     .from("products")
     .select(`*, product_images( id, image_url )`)
-    .eq("id", productId);
+    .eq("slug", productSlug);
 
   if (error) throw error;
   return data;

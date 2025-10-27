@@ -15,12 +15,12 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
+// import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "../auth/AuthModal";
 import kanyiyi from "../../assets/Kanyiji-dark.png";
 
 export default function Footer() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
@@ -60,7 +60,6 @@ export default function Footer() {
       title: "For Vendors",
       links: [
         { name: "Become a Vendor", action: "openAuthModal" },
-        { name: "Vendor Dashboard", href: "/vendor/dashboard" },
         { name: "Vendor Guidelines", href: "/vendor/guidelines" },
         { name: "Success Stories", href: "/vendor/success-stories" },
         { name: "Vendor Support", href: "/vendor/support" },
@@ -176,7 +175,7 @@ export default function Footer() {
                   <li key={link.name}>
                     {link.action === "openAuthModal" ? (
                       <button
-                        onClick={!user ? openAuthModal : vendorRegistration}
+                        // onClick={!user ? openAuthModal : vendorRegistration}
                         className="text-gray-300 hover:text-blue-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
                       >
                         {link.name}
