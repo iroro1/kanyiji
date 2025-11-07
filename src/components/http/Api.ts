@@ -82,3 +82,31 @@ export async function getWishlist(userId: string): Promise<Product[]> {
 
   return (data ?? []).flatMap((row) => row.products);
 }
+
+// PAYMENT GATEWAY
+export async function InitializePayment(body: {
+  email: string;
+  amount: number;
+  metadata?: Record<string, string | number | boolean>;
+}) {
+  const request = await axios.post("api/paystack", body);
+
+  return request.data;
+}
+
+export async function VerifyPayment(reference: string) {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data?.session?.access_token;
+
+  try {
+    const request = await axios(`api/verify-payment/${reference}`, {
+      withCredentials: true,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    return request.data;
+  } catch (error) {
+    console.error("Error verifying payment:", error);
+  }
+}

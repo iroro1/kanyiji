@@ -3,6 +3,7 @@
 import { Trash2, Minus, Plus, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import Image from "next/image";
 
 export default function CartPage() {
   const { state, dispatch } = useCart();
@@ -63,7 +64,9 @@ export default function CartPage() {
                   <div key={item.id} className="p-6">
                     <div className="flex items-center gap-4">
                       {/* Product Image */}
-                      <img
+                      <Image
+                        width={500}
+                        height={200}
                         src={item?.product_images[0]?.image_url}
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg"
