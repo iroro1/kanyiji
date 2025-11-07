@@ -144,13 +144,13 @@ const ActionIcons = ({
   onMobileSearchClick,
   onWishlistClick,
   onCartClick,
-  cartNumber,
+  // cartNumber,
 }: {
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;
   onCartClick?: () => void;
-  cartNumber: number;
+  // cartNumber: number;
 }) => (
   <div className="flex items-center space-x-3 lg:space-x-4">
     {showMobileSearch && (
@@ -178,7 +178,7 @@ const ActionIcons = ({
     >
       <ShoppingCart className="w-4 h-4 lg:w-5 lg:h-5" />
       <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        {cartNumber}
+        {/* {cartNumber} */}
       </span>
     </button>
   </div>
@@ -719,7 +719,7 @@ export default function Navbar() {
                 onMobileSearchClick={() => {}}
                 onWishlistClick={handleWishlistClick}
                 onCartClick={handleCartClick}
-                cartNumber={state.items.length}
+                // cartNumber={state.items.length}
               />
             </div>
 

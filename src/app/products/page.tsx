@@ -152,7 +152,7 @@ export default function ProductsPage() {
                       17 reviews
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap pb-5 items-center  justify-between">
                     <div>
                       <span className="text-lg pr-2 font-bold text-gray-900">
                         ₦{product.price.toLocaleString()}
@@ -162,24 +162,24 @@ export default function ProductsPage() {
                         ₦{product.original_price.toLocaleString()}
                       </span>
                     </div>
-
-                    <button
-                      className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                      onClick={() =>
-                        dispatch({
-                          type: "ADD_TO_CART",
-                          product: {
-                            ...product,
-                            id: String(product.id),
-                            price: Number(product.price),
-                          },
-                        })
-                      }
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span className="text-sm">Add to Cart</span>
-                    </button>
                   </div>
+
+                  <button
+                    className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
+                    onClick={() =>
+                      dispatch({
+                        type: "ADD_TO_CART",
+                        product: {
+                          ...product,
+                          id: String(product.id),
+                          price: Number(product.price),
+                        },
+                      })
+                    }
+                  >
+                    <ShoppingCart className="w-4 h-4 text-center" />
+                    <span className="text-sm text-center">Add to Cart</span>
+                  </button>
                 </div>
               </div>
             ))}

@@ -2,23 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { ArrowLeft, CreditCard, Truck, Shield, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-
-// Declare Paystack global object
-declare global {
-  interface Window {
-    PaystackPop: {
-      setup: (config: any) => {
-        openIframe: () => void;
-      };
-    };
-  }
-}
+import { useCart } from "@/contexts/CartContext";
+import PaystackModalButton from "@/components/http/PaystackModalButton";
+import { VerifyPayment } from "@/components/http/Api";
+import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/contexts/AuthContext";
+import CustomError from "../error";
+import { validateSignupForm } from "@/components/ui/ValidateInputs";
 
 export default function CheckoutPage() {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
+  const { notify } = useToast();
+  const router = useRouter();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [paymentMethod, setPaymentMethod] = useState("card");
-  const [paystackLoaded, setPaystackLoaded] = useState(false);
   const [shippingData, setShippingData] = useState({
     firstName: "",
     lastName: "",
@@ -30,117 +31,89 @@ export default function CheckoutPage() {
     zipCode: "",
   });
 
-  // Load Paystack script
-  useEffect(() => {
-    if (paymentMethod === "card" && !paystackLoaded) {
-      const script = document.createElement("script");
-      script.src = "https://js.paystack.co/v1/inline.js";
-      script.async = true;
-      script.onload = () => setPaystackLoaded(true);
-      document.body.appendChild(script);
+  console.log(shippingData);
 
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, [paymentMethod, paystackLoaded]);
+  const [checkoutItem, setCheckoutItem] = useState([]);
+  const [checkOutQuantity, setCheckOutQuantity] = useState(1);
 
-  // Initialize Paystack payment
-  const initializePaystack = () => {
-    if (window.PaystackPop) {
-      const handler = window.PaystackPop.setup({
-        key:
-          process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_1234567890", // Replace with your actual Paystack public key
-        email: "customer@email.com", // This should come from form data
-        amount: total * 100, // Paystack expects amount in kobo (smallest currency unit)
-        currency: "NGN",
-        callback: function (response: any) {
-          // Handle successful payment
-          console.log("Payment successful:", response);
-          handlePlaceOrder();
-        },
-        onClose: function () {
-          // Handle payment modal close
-          console.log("Payment modal closed");
-        },
-      });
-      handler.openIframe();
-    }
-  };
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // Mock cart data - in real app this would come from cart context
-  const cartItems = [
-    {
-      id: 1,
-      name: "Handcrafted African Beaded Necklace",
-      price: 2500,
-      quantity: 2,
-      image:
-        "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      id: 2,
-      name: "Traditional Nigerian Ankara Fabric",
-      price: 3500,
-      quantity: 1,
-      image:
-        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-    },
-  ];
+  const formatPrice = (price: number) => `₦${price.toLocaleString()}`;
 
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const { state } = useCart();
+  const items = state.items;
   const shipping = 800;
-  const total = subtotal + shipping;
-
   const handlePlaceOrder = async () => {
-    if (
-      !shippingData.email ||
-      !shippingData.firstName ||
-      !shippingData.lastName ||
-      !shippingData.address
-    ) {
-      alert("Please fill in all required shipping information");
-      return;
+    const validationErrors = validateSignupForm(shippingData);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return; // Stop submit if there are errors
     }
 
-    try {
-      // Create order object
-      const order = {
-        id: `ORD-${Date.now()}`,
-        orderNumber: `ORD-${Date.now()}`,
-        date: new Date().toISOString(),
-        status: "pending",
-        total: total,
-        items: cartItems,
-        shippingAddress: `${shippingData.address}, ${shippingData.city}, ${shippingData.state}, ${shippingData.zipCode}`,
-        customerEmail: shippingData.email,
-        customerName: `${shippingData.firstName} ${shippingData.lastName}`,
-        customerPhone: shippingData.phone,
-      };
-
-      // Get existing orders from localStorage
-      const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-      existingOrders.push(order);
-      localStorage.setItem("orders", JSON.stringify(existingOrders));
-
-      // Clear cart
-      localStorage.removeItem("cart");
-
-      // Show success message
-      alert(
-        "Order placed successfully! You will receive a confirmation email shortly."
-      );
-
-      // Redirect to orders page
-      window.location.href = "/orders";
-    } catch (error) {
-      console.error("Error placing order:", error);
-      alert("There was an error placing your order. Please try again.");
-    }
+    setStep(2);
   };
+
+  useEffect(() => {
+    const storedData = localStorage.getItem("checkoutItem");
+    if (storedData) {
+      const buyNowItem = JSON.parse(storedData);
+      setCheckoutItem(buyNowItem);
+    }
+  }, []);
+
+  const checkoutOrders = checkoutItem.length !== 0 ? checkoutItem : items;
+
+  const handlePayment = (ref: string) => {
+    (async () => {
+      try {
+        setPaymentLoading(true);
+
+        const result = await VerifyPayment(ref);
+        if (!result) {
+          notify("Payment verification failed", "error");
+          return;
+        }
+
+        try {
+          router.push(
+            `/payment-success?orderId=ORD-${Date.now()}&transactionId=${
+              result.reference
+            }`
+          );
+        } catch {
+          notify("Payment failed. Please try again.", "error");
+          router.push(`/payment-failed?error=Payment processing failed`);
+        }
+      } catch (err) {
+        console.error(err);
+        notify("Payment verification failed", "error");
+      } finally {
+        setPaymentLoading(false);
+      }
+    })();
+  };
+
+  const handlePaymentClose = () => {
+    notify("Payment cancelled", "info");
+  };
+
+  if (!user) {
+    return (
+      <CustomError
+        statusCode={403}
+        title="Access Restricted"
+        message="Please sign in to your account to access this page."
+      />
+    );
+  }
+
+  function handleShippingData(field: string, value: string) {
+    setShippingData((prevValue) => ({
+      ...prevValue,
+      [field]: value,
+    }));
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,7 +199,16 @@ export default function CheckoutPage() {
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="John"
+                      onChange={(event) =>
+                        handleShippingData("firstName", event.target.value)
+                      }
                     />
+
+                    {errors.firstName && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.firstName}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -236,7 +218,16 @@ export default function CheckoutPage() {
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Doe"
+                      onChange={(event) =>
+                        handleShippingData("lastName", event.target.value)
+                      }
                     />
+
+                    {errors.lastName && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.lastName}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -248,7 +239,13 @@ export default function CheckoutPage() {
                     type="email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="john@example.com"
+                    onChange={(event) =>
+                      handleShippingData("email", event.target.value)
+                    }
                   />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                  )}
                 </div>
 
                 <div className="mb-6">
@@ -259,7 +256,13 @@ export default function CheckoutPage() {
                     type="tel"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="+234 801 234 5678"
+                    onChange={(event) =>
+                      handleShippingData("phone", event.target.value)
+                    }
                   />
+                  {errors.phone && (
+                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                  )}
                 </div>
 
                 <div className="mb-6">
@@ -270,7 +273,15 @@ export default function CheckoutPage() {
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="123 Main Street"
+                    onChange={(event) =>
+                      handleShippingData("address", event.target.value)
+                    }
                   />
+                  {errors.address && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.address}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -282,7 +293,13 @@ export default function CheckoutPage() {
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Lagos"
+                      onChange={(event) =>
+                        handleShippingData("city", event.target.value)
+                      }
                     />
+                    {errors.city && (
+                      <p className="text-red-500 text-sm mt-1">{errors.city}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -292,7 +309,15 @@ export default function CheckoutPage() {
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Lagos"
+                      onChange={(event) =>
+                        handleShippingData("state", event.target.value)
+                      }
                     />
+                    {errors.state && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.state}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -302,6 +327,9 @@ export default function CheckoutPage() {
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="100001"
+                      onChange={(event) =>
+                        handleShippingData("zipCode", event.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -346,7 +374,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={handlePlaceOrder}
                   className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
                   Continue to Payment
@@ -409,24 +437,65 @@ export default function CheckoutPage() {
                         Your payment information will be securely processed by
                         Paystack. No card details are stored on our servers.
                       </p>
-
-                      {paystackLoaded ? (
-                        <button
-                          onClick={initializePaystack}
-                          className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                          <CreditCard className="w-5 h-5" />
-                          Pay with Card
-                        </button>
-                      ) : (
-                        <div className="text-center py-4">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2"></div>
-                          <p className="text-sm text-blue-600">
-                            Loading payment form...
-                          </p>
-                        </div>
-                      )}
                     </div>
+                    <PaystackModalButton
+                      amountNaira={
+                        checkoutItem.length !== 0
+                          ? checkoutOrders[0].price * checkOutQuantity +
+                            shipping
+                          : state.total + shipping
+                      }
+                      email={user?.email || "customer@example.com"}
+                      metadata={{
+                        product:
+                          checkoutItem.length !== 0
+                            ? JSON.stringify(
+                                checkoutItem.map((item) => ({
+                                  // name: item?.name,
+                                  // id: item.id,
+                                  // seller: item.seller_id,
+                                  // price: item.price,
+                                  // image: item.images[0],
+                                  // quantity: item.quantity,
+                                  address: shippingData.address,
+                                }))
+                              )
+                            : JSON.stringify(
+                                items?.map((item) => ({
+                                  name: item.name,
+                                  id: item.id,
+                                  // seller: item?.seller_id,
+                                  price: item.price,
+                                  image: item.product_images[0].image_url,
+                                  quantity: item.quantity,
+                                  address: shippingData.address,
+                                }))
+                              ),
+                        totalAmount:
+                          checkoutItem.length !== 0
+                            ? checkoutOrders[0].price * checkOutQuantity +
+                              shipping
+                            : state.total + shipping,
+
+                        cartCount: items.length,
+                        // addressId: selectedAddress?.id,
+                      }}
+                      className="w-full bg-yellow-500 text-text-inverse py-4 rounded-xl font-semibold text-center block hover:bg-primary-dark transition text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      onSuccess={handlePayment}
+                      onClose={handlePaymentClose}
+                      // disabled={!selectedAddress || paymentLoading}
+                    >
+                      {checkoutItem.length !== 0
+                        ? paymentLoading
+                          ? "Verifying payment..."
+                          : `Pay ${formatPrice(
+                              checkoutOrders[0].price * checkOutQuantity +
+                                shipping
+                            )}`
+                        : paymentLoading
+                        ? "Verifying payment..."
+                        : `Pay ${formatPrice(state.total + shipping)}`}
+                    </PaystackModalButton>
                   </div>
                 )}
 
@@ -452,7 +521,7 @@ export default function CheckoutPage() {
                   >
                     Back to Shipping
                   </button>
-                  <button
+                  {/* <button
                     onClick={
                       paymentMethod === "card"
                         ? initializePaystack
@@ -461,7 +530,7 @@ export default function CheckoutPage() {
                     className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                   >
                     {paymentMethod === "card" ? "Pay with Card" : "Place Order"}
-                  </button>
+                  </button> */}
                 </div>
               </div>
             )}
@@ -511,10 +580,12 @@ export default function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="space-y-4 mb-6">
-                {cartItems.map((item) => (
+                {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
-                    <img
-                      src={item.image}
+                    <Image
+                      width={500}
+                      height={300}
+                      src={item.product_images[0]?.image_url}
                       alt={item.name}
                       className="w-16 h-16 object-cover rounded-lg"
                     />
@@ -538,7 +609,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">
-                    ₦{subtotal.toLocaleString()}
+                    ₦{state.total.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -552,7 +623,7 @@ export default function CheckoutPage() {
                     Total
                   </span>
                   <span className="text-lg font-bold text-primary-600">
-                    ₦{total.toLocaleString()}
+                    ₦{(state.total + shipping).toLocaleString()}
                   </span>
                 </div>
               </div>
