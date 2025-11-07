@@ -6,6 +6,7 @@ import LayoutWrapper from "@/components/layout/LayoutWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import AppQueryProvider from "@/components/http/QueryHttp";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,19 +40,21 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-gray-50">
         <AuthProvider>
           <AppQueryProvider>
-            <CartProvider>
-              <LayoutWrapper>{children}</LayoutWrapper>
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: "#363636",
-                    color: "#fff",
-                  },
-                }}
-              />
-            </CartProvider>
+            <ToastProvider>
+              <CartProvider>
+                <LayoutWrapper>{children}</LayoutWrapper>
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: "#363636",
+                      color: "#fff",
+                    },
+                  }}
+                />
+              </CartProvider>
+            </ToastProvider>
           </AppQueryProvider>
         </AuthProvider>
       </body>
