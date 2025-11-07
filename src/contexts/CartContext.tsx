@@ -1,5 +1,4 @@
-// CartContext.tsx
-"use client"; // needed for Next.js App Router
+"use client";
 
 import React, {
   createContext,
@@ -7,17 +6,22 @@ import React, {
   useReducer,
   useEffect,
   ReactNode,
+  Dispatch,
+  useState,
 } from "react";
 
+// --------------------
+// TYPES
+// --------------------
 type Product = {
   id: string;
   name: string;
   price: number;
+  title: string;
   product_images: {
     id: string;
     image_url: string;
   }[];
-  title: string;
 };
 
 type CartItem = Product & { quantity: number };
@@ -35,37 +39,65 @@ type CartAction =
   | { type: "CLEAR_CART" }
   | { type: "LOAD_CART"; state: CartState };
 
-// Using undefined as the default value is a robust pattern
-export const CartContext = createContext<
-  | {
-      state: CartState;
-      dispatch: React.Dispatch<CartAction>;
-    }
-  | undefined
->(undefined);
+// --------------------
+// CONTEXT
+// --------------------
+type CartContextType = {
+  state: CartState;
+  dispatch: Dispatch<CartAction>;
+};
 
-// Utility to calculate total
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+// --------------------
+// UTILITIES
+// --------------------
 const calculateTotal = (items: CartItem[]) =>
   items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
-// Reducer
+const loadCartFromStorage = (): CartState => {
+  if (typeof window === "undefined") {
+    // During SSR
+    return { items: [], total: 0 };
+  }
+
+  try {
+    const storedCart = localStorage.getItem("cart");
+    if (storedCart) {
+      const parsed = JSON.parse(storedCart);
+      return {
+        items: parsed.items || [],
+        total: parsed.total || calculateTotal(parsed.items || []),
+      };
+    }
+  } catch (error) {
+    console.error("Failed to parse cart from localStorage", error);
+  }
+
+  return { items: [], total: 0 };
+};
+
+// --------------------
+// REDUCER
+// --------------------
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
     case "LOAD_CART":
       return action.state;
 
     case "ADD_TO_CART": {
-      const exists = state.items.find((item) => item.id === action.product.id);
-      let updatedItems: CartItem[];
-      if (exists) {
-        updatedItems = state.items.map((item) =>
-          item.id === action.product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        updatedItems = [...state.items, { ...action.product, quantity: 1 }];
-      }
+      const existingItem = state.items.find(
+        (item) => item.id === action.product.id
+      );
+
+      const updatedItems = existingItem
+        ? state.items.map((item) =>
+            item.id === action.product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          )
+        : [...state.items, { ...action.product, quantity: 1 }];
+
       return { items: updatedItems, total: calculateTotal(updatedItems) };
     }
 
@@ -83,7 +115,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
             ? { ...item, quantity: item.quantity - 1 }
             : item
         )
-        .filter((item) => item.quantity > 0); // <-- THE FIX IS HERE
+        .filter((item) => item.quantity > 0);
       return { items: updatedItems, total: calculateTotal(updatedItems) };
     }
 
@@ -100,38 +132,34 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
   }
 };
 
-const initialData = () => {
-  // This function only runs on the client
-  if (typeof window === "undefined") {
-    return { items: [], total: 0 };
-  }
-
-  try {
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) {
-      return JSON.parse(storedCart); // The stored state is our initial state
-    }
-  } catch (error) {
-    console.error("Failed to parse cart from localStorage", error);
-  }
-
-  return { items: [], total: 0 }; // Default initial state if nothing is stored
-};
-
-// Provider
+// --------------------
+// PROVIDER
+// --------------------
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(cartReducer, undefined, initialData);
+  const [state, dispatch] = useReducer(cartReducer, { items: [], total: 0 });
+  const [isLoaded, setIsLoaded] = useState(false); // Prevent hydration mismatch
 
-  // Save to localStorage on change
+  // Load cart from localStorage only after client hydration
   useEffect(() => {
+    const storedState = loadCartFromStorage();
+    dispatch({ type: "LOAD_CART", state: storedState });
+    setIsLoaded(true);
+  }, []);
+
+  // Persist cart to localStorage
+  useEffect(() => {
+    if (!isLoaded) return;
     try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("cart", JSON.stringify(state));
-      }
+      localStorage.setItem("cart", JSON.stringify(state));
     } catch (error) {
       console.error("Failed to save cart to localStorage", error);
     }
-  }, [state]);
+  }, [state, isLoaded]);
+
+  // Prevent rendering on the server to avoid SSR/client mismatch
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <CartContext.Provider value={{ state, dispatch }}>
@@ -140,12 +168,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom Hook with check for provider
+// --------------------
+// CUSTOM HOOK
+// --------------------
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useCart must be used within a CartProvider");
   }
-  const { dispatch, state } = context;
-  return { dispatch, state };
+  return context;
 };

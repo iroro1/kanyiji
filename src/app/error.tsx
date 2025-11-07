@@ -4,16 +4,6 @@ import React, { SetStateAction } from "react";
 import { AlertTriangle, Home } from "lucide-react";
 import Link from "next/link";
 
-/**
- * A beautiful, customizable error component for Next.js applications.
- *
- * @param {object} props - The component's props.
- * @param {number} [props.statusCode=500] - The HTTP status code of the error.
- * @param {string} [props.title="Oops! Something went wrong."] - The main title of the error message.
- * @param {string} [props.message="We're sorry, but an unexpected error occurred. Please try again later."] - A detailed, user-friendly message explaining the error.
- * @param {Function} [props.onRetry] - An optional function to call when the 'Try Again' button is clicked.
- * @param {boolean} [props.showHomeLink=true] - Whether to show the 'Go to Homepage' link.
- */
 export const CustomError = ({
   statusCode = 500,
   title = "Oops! Something went wrong.",
@@ -21,6 +11,7 @@ export const CustomError = ({
   onRetry,
   retry,
   showHomeLink = true,
+  link = "/",
 }: {
   statusCode?: number;
   title?: string;
@@ -28,6 +19,7 @@ export const CustomError = ({
   onRetry?: (retry: boolean) => void;
   showHomeLink?: boolean;
   retry?: boolean;
+  link?: string;
 }) => {
   // Determine color theme based on status code
   const isClientError = statusCode >= 400 && statusCode < 500;
@@ -92,7 +84,7 @@ export const CustomError = ({
 
           {showHomeLink && (
             <Link
-              href="/"
+              href={link}
               className="inline-flex items-center justify-center w-full sm:w-auto rounded-lg px-6 py-3 text-base font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 shadow-sm transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
             >
               <Home className="w-5 h-5 mr-2" />
