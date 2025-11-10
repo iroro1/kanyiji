@@ -31,8 +31,6 @@ export default function CheckoutPage() {
     zipCode: "",
   });
 
-  console.log(shippingData);
-
   const [checkoutItem, setCheckoutItem] = useState([]);
   const [checkOutQuantity, setCheckOutQuantity] = useState(1);
 
@@ -76,11 +74,12 @@ export default function CheckoutPage() {
         }
 
         try {
-          router.push(
-            `/payment-success?orderId=ORD-${Date.now()}&transactionId=${
-              result.reference
-            }`
-          );
+          // router.push(
+          //   `/payment-success?orderId=ORD-${Date.now()}&transactionId=${
+          //     result.reference
+          //   }`
+          // );
+          setStep(3);
         } catch {
           notify("Payment failed. Please try again.", "error");
           router.push(`/payment-failed?error=Payment processing failed`);

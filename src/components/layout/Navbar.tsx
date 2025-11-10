@@ -144,8 +144,8 @@ const ActionIcons = ({
   onMobileSearchClick,
   onWishlistClick,
   onCartClick,
-  // cartNumber,
-}: {
+}: // cartNumber,
+{
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;

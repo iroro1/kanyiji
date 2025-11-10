@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CustomError from "@/app/error";
 import { useFetchSingleProduct } from "@/components/http/QueryHttp";
+import { useCart } from "@/contexts/CartContext";
 
 export default function ProductDetailPage({
   params,
@@ -26,10 +27,8 @@ export default function ProductDetailPage({
   const { user } = useAuth();
   const [retry, setRetry] = useState<boolean>(false);
   const { data, isPending, isError } = useFetchSingleProduct(params?.id, retry);
+  const { dispatch } = useCart();
 
-  console.log(data);
-
-  console.log(data);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
@@ -176,7 +175,7 @@ export default function ProductDetailPage({
                   )}
                   {product.original_price > product.price && (
                     <span className="bg-red-100 text-red-800 text-sm font-semibold px-2 py-1 rounded-full">
-                      {product.discount_percent}% OFF
+                      {Math.floor(product.discount_percent)}% OFF
                     </span>
                   )}
                 </div>
@@ -240,7 +239,16 @@ export default function ProductDetailPage({
               {/* Action Buttons */}
               <div className="flex gap-4 mb-8">
                 <button
-                  // onClick={handleAddToCart}
+                  onClick={() =>
+                    dispatch({
+                      type: "ADD_TO_CART",
+                      product: {
+                        ...product,
+                        id: String(product.id),
+                        price: Number(product.price),
+                      },
+                    })
+                  }
                   disabled={!product.stock_quantity}
                   className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
