@@ -10,15 +10,29 @@ import { useFetchAllProducts } from "@/components/http/QueryHttp";
 import CustomError from "../error";
 import { useDebounce } from "@/components/http/useDebounce";
 import EmptyState from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ProductsPage() {
   const { dispatch } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
+  const { notify } = useToast();
 
   const debounce = useDebounce(searchQuery, 500);
 
   const { products, productsIsLoading, productsError, isError } =
     useFetchAllProducts(debounce);
+
+  function AddToCart(product: any, id: string, price: number) {
+    dispatch({
+      type: "ADD_TO_CART",
+      product: {
+        ...product,
+        id: String(product.id),
+        price: Number(product.price),
+      },
+    });
+    notify("Product added to cart successfully", "success");
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -167,14 +181,7 @@ export default function ProductsPage() {
                   <button
                     className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
                     onClick={() =>
-                      dispatch({
-                        type: "ADD_TO_CART",
-                        product: {
-                          ...product,
-                          id: String(product.id),
-                          price: Number(product.price),
-                        },
-                      })
+                      AddToCart(product, product.id, product.price)
                     }
                   >
                     <ShoppingCart className="w-4 h-4 text-center" />
