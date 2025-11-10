@@ -1,11 +1,24 @@
 "use client";
 
+import {
+  QueryClient,
+  QueryClientProvider as RQProvider,
+} from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+
+function AppQueryProvider({ children }: { children: React.ReactNode }) {
+  return <RQProvider client={queryClient}>{children}</RQProvider>;
+}
+
+export default AppQueryProvider;
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   LoginUser,
   getAllProducts,
   getWishlist,
   getSingleProduct,
+  fetchAllOrders,
 } from "./Api";
 
 // AUTHENTICATE NEW USER
@@ -68,15 +81,16 @@ export function useFetchWishlist(userId: string, refresh: number) {
   return { data, isLoading, error, isError };
 }
 
-import {
-  QueryClient,
-  QueryClientProvider as RQProvider,
-} from "@tanstack/react-query";
+// FETCH ORDERS
+export function useFetchUserOrders(userId: string) {
+  const { data, isPending, error, isError } = useQuery({
+    queryKey: ["userOrders", userId],
+    queryFn: () => fetchAllOrders(userId),
+    staleTime: 15 * 60 * 1000,
+    enabled: !!userId,
+    gcTime: 15 * 60 * 1000,
+    // retry: 5,
+  });
 
-const queryClient = new QueryClient();
-
-function AppQueryProvider({ children }: { children: React.ReactNode }) {
-  return <RQProvider client={queryClient}>{children}</RQProvider>;
+  return { data, isPending, error, isError };
 }
-
-export default AppQueryProvider;

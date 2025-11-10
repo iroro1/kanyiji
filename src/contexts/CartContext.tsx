@@ -82,7 +82,6 @@ const loadCartFromStorage = (): CartState => {
 // REDUCER
 // --------------------
 const cartReducer = (state: CartState, action: CartAction): CartState => {
-  const { notify } = useToast();
   switch (action.type) {
     case "LOAD_CART":
       return action.state;
@@ -99,8 +98,6 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
               : item
           )
         : [...state.items, { ...action.product, quantity: 1 }];
-
-      notify("Product added to cart", "success");
 
       return { items: updatedItems, total: calculateTotal(updatedItems) };
     }

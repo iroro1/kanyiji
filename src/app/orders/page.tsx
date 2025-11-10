@@ -10,6 +10,9 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFetchUserOrders } from "@/components/http/QueryHttp";
 
 interface Order {
   id: string;
@@ -30,85 +33,9 @@ interface Order {
 }
 
 export default function OrdersPage() {
-  const [orders] = useState<Order[]>([
-    {
-      id: "1",
-      orderNumber: "ORD-2024-001",
-      date: "2024-01-15",
-      status: "delivered",
-      total: 8500,
-      items: [
-        {
-          id: "1",
-          name: "Handcrafted African Beaded Necklace",
-          price: 2500,
-          quantity: 2,
-          image:
-            "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-          vendor: "Nigeria Crafts",
-        },
-        {
-          id: "2",
-          name: "Traditional Nigerian Ankara Fabric",
-          price: 3500,
-          quantity: 1,
-          image:
-            "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-          vendor: "Nigeria Weaves",
-        },
-      ],
-      shippingAddress: "123 Main Street, Lagos, Nigeria",
-      trackingNumber: "TRK-123456789",
-    },
-    {
-      id: "2",
-      orderNumber: "ORD-2024-002",
-      date: "2024-01-20",
-      status: "shipped",
-      total: 12000,
-      items: [
-        {
-          id: "3",
-          name: "Organic Nigerian Shea Butter",
-          price: 8000,
-          quantity: 1,
-          image:
-            "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-          vendor: "Nigeria Naturals",
-        },
-        {
-          id: "4",
-          name: "Wooden Carved Mask",
-          price: 4000,
-          quantity: 1,
-          image:
-            "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-          vendor: "Nigeria Arts",
-        },
-      ],
-      shippingAddress: "456 Oak Avenue, Abuja, Nigeria",
-      trackingNumber: "TRK-987654321",
-    },
-    {
-      id: "3",
-      orderNumber: "ORD-2024-003",
-      date: "2024-01-25",
-      status: "processing",
-      total: 5500,
-      items: [
-        {
-          id: "5",
-          name: "Nigerian Print Dress",
-          price: 5500,
-          quantity: 1,
-          image:
-            "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80",
-          vendor: "Fashion Nigeria",
-        },
-      ],
-      shippingAddress: "789 Pine Road, Ibadan, Nigeria",
-    },
-  ]);
+  const { user } = useAuth();
+  const { data: orders } = useFetchUserOrders(user ? user.id : "");
+  console.log(orders);
 
   const getStatusIcon = (status: Order["status"]) => {
     switch (status) {
@@ -186,7 +113,7 @@ export default function OrdersPage() {
 
         {/* Orders List */}
         <div className="space-y-6">
-          {orders.map((order) => (
+          {orders?.map((order) => (
             <div
               key={order.id}
               className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
@@ -211,7 +138,7 @@ export default function OrdersPage() {
                     </div>
                   </div>
                   <div className="mt-2 sm:mt-0 text-sm text-gray-600">
-                    {formatDate(order.date)}
+                    {formatDate(order.created_at)}
                   </div>
                 </div>
               </div>
@@ -219,26 +146,28 @@ export default function OrdersPage() {
               {/* Order Items */}
               <div className="px-6 py-4">
                 <div className="space-y-4">
-                  {order.items.map((item) => (
+                  {order.order_items?.map((item: any) => (
                     <div key={item.id} className="flex items-center space-x-4">
-                      <img
+                      <Image
+                        width={500}
+                        height={300}
                         src={item.image}
                         alt={item.name}
                         className="w-16 h-16 object-cover rounded-lg"
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {item.name}
+                          {item.product_name}
                         </h3>
                         <p className="text-sm text-gray-500">
                           Vendor: {item.vendor}
                         </p>
                         <p className="text-sm text-gray-500">
-                          Qty: {item.quantity} × {formatPrice(item.price)}
+                          Qty: {item.quantity} × {formatPrice(item.unit_price)}
                         </p>
                       </div>
                       <div className="text-sm font-medium text-gray-900">
-                        {formatPrice(item.price * item.quantity)}
+                        {formatPrice(item.unit_price * item.quantity)}
                       </div>
                     </div>
                   ))}
@@ -318,7 +247,7 @@ export default function OrdersPage() {
         </div>
 
         {/* Empty State */}
-        {orders.length === 0 && (
+        {orders?.length === 0 && (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">

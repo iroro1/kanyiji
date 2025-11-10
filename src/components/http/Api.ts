@@ -110,3 +110,15 @@ export async function VerifyPayment(reference: string) {
     console.error("Error verifying payment:", error);
   }
 }
+
+// FETCH ALL ORDERS
+export async function fetchAllOrders(userId: string) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`*, order_items(*)`)
+    .eq("customer_id", userId);
+
+  if (error) throw error;
+
+  return data;
+}
