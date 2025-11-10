@@ -177,9 +177,11 @@ const ActionIcons = ({
       className="p-2 lg:p-2.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-all duration-200 relative group hover:scale-105"
     >
       <ShoppingCart className="w-4 h-4 lg:w-5 lg:h-5" />
+      {/* 
       <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        {/* {cartNumber} */}
+        {cartNumber} 
       </span>
+      */}
     </button>
   </div>
 );
