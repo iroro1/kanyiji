@@ -72,10 +72,10 @@ export async function GET(
 
     // 2️⃣ Parse JSON response from Paystack
     const { data } = await response.json();
-    // console.log(data);
 
     const products = JSON.parse(data.metadata?.product);
-    console.log(products);
+
+    console.log(data.metadata);
 
     // SAVE ORDER TO DATABASE HERE
     // ADD USER CART API
@@ -106,36 +106,37 @@ export async function GET(
         .from("order_items")
         .insert([
           {
-            name: product.name,
+            product_name: product.name,
             image: product.image,
             order_id: orderData.id,
             product_id: product.id,
             quantity: product.quantity,
-            price: product.price,
-            seller_id: product.seller,
+            unit_price: product.price,
+            total_price: product.price * product.quantity,
+            vendor_id: product.seller,
           },
         ]);
 
       if (orderItemsError) throw orderItemsError;
     }
 
-    const { error: addressError } = await supabase
-      .from("shipping_addresses")
-      .insert([
-        {
-          user_id: user?.id,
-          order_id: orderData.id,
-          address_label: products[0].address.type,
-          recipient_name: products[0].address.name,
-          phone_number: products[0].address.phone,
-          street_address: products[0].address.address,
-          city: products[0].address.city,
-          state: products[0].address.state,
-          is_default: products[0].address.isDefault,
-        },
-      ]);
+    // const { error: addressError } = await supabase
+    //   .from("shipping_addresses")
+    //   .insert([
+    //     {
+    //       user_id: user?.id,
+    //       order_id: orderData.id,
+    //       address_label: products[0].address.type,
+    //       recipient_name: products[0].address.name,
+    //       phone_number: products[0].address.phone,
+    //       street_address: products[0].address.address,
+    //       city: products[0].address.city,
+    //       state: products[0].address.state,
+    //       is_default: products[0].address.isDefault,
+    //     },
+    //   ]);
 
-    if (addressError) throw addressError;
+    // if (addressError) throw addressError;
 
     // 3️⃣ Return response back to frontend
     return NextResponse.json(data, { status: response.status });
