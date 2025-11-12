@@ -122,3 +122,52 @@ export async function fetchAllOrders(userId: string) {
 
   return data;
 }
+
+// VENDOR DASHBOARD
+export async function fetchVendorDetails(userId: string) {
+  const { data, error } = await supabase
+    .from("vendors")
+    .select(`*, products(*, product_images(*))`)
+    .eq("user_id", userId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// DELETE VENDOR PRODUCT  AND IMAGES
+export async function deleteVendorProductImages(imagePath: any[]) {
+  console.log(imagePath);
+  const { data, error } = await supabase.storage
+    .from("vendor-product-images")
+    .remove(imagePath);
+
+  if (error) throw error;
+
+  return data;
+}
+export async function deleteVendorProduct(productId: string, userId: string) {
+  console.log(productId, userId);
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId);
+
+  if (error) throw error;
+}
+
+// EDIT VENDOR PRODUCT
+export async function editProduct(productId: string, updates: any) {
+  const { data, error } = await supabase
+    .from("products")
+    .update(updates) // fields to update (object)
+    .eq("id", productId) // match record by id
+    .select(); // optional: return updated data
+
+  if (error) {
+    console.error("Error updating product:", error);
+    throw error;
+  }
+
+  return data;
+}

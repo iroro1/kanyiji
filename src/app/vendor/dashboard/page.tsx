@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect } from "react";
 import {
   Package,
   ShoppingBag,
@@ -20,10 +19,18 @@ import {
   BarChart3,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import EmptyState from "@/components/ui/EmptyState";
 import CustomError from "@/app/error";
+import {
+  useFetchVendorDetails,
+  useDeleteVendorProduct,
+} from "@/components/http/QueryHttp";
+import DeleteConfirmationModal from "@/components/ui/DeleteModal";
+import EditProductModal from "@/components/vendor/EditProductModal";
 
 interface Product {
   id: string;
@@ -57,55 +64,39 @@ interface VendorStats {
 
 export default function VendorDashboard() {
   const { user } = useAuth();
-  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
-  const [vendorDetails, setVendorDetails] = useState<{
-    id: string;
-    business_name: string;
-  }>();
+  const userId = user ? user.id : "";
+  const { vendor, isPending } = useFetchVendorDetails(userId);
+  const { deleteProduct, isDeleting } = useDeleteVendorProduct();
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
-  useEffect(() => {
-    async function getVendorDetails() {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("*")
-        .eq("user_id", user?.id)
-        .single();
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState("");
 
-      if (error) {
-        console.error("Vendor fetch error:", error);
-      } else {
-        setVendorDetails(data);
-        console.log("Vendor details:", data);
-      }
-    }
-
-    if (user?.id) {
-      getVendorDetails();
-    }
-  }, [user?.id]);
-
-  // 2. Fetch vendor products once vendorDetails is loaded
-  useEffect(() => {
-    async function getVendorProducts() {
-      if (!vendorDetails) return;
-      const { data, error } = await supabase
-        .from("products")
-        .select(`*, product_images( id, image_url )`)
-        .eq("vendor_id", vendorDetails?.id);
-
-      if (error) {
-        console.error("Product fetch error:", error);
-      } else {
-        setVendorProducts(data);
-        console.log("Vendor products:", data);
-      }
-    }
-
-    getVendorProducts();
-  }, [vendorDetails]);
+  console.log(selectedProduct);
+  const ProductToBeEdited = vendor?.products.find(
+    (product: any) => product.id === editingProductId
+  );
 
   const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const pathname = usePathname();
+
+  console.log("isDeleting", isDeleting);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  function handleConfirmDelete(productId: string, imageName: any[]) {
+    console.log(imageName);
+    const paths = imageName?.map(
+      (image) => image.image_url.split("/vendor-product-images/")[1]
+    );
+
+    console.log(paths);
+
+    deleteProduct({ productId, userId, imagePath: paths });
+  }
+
+  function EditProduct(productId: string) {
+    router.push(`${pathname}/edit-product`);
+  }
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "products" | "orders" | "analytics" | "settings"
@@ -247,17 +238,6 @@ export default function VendorDashboard() {
     calculateStats();
   };
 
-  const deleteProduct = (productId: string) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      const updatedProducts = products.filter(
-        (product) => product.id !== productId
-      );
-      setProducts(updatedProducts);
-      localStorage.setItem("vendorProducts", JSON.stringify(updatedProducts));
-      calculateStats();
-    }
-  };
-
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -307,17 +287,20 @@ export default function VendorDashboard() {
     );
   }
 
-  console.log(vendorDetails);
+  if (isDeleting) {
+    <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {isPending && <LoadingSpinner />}
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {vendorDetails?.business_name}
+                {vendor?.business_name}
               </h1>
               <p className="text-gray-600">Manage your products and orders</p>
             </div>
@@ -344,7 +327,7 @@ export default function VendorDashboard() {
                   Total Products
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {vendorProducts.length}
+                  {vendor?.products?.length}
                 </p>
               </div>
             </div>
@@ -488,7 +471,9 @@ export default function VendorDashboard() {
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center space-x-4">
-                          <img
+                          <Image
+                            width={500}
+                            height={300}
                             src={product.image}
                             alt={product.name}
                             className="w-12 h-12 object-cover rounded-lg"
@@ -557,11 +542,13 @@ export default function VendorDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {vendorProducts.map((product) => (
+                    {vendor?.products?.map((product: any) => (
                       <tr key={product.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <img
+                            <Image
+                              width={500}
+                              height={300}
                               src={product.product_images?.[0]?.image_url}
                               alt={product.name}
                               className="w-10 h-10 object-cover rounded-lg mr-3"
@@ -597,14 +584,23 @@ export default function VendorDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                          <button className="text-primary-600 hover:text-primary-900">
+                          <button
+                            className="text-primary-600 hover:text-primary-900"
+                            onClick={() => {
+                              setOpenEditModal(true);
+                              setEditingProductId(product.id);
+                            }}
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button className="text-gray-600 hover:text-gray-900">
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => deleteProduct(product.id)}
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setIsDeleteModalOpen(true);
+                            }}
                             className="text-red-600 hover:text-red-900"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -614,6 +610,13 @@ export default function VendorDashboard() {
                     ))}
                   </tbody>
                 </table>
+
+                {vendor?.products?.length === 0 && (
+                  <EmptyState
+                    title="No products found"
+                    message="Please add new products"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -829,7 +832,30 @@ export default function VendorDashboard() {
               </div>
             </div>
           )}
+
+          <EditProductModal
+            isOpen={openEditModal}
+            onClose={() => setOpenEditModal(false)}
+            productToEdit={ProductToBeEdited}
+          />
         </div>
+
+        <DeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+          }}
+          onConfirm={() =>
+            handleConfirmDelete(
+              selectedProduct ? selectedProduct.id : "",
+              selectedProduct?.product_images
+            )
+          }
+          title="Confirm Delete"
+          message="This action will permanently remove the item from your inventory."
+          itemName={selectedProduct?.name || ""}
+          itemType={"product"}
+        />
       </div>
     </div>
   );

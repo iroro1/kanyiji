@@ -1,7 +1,7 @@
 import { CheckCircle } from "lucide-react";
 import Link from "next/link";
 
-export const SuccessModal = ({ isOpen, onClose }: any) => {
+export const SuccessModal = ({ isOpen, onClose, title, message }: any) => {
   if (!isOpen) {
     return null;
   }
@@ -47,17 +47,14 @@ export const SuccessModal = ({ isOpen, onClose }: any) => {
 
         {/* Content */}
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
-          Product Added Successfully!
+          {title}
         </h1>
-        <p className="text-gray-600 mb-8 text-base sm:text-lg">
-          Your new product has been added to the catalog and is now live. What
-          would you like to do next?
-        </p>
+        <p className="text-gray-600 mb-8 text-base sm:text-lg">{message}</p>
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/" // In a real app, this would navigate to the dashboard
+            href="/vendor/dashboard" // In a real app, this would navigate to the dashboard
             onClick={onClose}
             className="w-full sm:w-auto bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:-translate-y-1"
           >
