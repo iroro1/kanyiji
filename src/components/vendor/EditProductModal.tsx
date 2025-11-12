@@ -1,134 +1,64 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image, Info, Shirt, Tag, Trash2 } from "lucide-react";
+import { Plus, Image, Info, Shirt, Tag, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadProductImage } from "@/utils/supabase-images";
 import { supabase } from "@/lib/supabase";
 import { slugify } from "@/utils/helpers";
 import LoadingSpinner from "../ui/LoadingSpinner";
-import { SuccessModal } from "../ui/ProductSuccessModal";
+import { SuccessModal } from "../ui/ProductSuccessModal"; // You may want a custom "Update Success" message
 import CustomError from "@/app/error";
+import {
+  ProductFormData,
+  Variant,
+  sizes,
+  ImagePreview, // This is now only for NEW images
+  colors,
+  productCategories,
+} from "./VendorAddProduct";
+import { useEditVendorProduct } from "../http/QueryHttp";
 
-// Define type for a single product variant
-export type Variant = {
-  size: string;
-  color: string;
-  quantity: number | string;
-};
-
-// Define type for an image preview
-export type ImagePreview = {
-  url: string;
-  file: File;
+// Type for EXISTING images loaded from DB
+type ExistingImage = {
+  id: string; // This is the ID from the product_images table
+  image_url: string;
   alt: string;
 };
 
-// --- Variant Management ---
-export const colors = [
-  "blue",
-  "purple",
-  "green",
-  "yellow",
-  "orange",
-  "red",
-  "pink",
-  "black",
-  "white",
-  "gray",
-  "gold",
-];
-export const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+// Full type for the product being edited
+export type ProductToEdit = ProductFormData & {
+  id: string; // This is the Product ID
+  product_images: ExistingImage[];
+  product_attributes: Variant[];
+  stock_quantity: string; // Add fields from DB schema if missing in ProductFormData
+  is_featured: boolean;
+  slug: string;
+};
 
-export interface ProductFormData {
-  product_id?: string;
-  name: string;
-  weight: string;
-
-  status: string;
-  material: string;
-  description: string;
-  price: number;
-  original_price: number;
-  category: string;
-  type?: string;
-  sku: string;
-  stock: number;
-  isFeatured: boolean;
-  quantity: string;
-
-  // Enhanced fields for complete product display
-  // brand: string;
-  // warranty: string;
-  // deliveryOptions: string[];
-  // features: string[];
-  // isFeatured: boolean;
+interface EditProductModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  productToEdit: ProductToEdit | null;
 }
-export const productCategories = [
-  // Technology & Electronics
-  "Electronics",
-  "Computers & Laptops",
-  "Mobile Phones & Tablets",
-  "Gaming & Consoles",
-  "Audio & Headphones",
-  "Cameras & Photography",
-  "Smart Home Devices",
-  "Wearable Technology",
 
-  // Fashion & Beauty
-  "Fashion & Apparel",
-  "Shoes & Footwear",
-  "Jewelry & Watches",
-  "Bags & Accessories",
-  "Beauty & Cosmetics",
-  "Hair Care & Styling",
-  "Skincare & Makeup",
-  "Perfumes & Fragrances",
-
-  // Home & Lifestyle
-  "Home & Garden",
-  "Furniture & Decor",
-  "Kitchen & Dining",
-  "Bedding & Bath",
-  "Lighting & Lamps",
-  "Storage & Organization",
-  "Pet Supplies",
-  "Baby & Kids Products",
-
-  // Health & Wellness
-  "Health & Fitness",
-  "Sports & Outdoor",
-  "Nutrition & Supplements",
-  "Medical & Healthcare",
-  "Yoga & Meditation",
-  "Personal Care",
-  "Fitness Equipment",
-
-  // Automotive & Transportation
-  "Automotive",
-  "Car Accessories",
-  "Motorcycle Parts",
-  "Bicycles & Cycling",
-  "Travel & Luggage",
-  "Navigation & GPS",
-];
-
-// Main App Component
-function AddProductPage() {
+// --- Main Edit Modal Component ---
+function EditProductModal({
+  isOpen,
+  onClose,
+  productToEdit,
+}: EditProductModalProps) {
   const { user } = useAuth();
-  const [vendorData, setVendorData] = useState<{ id: string }>();
+  // vendorData state is removed, as we don't need to fetch it to update a product.
+  // The vendor ID is already associated with the product.
 
-  const closeModal = () => setProductUploadSuccess(false);
-
-  // State for image previews with alt text
-  const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [productLoading, setProductLoading] = useState<boolean>();
+  const [productLoading, setProductLoading] = useState<boolean>(false);
   const [productUploadSuccess, setProductUploadSuccess] =
     useState<boolean>(false);
   const [productError, setProductError] = useState(false);
 
-  // State for managing product variants
+  // --- State Management ---
   const [variants, setVariants] = useState<Variant[]>([]);
   const [currentVariant, setCurrentVariant] = useState<Variant>({
     size: "S",
@@ -136,12 +66,12 @@ function AddProductPage() {
     quantity: "",
   });
 
-  // console.log(variants);
+  const [newImagePreviews, setNewImagePreviews] = useState<ImagePreview[]>([]); // For NEW uploads
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]); // For images from DB
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]); // Keep track of image IDs to delete
 
-  // Consolidated state for the new product
   const [slug, setSlug] = useState("");
-  const [newProduct, setNewProduct] = useState<ProductFormData>({
-    // vendor_id: "",
+  const [productForm, setProductForm] = useState<ProductFormData>({
     name: "",
     price: 0,
     sku: "",
@@ -155,7 +85,6 @@ function AddProductPage() {
     weight: "",
     stock: 0,
     isFeatured: false,
-    // stock_quantity, colors, sizes are now handled by variants
   });
 
   const [errors, setErrors] = useState<{
@@ -163,76 +92,77 @@ function AddProductPage() {
     description?: string;
     price?: string;
     category?: string;
-    sku?: string;
-    stock?: string;
-    salePercentage?: string;
   }>({});
 
-  // Generate SKU once, only when name is entered and no SKU exists
+  // --- Effect to Populate Form ---
+  // This effect runs when the modal is opened or the product prop changes.
+  // It populates all form states from the productToEdit prop.
   useEffect(() => {
-    if (newProduct.name) {
-      const sku = `SKU-${newProduct.name.slice(0, 3).toUpperCase()}-${Date.now()
-        .toString(36)
-        .toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+    if (productToEdit && isOpen) {
+      setProductForm({
+        name: productToEdit.name || "",
+        category: productToEdit.category || "",
+        price: productToEdit.price || 0,
+        original_price: productToEdit.original_price || 0,
+        quantity: productToEdit.stock_quantity || "", // Map from DB field
+        description: productToEdit.description || "",
+        status: productToEdit.status || "",
+        material: productToEdit.material || "",
+        type: productToEdit.type || "",
+        weight: productToEdit.weight || "",
+        stock: productToEdit.stock || 0, // or productToEdit.stock_quantity
+        isFeatured: productToEdit.is_featured || false, // Map from DB field
+        sku: productToEdit.sku,
+      });
+      setVariants(productToEdit.product_attributes || []);
+      setExistingImages(productToEdit.product_images || []);
+      setSlug(productToEdit.slug || slugify(productToEdit.name));
 
-      setNewProduct((prev) => ({ ...prev, sku }));
+      // Reset action-specific states every time the modal opens
+      setNewImagePreviews([]);
+      setImagesToDelete([]);
+      setErrors({});
+      setProductError(false);
+      setProductLoading(false);
     }
-  }, [newProduct.name]);
+  }, [productToEdit, isOpen]);
 
-  useEffect(() => {
-    if (!user) return;
+  // --- Close Handlers ---
+  const handleSuccessModalClose = () => {
+    setProductUploadSuccess(false);
+    onClose(); // This now closes the main Edit modal too
+  };
 
-    async function getVendorDetails() {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("*")
-        .eq("user_id", user?.id)
-        .single();
-
-      if (error) {
-        console.error(error);
-      } else {
-        setVendorData(data);
-      }
-    }
-
-    getVendorDetails();
-  }, [user]);
-  // console.log(newProduct);
-
-  // ERROR MANAGEMENT
+  // --- Form Validation (Identical to Create) ---
   const validateForm = (): boolean => {
     const newErrors: {
       name?: string;
       description?: string;
       price?: string;
       category?: string;
-      // sku?: string;
-      stock?: string;
-      salePercentage?: string;
     } = {};
 
-    if (!newProduct.name.trim()) newErrors.name = "Product name is required";
-    if (!newProduct.description.trim())
+    if (!productForm.name.trim()) newErrors.name = "Product name is required";
+    if (!productForm.description.trim())
       newErrors.description = "Description is required";
-    if (newProduct.price <= 0) newErrors.price = "Price must be greater than 0";
-    if (newProduct.price > newProduct.original_price)
+    if (productForm.price <= 0)
+      newErrors.price = "Price must be greater than 0";
+    if (productForm.price > productForm.original_price)
       newErrors.price = "Sale Price must be lower than original price";
-    if (!newProduct.category) newErrors.category = "Category is required";
-    // if (!newProduct.sku.trim()) newErrors.sku = "SKU is required";
+    if (!productForm.category) newErrors.category = "Category is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // General input handler
+  // --- General Input Handlers (Identical to Create) ---
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const { name, value } = e.target;
-    setNewProduct((prev) => ({
+    setProductForm((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -241,12 +171,12 @@ function AddProductPage() {
       setSlug(slugify(value));
     }
 
-    // Clear error when user starts typing
     if (errors[name as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
 
+  // --- Variant Handlers (Identical to Create) ---
   const handleVariantChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -275,23 +205,24 @@ function AddProductPage() {
       return;
     }
     setVariants((prev) => [...prev, currentVariant]);
-    setCurrentVariant({ size: "S", color: "blue", quantity: "" }); // Reset form
+    setCurrentVariant({ size: "S", color: "blue", quantity: "" });
   };
 
   const handleRemoveVariant = (indexToRemove: number) => {
     setVariants((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  // --- Image Management ---
+  // --- Image Handlers (Modified) ---
   const handleFileSelect = (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
     const files = Array.from(selectedFiles);
     const newPreviews: ImagePreview[] = files.map((file) => ({
       url: URL.createObjectURL(file),
       file: file,
-      alt: "", // Initialize with empty alt text
+      alt: "",
     }));
-    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    // **MODIFIED:** Use setNewImagePreviews
+    setNewImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -303,236 +234,264 @@ function AddProductPage() {
     handleFileSelect(e.dataTransfer.files);
   };
 
-  const handleAltTextChange = (indexToUpdate: number, altText: string) => {
-    setImagePreviews((prev) =>
-      prev.map((img, index) =>
-        index === indexToUpdate ? { ...img, alt: altText } : img
-      )
-    );
+  // This function is correct as-is
+  const handleAltTextChange = (
+    index: number,
+    altText: string,
+    isExisting: boolean
+  ) => {
+    if (isExisting) {
+      setExistingImages((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, alt: altText } : img))
+      );
+    } else {
+      setNewImagePreviews((prev) =>
+        prev.map((img, i) => (i === index ? { ...img, alt: altText } : img))
+      );
+    }
   };
 
-  const removeImage = (indexToRemove: number) => {
-    // Revoke the object URL to prevent memory leaks
-    URL.revokeObjectURL(imagePreviews[indexToRemove].url);
-    setImagePreviews((prev) =>
+  // This function is correct as-is
+  const removeNewImage = (indexToRemove: number) => {
+    URL.revokeObjectURL(newImagePreviews[indexToRemove].url);
+    setNewImagePreviews((prev) =>
       prev.filter((_, index) => index !== indexToRemove)
     );
   };
 
-  async function addProduct(e: React.FormEvent) {
+  // This function is correct as-is
+  const handleRemoveExistingImage = (idToRemove: string) => {
+    setImagesToDelete((prev) => [...prev, idToRemove]);
+    setExistingImages((prev) => prev.filter((img) => img.id !== idToRemove));
+  };
+
+  // --- Main UPDATE Function ---
+  // **REPLACED `addProduct`**
+  async function handleUpdateProduct(e: React.FormEvent) {
     e.preventDefault();
+    if (!productToEdit) return; // Guard clause
 
     if (validateForm()) {
       setProductLoading(true);
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .insert({
-          vendor_id: vendorData?.id,
-          name: newProduct.name,
-          category: newProduct.category,
-          slug: slug,
-          price: newProduct.price,
-          original_price: newProduct.original_price,
-          stock_quantity: newProduct.quantity,
-          description: newProduct.description,
-          status: newProduct.status,
-          weight: newProduct.weight,
-          sub_category: newProduct.type,
-          sku: newProduct.sku,
-          is_featured: newProduct.isFeatured,
-          material: newProduct.material,
-          type: newProduct.type,
-        })
-        .select() // important: return inserted row
-        .single();
+      setProductError(false);
 
-      if (productError) {
-        setProductLoading(false);
-        setProductError(true);
-        // throw Error
-        return;
-      }
+      try {
+        // 1. Update main product details
+        const { error: productError } = await supabase
+          .from("products")
+          .update({
+            name: productForm.name,
+            category: productForm.category,
+            slug: slug,
+            price: productForm.price,
+            original_price: productForm.original_price,
+            stock_quantity: productForm.quantity,
+            description: productForm.description,
+            status: productForm.status,
+            weight: productForm.weight,
+            sub_category: productForm.type,
+            sku: productForm.sku,
+            is_featured: productForm.isFeatured,
+            material: productForm.material,
+          })
+          .eq("id", productToEdit.id); // <-- The crucial update condition
 
-      const productId = productData.id;
+        if (productError) throw productError;
 
-      if (variants.length !== 0) {
-        for (const variant of variants) {
-          // SAVE PRODUCTS VARIANT HERE
-          const { error: variantError } = await supabase
+        const productId = productToEdit.id;
+
+        // 2. Update variants (Strategy: Delete all, re-add all)
+        // This is simpler and more robust than diff-checking.
+        const { error: deleteVariantError } = await supabase
+          .from("product_attributes")
+          .delete()
+          .eq("product_id", productId);
+
+        if (deleteVariantError) throw deleteVariantError;
+
+        if (variants.length > 0) {
+          const newVariantsData = variants.map((v) => ({
+            product_id: productId,
+            size: v.size,
+            color: v.color,
+            quantity: v.quantity,
+          }));
+          const { error: insertVariantError } = await supabase
             .from("product_attributes")
+            .insert(newVariantsData);
+          if (insertVariantError) throw insertVariantError;
+        }
+
+        // 3. Delete marked images from DB
+        if (imagesToDelete.length > 0) {
+          // TODO: Also delete from Supabase Storage
+          // This requires parsing URLs to get file paths, which is complex.
+          // For now, just delete from the database table.
+          const { error: deleteImageError } = await supabase
+            .from("product_images")
+            .delete()
+            .in("id", imagesToDelete); // Use the 'id' from product_images table
+
+          if (deleteImageError)
+            console.error("Error deleting images:", deleteImageError);
+        }
+
+        // 4. Upload NEW images
+        for (const preview of newImagePreviews) {
+          const file = preview.file;
+          const vendorId = user ? user.id : "";
+          const publicUrl = await uploadProductImage(vendorId, productId, file);
+
+          const { error: imageError } = await supabase
+            .from("product_images")
             .insert({
               product_id: productId,
-              size: variant.size,
-              color: variant.color,
-              quantity: variant.quantity,
-            })
-            .select() // important: return inserted row
-            .single();
-
-          if (variantError) {
-            setProductLoading(false);
-            setProductError(true);
-            // throw Error
-            return;
-          }
+              image_url: publicUrl,
+              alt_text: preview.alt, // Save alt text
+            });
+          if (imageError) throw imageError;
         }
-      }
 
-      console.log("second check");
-      // 2. Loop through all images in imagePreviews
-      for (const preview of imagePreviews) {
-        const file = preview.file; // ✅ actual image file
+        // 5. Update alt text for EXISTING images
+        const altTextUpdates = existingImages.map((img) => ({
+          id: img.id, // The conflicting column
+          product_id: productId,
+          image_url: img.image_url,
+          alt_text: img.alt, // The field to update
+        }));
 
-        const vendorId = user ? user.id : "";
-        const publicUrl = await uploadProductImage(vendorId, productId, file);
-
-        console.log("imagePublicUrl", publicUrl);
-
-        // 5. Save image record into product_images table
-        const { error: imageError } = await supabase
-          .from("product_images")
-          .insert({
-            product_id: productId,
-            image_url: publicUrl,
-          });
-
-        if (imageError) {
-          console.error("Error saving image URL:", imageError);
-          setProductLoading(false);
-          setProductError(true);
-          // throw Error
-          return;
+        if (altTextUpdates.length > 0) {
+          const { error: altUpdateError } = await supabase
+            .from("product_images")
+            .upsert(altTextUpdates, { onConflict: "id" });
+          if (altUpdateError) throw altUpdateError;
         }
+
+        // --- Success ---
+        setProductLoading(false);
+        setProductUploadSuccess(true);
+        // We don't reset the form, as the modal will close.
+        // The parent page should refetch its data upon close.
+      } catch (error: any) {
+        console.error("Error updating product:", error);
+        setProductLoading(false);
+        setProductError(true);
       }
-
-      setProductLoading(false);
-      setProductUploadSuccess(true);
-      setNewProduct({
-        name: "",
-        price: 0,
-        sku: "",
-        original_price: 0,
-        quantity: "",
-        description: ``,
-        category: "",
-        status: "active",
-        material: "",
-        type: "",
-        weight: "",
-        stock: 0,
-        isFeatured: false,
-        // stock_quantity, colors, sizes are now handled by variants
-      });
-      setImagePreviews([]);
-      setVariants([]);
-
-      setErrors({});
-      // if (isCreatedSuccessfully) onClose();
     }
-
-    // 1. Insert product
-
-    console.log("third check after product upload");
-
-    // PRODUCT IMAGE UPLOAD
   }
 
-  if (user?.role !== "vendor") {
-    return (
-      <CustomError
-        statusCode={401}
-        title="Unauthorized"
-        message="Only vendors can access the dashboard"
-      />
-    );
-  }
+  // --- Render Logic ---
+  if (!isOpen || !productToEdit) return null;
 
-  if (productLoading) {
-    return <LoadingSpinner />;
-  } else {
-    return (
-      <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800">
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="relative bg-gray-50 rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+        {/* Modal Header */}
+        <header className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-gray-50 rounded-t-xl z-10">
+          <h1 className="text-3xl font-bold text-gray-900">Edit Product</h1>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            disabled={productLoading}
+          >
+            <X size={24} />
+          </button>
+        </header>
+
+        {/* --- Loading Overlay --- */}
+        {productLoading && (
+          <div className="absolute inset-0 z-20 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
+            <LoadingSpinner />
+          </div>
+        )}
+
+        {/* --- Success Modal --- */}
         <SuccessModal
           isOpen={productUploadSuccess}
-          onClose={closeModal}
-          title="Product has been added successfully"
-          message="Your product has been added to your catalog successfully"
+          onClose={handleSuccessModalClose}
+          // You can add a custom message prop to SuccessModal
+          title="Product updated successfully!"
+          message="Your product has been edited successfully"
         />
 
+        {/* --- Error Display --- */}
         {productError && (
-          <CustomError
-            statusCode={500}
-            title="Server Error"
-            message="Something went wrong, please try again later"
-          />
+          // Note: This CustomError will be *behind* the LoadingSpinner if both are true.
+          // You might want a different UI for this, like a toast notification.
+          <div className="absolute inset-0 z-10 bg-white p-10">
+            <CustomError
+              statusCode={500}
+              title="Update Error"
+              message="Something went wrong while updating. Please try again later."
+            />
+          </div>
         )}
-        <form onSubmit={addProduct}>
-          <div className="container mx-auto p-4 md:p-8">
-            {/* Header */}
-            <header className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">
-                Create a New Product
-              </h1>
-            </header>
 
+        {/* --- Form --- */}
+        <form
+          onSubmit={handleUpdateProduct} // **MODIFIED**
+          className="overflow-y-auto flex-1"
+        >
+          <div className="container mx-auto p-4 md:p-8">
             {/* Main Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column: General Information */}
               <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-8 space-y-6">
                 <h2 className="text-xl font-semibold">General Information</h2>
 
-                {/* Product Name & Category */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label
-                      htmlFor="product-name"
-                      className="block text-sm font-medium text-gray-600 mb-2"
-                    >
-                      Product Name
-                    </label>
-                    <input
-                      type="text"
-                      id="product-name"
-                      name="name"
-                      value={newProduct.name}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        errors.name ? "border-red-300" : "border-gray-200"
-                      }`}
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="category"
-                      className="block text-sm font-medium text-gray-600 mb-2"
-                    >
-                      Category
-                    </label>
-                    <select
-                      id="category"
-                      name="category"
-                      value={newProduct.category}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        errors.category ? "border-red-300" : "border-gray-200"
-                      }`}
-                    >
-                      <option value="">Select category</option>
-                      {productCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.category && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.category}
-                      </p>
-                    )}{" "}
-                  </div>
+                {/* Product Name */}
+                <div>
+                  <label
+                    htmlFor="product-name"
+                    className="block text-sm font-medium text-gray-600 mb-2"
+                  >
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    id="product-name"
+                    name="name"
+                    value={productForm.name}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-xl ... ${
+                      errors.name ? "border-red-300" : "border-gray-200"
+                    }`}
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label
+                    htmlFor="category"
+                    className="block text-sm font-medium text-gray-600 mb-2"
+                  >
+                    Category
+                  </label>
+                  <select
+                    id="category"
+                    name="category"
+                    value={productForm.category}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-xl ... ${
+                      errors.category ? "border-red-300" : "border-gray-200"
+                    }`}
+                  >
+                    <option value="">Select category</option>
+                    {productCategories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.category && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.category}
+                    </p>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -548,10 +507,10 @@ function AddProductPage() {
                     name="description"
                     onChange={handleChange}
                     rows={4}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent ${
+                    className={`w-full px-4 py-3 border rounded-xl ... ${
                       errors.description ? "border-red-300" : "border-gray-200"
                     }`}
-                    value={newProduct.description}
+                    value={productForm.description}
                   ></textarea>
                   {errors.description && (
                     <p className="text-red-500 text-sm mt-1">
@@ -576,9 +535,9 @@ function AddProductPage() {
                         id="material"
                         name="material"
                         placeholder="e.g., Cotton, Leather"
-                        value={newProduct.material}
+                        value={productForm.material}
                         onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 ..."
                       />
                     </div>
                   </div>
@@ -596,9 +555,9 @@ function AddProductPage() {
                         id="type"
                         name="type"
                         placeholder="e.g., T-Shirt, Sneaker"
-                        value={newProduct.type}
+                        value={productForm.type}
                         onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 ..."
                       />
                     </div>
                   </div>
@@ -618,17 +577,16 @@ function AddProductPage() {
                         N
                       </span>
                       <input
-                        type="text"
+                        type="number" // Use type="number" for prices
                         id="sale-price"
                         name="price"
                         onChange={handleChange}
-                        value={newProduct.price}
-                        className={`w-full  pr-4 py-3 border rounded-xl pl-8 focus:ring-2 focus:ring-primary focus:border-transparent ${
+                        value={productForm.price}
+                        className={`w-full pr-4 py-3 border rounded-xl pl-8 ... ${
                           errors.price ? "border-red-300" : "border-gray-200"
                         }`}
                       />
                     </div>
-
                     {errors.price && (
                       <p className="text-red-500 text-sm mt-1">
                         {errors.price}
@@ -647,12 +605,12 @@ function AddProductPage() {
                         N
                       </span>
                       <input
-                        type="text"
+                        type="number" // Use type="number" for prices
                         name="original_price"
                         onChange={handleChange}
                         id="original_price"
-                        value={newProduct.original_price}
-                        className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        value={productForm.original_price}
+                        className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 ..."
                       />
                     </div>
                   </div>
@@ -668,16 +626,17 @@ function AddProductPage() {
                   </label>
                   <div className="relative">
                     <input
-                      type="text"
+                      type="number" // Use type="number" for quantity
                       name="quantity"
                       onChange={handleChange}
                       id="quantity"
-                      value={newProduct.quantity}
-                      className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      value={productForm.quantity}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 ..." // Removed pl-8
                     />
                   </div>
                 </div>
-                {/* Product Variants Section */}
+
+                {/* Product Variants Section (JSX is identical) */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">
                     Product Variants
@@ -697,7 +656,7 @@ function AddProductPage() {
                           name="size"
                           value={currentVariant.size}
                           onChange={handleVariantChange}
-                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white"
+                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 ..."
                         >
                           {sizes.map((s) => (
                             <option key={s} value={s}>
@@ -720,7 +679,7 @@ function AddProductPage() {
                           name="color"
                           value={currentVariant.color}
                           onChange={handleVariantChange}
-                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white capitalize"
+                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 ... capitalize"
                         >
                           {colors.map((c) => (
                             <option key={c} value={c}>
@@ -745,7 +704,7 @@ function AddProductPage() {
                           placeholder="e.g., 15"
                           value={currentVariant.quantity}
                           onChange={handleVariantChange}
-                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 ..."
                           min="1"
                         />
                       </div>
@@ -754,7 +713,7 @@ function AddProductPage() {
                       <button
                         type="button"
                         onClick={handleAddVariant}
-                        className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+                        className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 ..."
                       >
                         <Plus size={16} className="mr-1" /> Add
                       </button>
@@ -803,7 +762,7 @@ function AddProductPage() {
                 </div>
               </div>
 
-              {/* Right Column: Details */}
+              {/* Right Column: Details (JSX is identical) */}
               <div className="lg:col-span-1 space-y-8">
                 {/* Weight & Status */}
                 <div className="bg-white rounded-xl shadow-md p-8">
@@ -817,13 +776,13 @@ function AddProductPage() {
                         Weight (kg)
                       </label>
                       <input
-                        type="text"
+                        type="text" // Or "number"
                         name="weight"
                         onChange={handleChange}
-                        value={newProduct.weight}
+                        value={productForm.weight}
                         id="weight"
                         placeholder="e.g., 0.5"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 ..."
                       />
                     </div>
                     <div>
@@ -832,9 +791,9 @@ function AddProductPage() {
                       </h3>
                       <select
                         name="status"
-                        value={newProduct.status}
+                        value={productForm.status}
                         onChange={handleChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white capitalize"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 ... capitalize"
                       >
                         <option value="active">Active</option>
                         <option value="pending">Pending</option>
@@ -845,9 +804,9 @@ function AddProductPage() {
                       <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
-                          checked={newProduct.isFeatured}
+                          checked={productForm.isFeatured}
                           onChange={(e) =>
-                            setNewProduct((prev) => ({
+                            setProductForm((prev) => ({
                               ...prev,
                               isFeatured: e.target.checked,
                             }))
@@ -866,7 +825,7 @@ function AddProductPage() {
                 <div className="bg-white rounded-xl shadow-md p-8">
                   <h2 className="text-xl font-semibold mb-6">Product Images</h2>
                   <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition flex flex-col justify-center items-center h-40"
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center ..."
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
@@ -890,9 +849,50 @@ function AddProductPage() {
 
                   {/* Image Previews & Alt Text Inputs */}
                   <div className="mt-4 space-y-4 max-h-80 overflow-y-auto pr-2">
-                    {imagePreviews.map((image, index) => (
+                    {/* **MODIFIED:** Render Existing Images */}
+                    {existingImages.map((image, index) => (
                       <div
-                        key={index}
+                        key={image.id}
+                        className="flex items-start gap-4 p-2 border rounded-lg"
+                      >
+                        <img
+                          src={image.image_url}
+                          alt={image.alt || "Existing image"}
+                          className="rounded-md object-cover w-16 h-16"
+                        />
+                        <div className="flex-grow">
+                          <label
+                            htmlFor={`alt-text-existing-${index}`}
+                            className="text-xs font-medium text-gray-600"
+                          >
+                            Alt Text
+                          </label>
+                          <input
+                            type="text"
+                            id={`alt-text-existing-${index}`}
+                            placeholder="Describe the image"
+                            value={image.alt}
+                            onChange={(e) =>
+                              handleAltTextChange(index, e.target.value, true)
+                            }
+                            className="w-full text-sm border-gray-200 rounded-md px-2 py-1 mt-1 ..."
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingImage(image.id)}
+                          className="bg-red-100 text-red-600 rounded-full p-1 hover:bg-red-200 ..."
+                          aria-label="Remove image"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* **MODIFIED:** Render New Images */}
+                    {newImagePreviews.map((image, index) => (
+                      <div
+                        key={image.url} // Use URL for temp key
                         className="flex items-start gap-4 p-2 border rounded-lg"
                       >
                         <img
@@ -902,25 +902,26 @@ function AddProductPage() {
                         />
                         <div className="flex-grow">
                           <label
-                            htmlFor={`alt-text-${index}`}
+                            htmlFor={`alt-text-new-${index}`}
                             className="text-xs font-medium text-gray-600"
                           >
                             Alt Text
                           </label>
                           <input
                             type="text"
-                            id={`alt-text-${index}`}
+                            id={`alt-text-new-${index}`}
                             placeholder="Describe the image"
                             value={image.alt}
                             onChange={(e) =>
-                              handleAltTextChange(index, e.target.value)
+                              handleAltTextChange(index, e.target.value, false)
                             }
-                            className="w-full text-sm border-gray-200 rounded-md px-2 py-1 mt-1 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            className="w-full text-sm border-gray-200 rounded-md px-2 py-1 mt-1 ..."
                           />
                         </div>
                         <button
-                          onClick={() => removeImage(index)}
-                          className="bg-red-100 text-red-600 rounded-full p-1 hover:bg-red-200 transition-colors"
+                          type="button"
+                          onClick={() => removeNewImage(index)}
+                          className="bg-red-100 text-red-600 rounded-full p-1 hover:bg-red-200 ..."
                           aria-label="Remove image"
                         >
                           <Trash2 size={16} />
@@ -942,24 +943,28 @@ function AddProductPage() {
 
             {/* Footer Buttons */}
             <footer className="mt-8 flex justify-end items-center space-x-4">
-              <button className="bg-white border border-gray-300 rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors">
+              <button
+                className="bg-white border border-gray-300 rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-gray-100 transition-colors"
+                onClick={onClose}
+                type="button"
+                disabled={productLoading} // **MODIFIED**
+              >
                 Cancel
               </button>
-              {/* <button className="bg-gray-200 text-gray-800 rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-gray-300 transition-colors">
-                Save as Draft
-              </button> */}
               <button
-                // type="button"
-                className="bg-blue-600 text-white rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                type="submit" // **MODIFIED**
+                className="bg-blue-600 text-white rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                disabled={productLoading} // **MODIFIED**
               >
-                Publish Product
+                {productLoading ? "Updating..." : "Update Product"}{" "}
+                {/* **MODIFIED** */}
               </button>
             </footer>
           </div>
         </form>
       </div>
-    );
-  }
+    </div>
+  );
 }
 
-export default AddProductPage;
+export default EditProductModal;
