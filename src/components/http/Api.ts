@@ -115,8 +115,9 @@ export async function VerifyPayment(reference: string) {
 export async function fetchAllOrders(userId: string) {
   const { data, error } = await supabase
     .from("orders")
-    .select(`*, order_items(*)`)
-    .eq("customer_id", userId);
+    .select(`*, order_items(*), shipping_addresses(*)`)
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
 
@@ -169,5 +170,135 @@ export async function editProduct(productId: string, updates: any) {
     throw error;
   }
 
+  return data;
+}
+
+// FIND PRODUCTS BASED ON FEATURED
+// ALL PRODUCTS AND SERVICES APIs here
+const PAGE_SIZE = 8;
+
+export async function fetchAllProducts(
+  { pageParam = 0 },
+  searchQuery: string | null,
+  category: string | null,
+  sale: string | null,
+  feature: string | null,
+  sort: string | null,
+  priceRange: number[] | null
+) {
+  const from = pageParam * PAGE_SIZE;
+  const to = from + PAGE_SIZE;
+  const [minPrice, maxPrice] = priceRange ? priceRange : [];
+
+  if (searchQuery) {
+    console.log("from search query");
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`)
+      .ilike("name", `%${searchQuery}%`)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+    // .range(pageParam * PAGE_SIZE, pageParam * PAGE_SIZE + PAGE_SIZE);
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } else if (category) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .ilike("category", `%${category}%`)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } else if (priceRange) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .gte("price", minPrice)
+      .lte("price", maxPrice)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } else if (sort) {
+    const [key, direction] = sort.split("-");
+
+    const ascending = direction === "true" ? true : false;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`)
+      .order(key, { ascending })
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+    return data;
+  } else if (sale) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_on_sale", `${sale}`)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } else if (feature) {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`)
+      .eq("is_featured", `${feature}`)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } else {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`*, product_images( id, image_url )`)
+      .range(from, to); // Fetches rows from 'from' to 'to'
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+}
+// FIND PRODUCTS BASED ON CATEGORY
+export async function fetchProductsByCategory(category: string) {
+  const { data, error } = await supabase
+    .from("products")
+    .select(`*, product_images( id, image_url )`)
+    .eq("category", category);
+  if (error) throw error;
+  return data;
+}
+
+// FETCH NEW & LATEST PRODUCTS
+export async function fetchNewAndLatestProducts() {
+  const { data, error } = await supabase
+    .from("products")
+    .select(`*, product_images( id, image_url )`)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
   return data;
 }

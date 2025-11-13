@@ -152,7 +152,7 @@ export default function OrdersPage() {
                         width={500}
                         height={300}
                         src={item.image}
-                        alt={item.name}
+                        alt={item.product_name}
                         className="w-16 h-16 object-cover rounded-lg"
                       />
                       <div className="flex-1 min-w-0">
@@ -180,9 +180,16 @@ export default function OrdersPage() {
                       <h4 className="text-sm font-medium text-gray-900 mb-2">
                         Shipping Address
                       </h4>
-                      <p className="text-sm text-gray-600">
-                        {order.shippingAddress}
-                      </p>
+                      {order.shipping_addresses.map((address: any) => (
+                        <div key={address.id}>
+                          <p className="text-xl font-bold">
+                            {address.recipient_name}
+                          </p>
+                          <p className="text-xl">{address.street_address},</p>
+                          <p className="text-lg">{address.city},</p>
+                          <p className="text-lg">{address.state}.</p>
+                        </div>
+                      ))}
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 mb-2">
@@ -192,7 +199,7 @@ export default function OrdersPage() {
                         <div className="flex justify-between">
                           <span className="text-gray-600">Subtotal:</span>
                           <span className="text-gray-900">
-                            {formatPrice(order.total)}
+                            {formatPrice(order.total_amount)}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -202,7 +209,7 @@ export default function OrdersPage() {
                         <div className="flex justify-between font-medium">
                           <span className="text-gray-900">Total:</span>
                           <span className="text-gray-900">
-                            {formatPrice(order.total)}
+                            {formatPrice(order.total_amount)}
                           </span>
                         </div>
                       </div>

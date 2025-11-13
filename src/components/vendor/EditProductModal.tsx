@@ -713,9 +713,11 @@ function EditProductModal({
                       <button
                         type="button"
                         onClick={handleAddVariant}
-                        className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 ..."
+                        className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 flex align-center justify-center text-center"
                       >
-                        <Plus size={16} className="mr-1" /> Add
+                        <Plus size={16} className="mr-1" />
+
+                        <p>Add</p>
                       </button>
                     </div>
 

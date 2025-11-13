@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Search, Filter, Grid, List, Star, ShoppingCart } from "lucide-react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useFetchAllProducts } from "@/components/http/QueryHttp";
@@ -17,12 +18,24 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const { notify } = useToast();
 
-  const debounce = useDebounce(searchQuery, 500);
+  const searchParams = useSearchParams();
+  const searchQueryParam = searchParams.get("search") || "";
 
-  const { products, productsIsLoading, productsError, isError } =
-    useFetchAllProducts(debounce);
+  const debounce = useDebounce(searchQueryParam || searchQuery, 500);
 
-  function AddToCart(product: any, id: string, price: number) {
+  const {
+    products,
+    isError,
+    isLoading,
+    isFetching,
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+  } = useFetchAllProducts(debounce, null, null, null, null, null);
+
+  console.log(products);
+
+  function AddToCart(product: any) {
     dispatch({
       type: "ADD_TO_CART",
       product: {
@@ -92,8 +105,9 @@ export default function ProductsPage() {
           retry={false}
         />
       )}
+      {isLoading && <LoadingSpinner />}
 
-      {products?.length === 0 && (
+      {!isLoading && products?.length === 0 && (
         <EmptyState
           title="No products found"
           message="Please clear filters or check back later"
@@ -101,105 +115,102 @@ export default function ProductsPage() {
       )}
 
       {/* Products Grid */}
-      {productsIsLoading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {/* Product Card 1 */}
-            {products?.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="relative">
-                  <Image
-                    src={product.product_images?.[0]?.image_url}
-                    alt={product?.name}
-                    width={600}
-                    height={500}
-                    className="w-full h-48 object-cover rounded-t-xl"
-                  />
-                  {/* <WishlistButton
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {/* Product Card 1 */}
+          {products?.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="relative">
+                <Image
+                  src={product.product_images?.[0]?.image_url || ""}
+                  alt={product?.name}
+                  width={600}
+                  height={500}
+                  className="w-full h-48 object-cover rounded-t-xl"
+                />
+                {/* <WishlistButton
                     productId={product?.id}
                     userId={user ? user.id : ""}
                   /> */}
 
-                  {product.discount_percent ? (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-2xl">
-                      {`-${Math.floor(product.discount_percent)}%`}
-                    </div>
-                  ) : (
-                    ""
-                  )}
+                {product.discount_percent ? (
+                  <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-2xl">
+                    {`-${Math.floor(product.discount_percent)}%`}
+                  </div>
+                ) : (
+                  ""
+                )}
 
-                  {product.is_featured ? (
-                    <div className="absolute top-3 right-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                      Featured
-                    </div>
-                  ) : (
-                    ""
-                  )}
+                {product.is_featured ? (
+                  <div className="absolute top-3 right-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                    Featured
+                  </div>
+                ) : (
+                  ""
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  <Link href={`/products/${product?.slug}`}>
+                    {product.name}
+                  </Link>
+                </h3>
+
+                <p className="text-sm text-gray-600 mb-3">{product.title}</p>
+                <div className="flex items-center mb-3">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < 4
+                            ? "text-yellow-400 fill-current"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500 ml-2">17 reviews</span>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    <Link href={`/products/${product?.slug}`}>
-                      {product.name}
-                    </Link>
-                  </h3>
+                <div className="flex flex-wrap pb-5 items-center  justify-between">
+                  <div>
+                    <span className="text-lg pr-2 font-bold text-gray-900">
+                      ₦{product.price.toLocaleString()}
+                    </span>
 
-                  <p className="text-sm text-gray-600 mb-3">{product.title}</p>
-                  <div className="flex items-center mb-3">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < product.avgRatings
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-500 ml-2">
-                      17 reviews
+                    <span className="text-sm line-through text-gray-500">
+                      ₦{product.original_price.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex flex-wrap pb-5 items-center  justify-between">
-                    <div>
-                      <span className="text-lg pr-2 font-bold text-gray-900">
-                        ₦{product.price.toLocaleString()}
-                      </span>
-
-                      <span className="text-sm line-through text-gray-500">
-                        ₦{product.original_price.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                    onClick={() =>
-                      AddToCart(product, product.id, product.price)
-                    }
-                  >
-                    <ShoppingCart className="w-4 h-4 text-center" />
-                    <span className="text-sm text-center">Add to Cart</span>
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
 
-          {/* Load More Button */}
-          <div className="text-center mt-12">
-            <button className="bg-white hover:bg-gray-50 text-gray-800 font-semibold px-8 py-3 rounded-lg border border-gray-300 transition-colors">
-              Load More Products
-            </button>
-          </div>
+                <button
+                  className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
+                  onClick={() => AddToCart(product)}
+                >
+                  <ShoppingCart className="w-4 h-4 text-center" />
+                  <span className="text-sm text-center">Add to Cart</span>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+
+        {/* Load More Button */}
+        <div className="text-center mt-12">
+          <button
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-8 py-3 rounded-lg border border-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!hasNextPage || isFetchingNextPage}
+            onClick={() => fetchNextPage()}
+          >
+            Load More Products
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
