@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Heart } from "lucide-react";
+import { useToast } from "./Toast";
 
 interface WishlistButtonProps {
   userId: string; // the logged in user
@@ -13,6 +14,12 @@ export default function WishlistButton({
   userId,
   productId,
 }: WishlistButtonProps) {
+  const { notify } = useToast();
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  console.log(userId, productId);
+
   useEffect(() => {
     if (!userId) return;
 
@@ -22,7 +29,7 @@ export default function WishlistButton({
         .select("id")
         .eq("user_id", userId)
         .eq("product_id", productId)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         setIsWishlisted(true);
@@ -33,9 +40,6 @@ export default function WishlistButton({
 
     checkWishlist();
   }, [userId, productId]);
-
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   async function handleToggleWishlist() {
     if (loading) return;
@@ -54,6 +58,7 @@ export default function WishlistButton({
           console.error("Error removing from wishlist:", error.message);
         } else {
           setIsWishlisted(false);
+          notify("Product removed from wishlist", "success");
         }
       } else {
         // ❤️ Add to wishlist
@@ -65,6 +70,7 @@ export default function WishlistButton({
           console.error("Error adding to wishlist:", error.message);
         } else {
           setIsWishlisted(true);
+          notify("Product added to wishlist", "success");
         }
       }
     } catch (err) {
@@ -74,16 +80,14 @@ export default function WishlistButton({
     }
   }
 
-  console.log("from wishlist");
-
   return (
     <button
       onClick={handleToggleWishlist}
       disabled={loading}
-      className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
+      className=" p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
     >
       <Heart
-        className={`w-4 h-4 transition-colors ${
+        className={`w-4 h-4 transition-colors text-3xl ${
           isWishlisted ? "text-red-500 fill-red-500" : "text-gray-600"
         }`}
       />

@@ -75,7 +75,7 @@ export async function GET(
 
     const products = JSON.parse(data.metadata?.product);
 
-    console.log(data.metadata);
+    console.log(products);
 
     // SAVE ORDER TO DATABASE HERE
     // ADD USER CART API
@@ -100,8 +100,6 @@ export async function GET(
     // console.log("this is from the orderData api", orderData);
 
     for (const product of products) {
-      // console.log("Order Item:", product);
-
       const { error: orderItemsError } = await supabase
         .from("order_items")
         .insert([
@@ -120,23 +118,24 @@ export async function GET(
       if (orderItemsError) throw orderItemsError;
     }
 
-    // const { error: addressError } = await supabase
-    //   .from("shipping_addresses")
-    //   .insert([
-    //     {
-    //       user_id: user?.id,
-    //       order_id: orderData.id,
-    //       address_label: products[0].address.type,
-    //       recipient_name: products[0].address.name,
-    //       phone_number: products[0].address.phone,
-    //       street_address: products[0].address.address,
-    //       city: products[0].address.city,
-    //       state: products[0].address.state,
-    //       is_default: products[0].address.isDefault,
-    //     },
-    //   ]);
+    const shippingAddress = products[0].address;
+    const { error: addressError } = await supabase
+      .from("shipping_addresses")
+      .insert([
+        {
+          user_id: user?.id,
+          order_id: orderData.id,
+          // address_label: products[0].address.type,
+          recipient_name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+          phone_number: shippingAddress.phone,
+          street_address: shippingAddress.address,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          postal_code: shippingAddress.postalCode || "",
+        },
+      ]);
 
-    // if (addressError) throw addressError;
+    if (addressError) throw addressError;
 
     // 3️⃣ Return response back to frontend
     return NextResponse.json(data, { status: response.status });

@@ -456,7 +456,7 @@ export default function CheckoutPage() {
                                   // price: item.price,
                                   // image: item.images[0],
                                   // quantity: item.quantity,
-                                  address: shippingData.address,
+                                  address: shippingData,
                                 }))
                               )
                             : JSON.stringify(
@@ -467,7 +467,7 @@ export default function CheckoutPage() {
                                   price: item.price,
                                   image: item.product_images[0].image_url,
                                   quantity: item.quantity,
-                                  address: shippingData.address,
+                                  address: shippingData,
                                 }))
                               ),
                         totalAmount:
