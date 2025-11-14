@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -604,6 +605,8 @@ export default function Navbar() {
     "login"
   );
 
+  const router = useRouter();
+
   // cart number
   const { state } = useCart();
 
@@ -674,11 +677,13 @@ export default function Navbar() {
 
   const handleWishlistClick = () => {
     // Navigate to wishlist page
-    window.location.href = "/wishlist";
+    // window.location.href = "/wishlist";
+    router.push("/wishlist");
   };
 
   const handleCartClick = () => {
-    window.location.href = "/cart";
+    // window.location.href = "/cart";
+    router.push("/cart");
   };
 
   const handleLanguageChange = (language: string) => {
