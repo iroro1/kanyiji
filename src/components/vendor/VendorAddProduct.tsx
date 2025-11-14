@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { slugify } from "@/utils/helpers";
 import LoadingSpinner from "../ui/LoadingSpinner";
 import { SuccessModal } from "../ui/ProductSuccessModal";
+import { useFetchVendorDetails, useAddProduct } from "../http/QueryHttp";
 import CustomError from "@/app/error";
 
 // Define type for a single product variant
@@ -116,17 +117,20 @@ export const productCategories = [
 // Main App Component
 function AddProductPage() {
   const { user } = useAuth();
-  const [vendorData, setVendorData] = useState<{ id: string }>();
+  const { vendor, isPending } = useFetchVendorDetails(user ? user.id : "");
 
   const closeModal = () => setProductUploadSuccess(false);
+
+  const { createProduct, isCreating, isError } = useAddProduct(
+    user ? user.id : ""
+  );
 
   // State for image previews with alt text
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [productLoading, setProductLoading] = useState<boolean>();
+  // const [productLoading, setProductLoading] = useState<boolean>();
   const [productUploadSuccess, setProductUploadSuccess] =
     useState<boolean>(false);
-  const [productError, setProductError] = useState(false);
 
   // State for managing product variants
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -178,27 +182,6 @@ function AddProductPage() {
       setNewProduct((prev) => ({ ...prev, sku }));
     }
   }, [newProduct.name]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    async function getVendorDetails() {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("*")
-        .eq("user_id", user?.id)
-        .single();
-
-      if (error) {
-        console.error(error);
-      } else {
-        setVendorData(data);
-      }
-    }
-
-    getVendorDetails();
-  }, [user]);
-  // console.log(newProduct);
 
   // ERROR MANAGEMENT
   const validateForm = (): boolean => {
@@ -323,89 +306,15 @@ function AddProductPage() {
     e.preventDefault();
 
     if (validateForm()) {
-      setProductLoading(true);
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .insert({
-          vendor_id: vendorData?.id,
-          name: newProduct.name,
-          category: newProduct.category,
-          slug: slug,
-          price: newProduct.price,
-          original_price: newProduct.original_price,
-          stock_quantity: newProduct.quantity,
-          description: newProduct.description,
-          status: newProduct.status,
-          weight: newProduct.weight,
-          sub_category: newProduct.type,
-          sku: newProduct.sku,
-          is_featured: newProduct.isFeatured,
-          material: newProduct.material,
-          type: newProduct.type,
-        })
-        .select() // important: return inserted row
-        .single();
+      createProduct({
+        newProduct,
+        vendor,
+        variants,
+        imagePreviews,
+        slug,
+        user,
+      });
 
-      if (productError) {
-        setProductLoading(false);
-        setProductError(true);
-        // throw Error
-        return;
-      }
-
-      const productId = productData.id;
-
-      if (variants.length !== 0) {
-        for (const variant of variants) {
-          // SAVE PRODUCTS VARIANT HERE
-          const { error: variantError } = await supabase
-            .from("product_attributes")
-            .insert({
-              product_id: productId,
-              size: variant.size,
-              color: variant.color,
-              quantity: variant.quantity,
-            })
-            .select() // important: return inserted row
-            .single();
-
-          if (variantError) {
-            setProductLoading(false);
-            setProductError(true);
-            // throw Error
-            return;
-          }
-        }
-      }
-
-      console.log("second check");
-      // 2. Loop through all images in imagePreviews
-      for (const preview of imagePreviews) {
-        const file = preview.file; // ✅ actual image file
-
-        const vendorId = user ? user.id : "";
-        const publicUrl = await uploadProductImage(vendorId, productId, file);
-
-        console.log("imagePublicUrl", publicUrl);
-
-        // 5. Save image record into product_images table
-        const { error: imageError } = await supabase
-          .from("product_images")
-          .insert({
-            product_id: productId,
-            image_url: publicUrl,
-          });
-
-        if (imageError) {
-          console.error("Error saving image URL:", imageError);
-          setProductLoading(false);
-          setProductError(true);
-          // throw Error
-          return;
-        }
-      }
-
-      setProductLoading(false);
       setProductUploadSuccess(true);
       setNewProduct({
         name: "",
@@ -427,12 +336,7 @@ function AddProductPage() {
       setVariants([]);
 
       setErrors({});
-      // if (isCreatedSuccessfully) onClose();
     }
-
-    // 1. Insert product
-
-    console.log("third check after product upload");
 
     // PRODUCT IMAGE UPLOAD
   }
@@ -447,7 +351,7 @@ function AddProductPage() {
     );
   }
 
-  if (productLoading) {
+  if (isCreating) {
     return <LoadingSpinner />;
   } else {
     return (
@@ -459,7 +363,7 @@ function AddProductPage() {
           message="Your product has been added to your catalog successfully"
         />
 
-        {productError && (
+        {isError && (
           <CustomError
             statusCode={500}
             title="Server Error"

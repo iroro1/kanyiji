@@ -17,6 +17,7 @@ import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import kanyiyi from "../../assets/Kanyiji-light.png";
+import { useFetchCurrentUser } from "../http/QueryHttp";
 
 // Logo Component
 const Logo = () => (
@@ -597,7 +598,10 @@ const AuthButtons = ({
 
 // Main Navbar Component
 export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+
+  const { data: user } = useFetchCurrentUser();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);

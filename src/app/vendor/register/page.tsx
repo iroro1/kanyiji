@@ -18,25 +18,20 @@ import {
 import Link from "next/link";
 import CustomError from "@/app/error";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useRegisterVendor } from "@/components/http/QueryHttp";
 
 export default function VendorRegistrationPage() {
   const { user } = useAuth();
-  const [vendorRegistrationError, setvendorRegistrationError] =
-    useState<boolean>(false);
-  const [vendorLoadingState, setVendorLoadingState] = useState<boolean>(true);
-  const [vendorSuccessState, setVendorSuccessState] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // const [vendorRegistrationError, setvendorRegistrationError] =
+  //   useState<boolean>(false);
+  // const [vendorSuccessState, setVendorSuccessState] = useState<boolean>(false);
+  // const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const { registerVendor, isRegistering, isSuccess, isError, error } =
+    useRegisterVendor(user?.id || "");
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Personal Information
-    // firstName: "",
-    // lastName: "",
-    // email: "",
-    // phone: "",
-    // password: "",
-    // confirmPassword: "",
-
     // Business Information
     businessName: "",
     businessType: "",
@@ -75,17 +70,6 @@ export default function VendorRegistrationPage() {
 
   const validateStep = (currentStep: number) => {
     const newErrors: Record<string, string> = {};
-
-    // if (currentStep === 1) {
-    //   if (!formData.firstName) newErrors.firstName = "First name is required";
-    //   if (!formData.lastName) newErrors.lastName = "Last name is required";
-    //   if (!formData.email) newErrors.email = "Email is required";
-    //   if (!formData.phone) newErrors.phone = "Phone number is required";
-    //   if (!formData.password) newErrors.password = "Password is required";
-    //   if (formData.password !== formData.confirmPassword) {
-    //     newErrors.confirmPassword = "Passwords do not match";
-    //   }
-    // }
 
     if (currentStep === 1) {
       if (!formData.businessName)
@@ -133,36 +117,6 @@ export default function VendorRegistrationPage() {
     setStep(step - 1);
   };
 
-  function sanitizeFileName(name: string) {
-    return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  }
-
-  // FUNCTION TO HANDLE FILE UPLOADING TO SUPABASE
-  const uploadFile = async (file: any) => {
-    if (!file) return null;
-    const safeFileName = sanitizeFileName(file.name);
-
-    // Create a unique file path.
-    const filePath = `private/${user?.id}/${Date.now()}_${safeFileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("vendor-documents")
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError.message);
-      setvendorRegistrationError(true);
-      return null;
-    }
-
-    // Get the public URL of the uploaded file.
-    const { data: urlData } = supabase.storage
-      .from("vendor-documents")
-      .getPublicUrl(filePath);
-
-    return urlData.publicUrl;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -170,71 +124,8 @@ export default function VendorRegistrationPage() {
     if (!validateStep(4)) {
       return; // Stop submission if validation fails
     }
-
-    setIsSubmitting(true); // Set loading state to true
-
-    try {
-      // 2. Perform all async operations (file uploads)
-      console.log("Uploading files...");
-      const businessLicenseUrl = await uploadFile(formData.businessLicense);
-      const taxCertificateUrl = await uploadFile(formData.taxCertificate);
-      const bankStatementUrl = await uploadFile(formData.bankStatement);
-
-      // Add a check to ensure all files were uploaded successfully before proceeding
-      if (!businessLicenseUrl || !taxCertificateUrl || !bankStatementUrl) {
-        // The uploadFile function already sets the error state, but we can throw to be safe
-        throw new Error("One or more file uploads failed.");
-      }
-
-      console.log("Files uploaded. Inserting data...");
-
-      // 3. Insert the data into Supabase
-      const { data, error } = await supabase
-        .from("vendors")
-        .insert({
-          user_id: user?.id,
-          business_name: formData.businessName,
-          business_type: formData.businessType,
-          business_description: formData.businessDescription,
-          website_url: formData.website,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postal_code: formData.zipCode,
-          country: formData.country,
-          kyc_documents: [
-            {
-              business_license_url: businessLicenseUrl,
-              tax_certificate_url: taxCertificateUrl,
-              bank_statement_url: bankStatementUrl,
-            },
-          ],
-        })
-        .select();
-
-      if (error) {
-        // Let the catch block handle this
-        throw error;
-      }
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ role: "vendor" })
-        .eq("id", user?.id);
-
-      if (updateError) throw updateError;
-
-      // 4. On success, update the final states
-      console.log("Successfully inserted data:", data);
-      setVendorSuccessState(true);
-      setStep(step + 1); // <-- Now we change the step to show the success screen
-    } catch (error) {
-      console.error("Error during submission:", error);
-      setvendorRegistrationError(true); // Show the full-page error component
-    } finally {
-      // 5. Always turn off the specific loading state
-      setIsSubmitting(false);
-    }
+    // setIsSubmitting(true); // Set loading state to true
+    registerVendor({ formData, user });
   };
 
   const handleFileUpload = (field: string, file: File | null) => {
@@ -260,7 +151,7 @@ export default function VendorRegistrationPage() {
     return null;
   }
 
-  if (vendorRegistrationError) {
+  if (isError) {
     return (
       <CustomError
         statusCode={500}
@@ -875,9 +766,9 @@ export default function VendorRegistrationPage() {
               </div>
             </div>
           )}
-          {isSubmitting ? <LoadingSpinner /> : ""}
+          {isRegistering ? <LoadingSpinner /> : ""}
 
-          {vendorSuccessState && (
+          {isSuccess && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
@@ -916,7 +807,7 @@ export default function VendorRegistrationPage() {
 
               <button
                 onClick={step === 4 ? handleSubmit : handleNext}
-                disabled={isSubmitting} // Disable button while submitting
+                disabled={isRegistering} // Disable button while submitting
                 className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
               >
                 {step === 4 ? "Submit Application" : "Next"}
