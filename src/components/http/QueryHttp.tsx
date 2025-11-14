@@ -27,6 +27,9 @@ import {
   deleteVendorProductImages,
   editProduct,
   fetchAllProducts,
+  addNewProduct,
+  registerNewVendor,
+  getCurrentUserWithAxios,
 } from "./Api";
 import { useSupabaseAuthReady } from "@/lib/useSupabaseAuthReady";
 
@@ -42,6 +45,22 @@ export function useLoginUser() {
   });
 
   return { login, isPending };
+}
+
+//  GET CURRENT USER
+export function useFetchCurrentUser() {
+  const { authLoading } = useSupabaseAuthReady();
+
+  const { data, isPending, error, isError } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: getCurrentUserWithAxios,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 5,
+    enabled: !authLoading,
+  });
+
+  return { data, isPending, error, isError };
 }
 
 // PRODUCTS QUERY SECTION
@@ -171,6 +190,47 @@ export function useFetchUserOrders(userId: string) {
   return { data, isPending, error, isError };
 }
 
+// REGISTER NEW VENDOR
+export function useRegisterVendor(userId: string) {
+  const queryClient = useQueryClient();
+
+  const {
+    mutate: registerVendor,
+    isPending: isRegistering, // This replaces your 'isSubmitting' state
+    isSuccess,
+    isError,
+    error,
+  } = useMutation({
+    // The function to call
+    mutationFn: registerNewVendor, // (variables) => registerNewVendor(variables)
+
+    // Handle success
+    onSuccess: (data) => {
+      // 'data' is the vendorData returned from the API function
+      // toast.success(`Vendor "${data.business_name}" registered successfully!`);
+
+      // Invalidate the 'vendors' query to refetch
+      // This will update any list of vendors shown elsewhere
+      queryClient.invalidateQueries({ queryKey: ["vendor", userId] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    },
+
+    // Handle error
+    onError: (err) => {
+      // The error is 'thrown' from the API function
+      // toast.error(`Registration failed: ${err.message}`);
+    },
+  });
+
+  return {
+    registerVendor,
+    isRegistering,
+    isSuccess, // Your component can use this
+    isError, // Your component can use this
+    error, // Your component can use this
+  };
+}
+
 // VENDOR DASHBOARD INFORMATION
 export function useFetchVendorDetails(userId: string) {
   const {
@@ -188,6 +248,34 @@ export function useFetchVendorDetails(userId: string) {
   });
 
   return { vendor, isPending, error, isError };
+}
+
+// VENDOR ADD PRODUCTS
+export function useAddProduct(userId: string) {
+  const queryClient = useQueryClient();
+
+  const {
+    mutate: createProduct, // Renamed 'mutate' to 'createProduct' for clarity
+    isPending: isCreating, // Renamed 'isPending' to 'isCreating'
+    isError,
+  } = useMutation({
+    // Pass the API function
+    mutationFn: addNewProduct,
+
+    // Handle success
+    onSuccess: () => {
+      // Invalidate the 'products' query to refetch the list
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor", userId] });
+    },
+
+    // Handle error
+    onError: (err) => {
+      // toast.error(err.message);
+    },
+  });
+
+  return { createProduct, isCreating, isError };
 }
 
 // DELETE VENDOR PRODUCT

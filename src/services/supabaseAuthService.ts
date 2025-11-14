@@ -55,61 +55,66 @@ class SupabaseAuthService {
 
       // Get user profile from profiles table
       console.log("Looking for profile for user:", user.id);
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
 
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        // If profile doesn't exist, create it
-        if (profileError.code === "PGRST116") {
-          console.log("Profile doesn't exist, creating one...");
-          // Profile doesn't exist, create it
-          const { error: createError } = await supabase
-            .from("profiles")
-            .insert({
+      if (user) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error("Profile error:", profileError);
+          // If profile doesn't exist, create it
+          if (profileError.code === "PGRST116") {
+            console.log("Profile doesn't exist, creating one...");
+            // Profile doesn't exist, create it
+            const { error: createError } = await supabase
+              .from("profiles")
+              .insert({
+                id: user.id,
+                email: user.email!,
+                full_name:
+                  user.user_metadata?.full_name || user.email!.split("@")[0],
+                role: user.user_metadata?.role || "customer",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+
+            if (createError) {
+              console.error("Error creating profile:", createError);
+              return null;
+            }
+
+            console.log("Profile created successfully");
+            // Return user with basic info
+            return {
               id: user.id,
               email: user.email!,
-              full_name:
-                user.user_metadata?.full_name || user.email!.split("@")[0],
+              name: user.user_metadata?.full_name || user.email!.split("@")[0],
               role: user.user_metadata?.role || "customer",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-          if (createError) {
-            console.error("Error creating profile:", createError);
-            return null;
+              isEmailVerified: user.email_confirmed_at !== null,
+              createdAt: new Date().toISOString(),
+            };
           }
-
-          console.log("Profile created successfully");
-          // Return user with basic info
-          return {
-            id: user.id,
-            email: user.email!,
-            name: user.user_metadata?.full_name || user.email!.split("@")[0],
-            role: user.user_metadata?.role || "customer",
-            isEmailVerified: user.email_confirmed_at !== null,
-            createdAt: new Date().toISOString(),
-          };
+          return null;
         }
+
+        console.log("Profile found:", profile);
+
+        return {
+          id: user.id,
+          email: user.email!,
+          name: profile.full_name,
+          role: profile.role,
+          isEmailVerified: user.email_confirmed_at !== null,
+          createdAt: profile.created_at,
+        };
+      } else {
         return null;
       }
-
-      console.log("Profile found:", profile);
-
-      return {
-        id: user.id,
-        email: user.email!,
-        name: profile.full_name,
-        role: profile.role,
-        isEmailVerified: user.email_confirmed_at !== null,
-        createdAt: profile.created_at,
-      };
     } catch (error) {
-      console.error("Error getting current user:", error);
+      // console.error("Error getting current user:", error);
       return null;
     }
   }
