@@ -10,6 +10,7 @@ import LoadingSpinner from "../ui/LoadingSpinner";
 import { SuccessModal } from "../ui/ProductSuccessModal";
 import { useFetchVendorDetails, useAddProduct } from "../http/QueryHttp";
 import CustomError from "@/app/error";
+import { useFetchCurrentUser } from "../http/QueryHttp";
 
 // Define type for a single product variant
 export type Variant = {
@@ -116,7 +117,7 @@ export const productCategories = [
 
 // Main App Component
 function AddProductPage() {
-  const { user } = useAuth();
+  const { data: user } = useFetchCurrentUser();
   const { vendor, isPending } = useFetchVendorDetails(user ? user.id : "");
 
   const closeModal = () => setProductUploadSuccess(false);
