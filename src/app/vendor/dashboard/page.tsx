@@ -31,6 +31,7 @@ import {
 } from "@/components/http/QueryHttp";
 import DeleteConfirmationModal from "@/components/ui/DeleteModal";
 import EditProductModal from "@/components/vendor/EditProductModal";
+import { useFetchCurrentUser } from "@/components/http/QueryHttp";
 
 interface Product {
   id: string;
@@ -63,7 +64,12 @@ interface VendorStats {
 }
 
 export default function VendorDashboard() {
-  const { user } = useAuth();
+  const { data: user } = useFetchCurrentUser();
+  const { user: authUser } = useAuth();
+
+  console.log("queryUser", user);
+
+  console.log("authUser", authUser);
   const userId = user ? user.id : "";
   const { vendor, isPending } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();

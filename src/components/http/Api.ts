@@ -29,7 +29,6 @@ export async function LoginUser(body: { email: string; password: string }) {
 export async function getCurrentUserWithAxios() {
   const currentUser = await supabaseAuthService.getCurrentUser();
 
-  console.log(currentUser);
   return currentUser;
 }
 
