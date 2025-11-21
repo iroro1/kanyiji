@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
+import { getCategoryById } from "@/data/categories";
 
 interface Product {
   id: string;
@@ -22,87 +23,122 @@ export default function FeaturedProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data with real images for UI development
-    const mockProducts: Product[] = [
-      {
-        id: "1",
-        name: "Handwoven Aso Oke Cloth",
-        description:
-          "Traditional Nigerian handwoven fabric with vibrant patterns",
-        price: 45000,
-        original_price: 60000,
-        image_url:
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Nigeria Weaves",
-        rating: 4.8,
-        review_count: 127,
-        category: "Fashion & Textiles",
-      },
-      {
-        id: "2",
-        name: "Nigerian Beaded Necklace",
-        description: "Handcrafted beaded necklace from Nigerian artisans",
-        price: 15000,
-        image_url:
-          "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Nigeria Crafts",
-        rating: 4.6,
-        review_count: 89,
-        category: "Jewelry & Accessories",
-      },
-      {
-        id: "3",
-        name: "Organic Nigerian Shea Butter",
-        description: "Pure shea butter from Nigeria, perfect for skin care",
-        price: 8000,
-        image_url:
-          "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Nigeria Naturals",
-        rating: 4.9,
-        review_count: 234,
-        category: "Beauty & Wellness",
-      },
-      {
-        id: "4",
-        name: "Wooden Carved Mask",
-        description: "Traditional Nigerian wooden mask from Benin Kingdom",
-        price: 25000,
-        image_url:
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Nigeria Arts",
-        rating: 4.7,
-        review_count: 156,
-        category: "Arts & Crafts",
-      },
-      {
-        id: "5",
-        name: "Nigerian Print Dress",
-        description: "Beautiful Ankara print dress, perfect for any occasion",
-        price: 35000,
-        original_price: 45000,
-        image_url:
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Fashion Nigeria",
-        rating: 4.5,
-        review_count: 78,
-        category: "Fashion & Textiles",
-      },
-      {
-        id: "6",
-        name: "Handmade Nigerian Pottery",
-        description: "Traditional Nigerian pottery bowl from Ilorin",
-        price: 12000,
-        image_url:
-          "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        vendor_name: "Nigeria Pottery",
-        rating: 4.8,
-        review_count: 92,
-        category: "Home & Décor",
-      },
-    ];
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch recent products directly from products table via API
+        // This gets active products ordered by created_at (most recent first)
+        const response = await fetch(`/api/products?limit=6&offset=0`, {
+          credentials: "include",
+          cache: "no-store", // Ensure fresh data from products table
+        });
 
-    setProducts(mockProducts);
-    setLoading(false);
+        if (response.ok) {
+          const data = await response.json();
+          const dbProducts = data.products || [];
+          
+          console.log("FeaturedProducts: Fetched from products table:", {
+            totalCount: dbProducts.length,
+            apiResponse: data,
+            products: dbProducts.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              status: p.status,
+              hasImages: p.images && p.images.length > 0,
+              price: p.price,
+              vendor_id: p.vendor_id,
+              category_id: p.category_id,
+            })),
+          });
+          
+          // Use all products returned (up to 6) - filter out any null/undefined products
+          const productsToShow = dbProducts.filter((p: any) => p && p.id);
+          
+          console.log("FeaturedProducts: Processing products:", {
+            totalFromAPI: dbProducts.length,
+            afterFilter: productsToShow.length,
+            productIds: productsToShow.map((p: any) => p.id),
+          });
+          
+          if (productsToShow.length === 0) {
+            console.warn("FeaturedProducts: No products found after filtering. API returned:", dbProducts);
+            setProducts([]);
+            setLoading(false);
+            return;
+          }
+          
+          // Fetch vendor names for products
+          const vendorIds = [...new Set(productsToShow.map((p: any) => p.vendor_id).filter(Boolean))];
+          const vendorMap: Record<string, string> = {};
+          
+          if (vendorIds.length > 0) {
+            try {
+              // Try to fetch vendor names from vendors API or directly
+              const vendorsResponse = await fetch(`/api/vendors?limit=100`, {
+                credentials: "include",
+              });
+              
+              if (vendorsResponse.ok) {
+                const vendorsData = await vendorsResponse.json();
+                vendorsData.vendors?.forEach((vendor: any) => {
+                  vendorMap[vendor.id] = vendor.business_name;
+                });
+              }
+            } catch (err) {
+              console.error("Error fetching vendor names:", err);
+            }
+          }
+          
+          // Map database products to component interface - show products even without all fields
+          const mappedProducts: Product[] = productsToShow.map((product: any) => {
+            try {
+              return {
+                id: product.id,
+                name: product.name || "Unnamed Product",
+                description: product.description || product.short_description || "No description available",
+                price: parseFloat(product.price || "0"),
+                original_price: product.original_price ? parseFloat(product.original_price) : undefined,
+                image_url: product.images && product.images.length > 0 && product.images[0]
+                  ? product.images[0]
+                  : "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+                vendor_name: vendorMap[product.vendor_id] || "Vendor",
+                rating: 4.5, // TODO: Add rating field to products table or calculate from reviews
+                review_count: 0, // TODO: Add review_count field or calculate from reviews table
+                category: product.category_id 
+                  ? getCategoryById(product.category_id)?.name || "General"
+                  : "General",
+              };
+            } catch (err) {
+              console.error("Error mapping product:", product, err);
+              return null;
+            }
+          }).filter((p): p is Product => p !== null);
+          
+          console.log("FeaturedProducts: Mapped products:", {
+            count: mappedProducts.length,
+            products: mappedProducts.map(p => ({ id: p.id, name: p.name })),
+          });
+          
+          setProducts(mappedProducts);
+        } else {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          console.error("Failed to fetch products:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          setProducts([]);
+        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   const formatPrice = (amount: number) => {
@@ -150,8 +186,16 @@ export default function FeaturedProducts() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {products.map((product) => (
+        {products.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 mb-4">No products available</p>
+            <p className="text-sm text-gray-500">
+              Products will appear here once they are added to the system.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {products.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
@@ -247,15 +291,18 @@ export default function FeaturedProducts() {
               </div>
             </Link>
           ))}
-        </div>
+          </div>
+        )}
 
-        <div className="text-center mt-8 sm:mt-12">
+        {products.length > 0 && (
+          <div className="text-center mt-8 sm:mt-12">
           <Link href="/products">
             <button className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3">
               View All Products
             </button>
           </Link>
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );

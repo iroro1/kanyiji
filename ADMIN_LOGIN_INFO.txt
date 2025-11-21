@@ -1,0 +1,14 @@
+===========================================
+ADMIN LOGIN CREDENTIALS
+===========================================
+
+Email:    kanyiji.dev+admin@gmail.com
+Password: #amazingroot
+
+Login URL: /admin/login
+Dashboard: /admin
+
+===========================================
+STATUS: ✅ Configured and Ready
+===========================================
+

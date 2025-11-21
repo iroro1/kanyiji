@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star, MapPin, Users, Award } from "lucide-react";
+import { Star, MapPin, Users, Award, Building2 } from "lucide-react";
 import Link from "next/link";
 
 interface Vendor {
@@ -22,66 +22,70 @@ export default function FeaturedVendors() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data with real images of black people for UI development
-    const mockVendors: Vendor[] = [
-      {
-        id: "1",
-        name: "Aisha Oke",
-        business_name: "Ghana Weaves",
-        description:
-          "Traditional handwoven fabrics and modern fashion pieces from Ghana",
-        image_url:
-          "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        location: "Lagos, Nigeria",
-        rating: 4.9,
-        review_count: 234,
-        product_count: 45,
-        specialty: "Handwoven Textiles",
-      },
-      {
-        id: "2",
-        name: "Kemi Adebayo",
-        business_name: "Nigeria Crafts",
-        description:
-          "Handcrafted jewelry and accessories from Nigerian artisans",
-        image_url:
-          "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        location: "Abuja, Nigeria",
-        rating: 4.8,
-        review_count: 189,
-        product_count: 32,
-        specialty: "Jewelry & Accessories",
-      },
-      {
-        id: "3",
-        name: "Bisi Ogunleye",
-        business_name: "Nigeria Pottery",
-        description: "Traditional Nigerian pottery and home decoration items",
-        image_url:
-          "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        location: "Ibadan, Nigeria",
-        rating: 4.7,
-        review_count: 156,
-        product_count: 28,
-        specialty: "Home & Décor",
-      },
-      {
-        id: "4",
-        name: "Chukwudi Okonkwo",
-        business_name: "Nigeria Arts",
-        description: "Traditional Nigerian art and cultural artifacts",
-        image_url:
-          "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        location: "Lagos, Nigeria",
-        rating: 4.6,
-        review_count: 98,
-        product_count: 23,
-        specialty: "Arts & Crafts",
-      },
-    ];
+    const fetchVendors = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch vendors from database (approved vendors only)
+        // This queries the vendors table via /api/vendors endpoint
+        const response = await fetch(`/api/vendors?limit=4`, {
+          credentials: "include",
+          cache: "no-store", // Ensure fresh data from vendors table
+        });
 
-    setVendors(mockVendors);
-    setLoading(false);
+        if (response.ok) {
+          const data = await response.json();
+          const dbVendors = data.vendors || [];
+          
+          console.log("FeaturedVendors: Fetched from vendors table:", {
+            totalCount: dbVendors.length,
+            apiResponse: data,
+            vendors: dbVendors.map((v: any) => ({
+              id: v.id,
+              business_name: v.business_name,
+              status: v.status,
+              product_count: v.product_count,
+            })),
+          });
+          
+          // Map database vendor structure to component interface
+          const mappedVendors: Vendor[] = dbVendors.map((vendor: any) => ({
+            id: vendor.id,
+            name: vendor.business_name || "Vendor", // Use business name as fallback
+            business_name: vendor.business_name,
+            description: vendor.business_description || "",
+            image_url: vendor.image_url || null, // Don't use placeholder URL, will show icon instead
+            location: "Nigeria", // TODO: Add location field to vendors table
+            rating: 4.5, // TODO: Add rating field to vendors table or calculate from reviews
+            review_count: 0, // TODO: Add review_count field or calculate from reviews table
+            product_count: vendor.product_count || 0,
+            specialty: vendor.business_type || "General",
+          }));
+          
+          console.log("FeaturedVendors: Mapped vendors for display:", {
+            count: mappedVendors.length,
+            vendors: mappedVendors.map(v => ({ id: v.id, business_name: v.business_name })),
+          });
+          
+          setVendors(mappedVendors);
+        } else {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          console.error("Failed to fetch vendors from database:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          setVendors([]);
+        }
+      } catch (err) {
+        console.error("Error fetching vendors:", err);
+        setVendors([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendors();
   }, []);
 
   if (loading) {
@@ -109,6 +113,27 @@ export default function FeaturedVendors() {
     );
   }
 
+  if (vendors.length === 0) {
+    return (
+      <section className="py-12 sm:py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
+              Featured Vendors
+            </h2>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4">
+              Meet the talented artisans behind our products
+            </p>
+          </div>
+          <div className="text-center py-8">
+            <p className="text-gray-600">No approved vendors available at the moment.</p>
+            <p className="text-sm text-gray-500 mt-2">Vendors will appear here once they are approved.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-12 sm:py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,13 +154,21 @@ export default function FeaturedVendors() {
               className="block"
             >
               <div className="card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer">
-                <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg">
-                  <img
-                    src={vendor.image_url}
-                    alt={vendor.business_name}
-                    className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg bg-gray-100">
+                  {vendor.image_url ? (
+                    <>
+                      <img
+                        src={vendor.image_url}
+                        alt={vendor.business_name}
+                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </>
+                  ) : (
+                    <div className="w-full h-32 sm:h-40 lg:h-48 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                      <Building2 className="w-16 h-16 sm:w-20 sm:h-20 text-gray-400" />
+                    </div>
+                  )}
 
                   {/* Rating Badge */}
                   <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
