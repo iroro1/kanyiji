@@ -2,74 +2,53 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-
-interface Category {
-  id: string;
-  name: string;
-  description: string;
-  image_url: string;
-  product_count: number;
-}
+import { getActiveCategories, type Category } from "@/data/categories";
 
 export default function FeaturedCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data with real images for UI development
-    const mockCategories: Category[] = [
-      {
-        id: "1",
-        name: "Fashion & Textiles",
-        description: "Traditional and modern Nigerian fashion",
-        image_url:
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 150,
-      },
-      {
-        id: "2",
-        name: "Arts & Crafts",
-        description: "Handcrafted Nigerian art and crafts",
-        image_url:
-          "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 200,
-      },
-      {
-        id: "3",
-        name: "Food & Beverages",
-        description: "Authentic Nigerian food products",
-        image_url:
-          "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 100,
-      },
-      {
-        id: "4",
-        name: "Home & Décor",
-        description: "Nigerian-inspired home decoration",
-        image_url:
-          "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 120,
-      },
-      {
-        id: "5",
-        name: "Beauty & Wellness",
-        description: "Natural Nigerian beauty products",
-        image_url:
-          "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 80,
-      },
-      {
-        id: "6",
-        name: "Jewelry & Accessories",
-        description: "Traditional Nigerian jewelry",
-        image_url:
-          "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
-        product_count: 90,
-      },
-    ];
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch categories from database
+        const response = await fetch(`/api/categories?limit=6`, {
+          credentials: "include",
+        });
 
-    setCategories(mockCategories);
-    setLoading(false);
+        if (response.ok) {
+          const data = await response.json();
+          const dbCategories = data.categories || [];
+          
+          if (dbCategories.length > 0) {
+            // Use categories from database
+            setCategories(dbCategories);
+          } else {
+            // Fallback to hardcoded categories if database is empty
+            const allCategories = getActiveCategories();
+            const featuredCategories = allCategories.slice(0, 6);
+            setCategories(featuredCategories);
+          }
+        } else {
+          // Fallback to hardcoded categories if API fails
+          const allCategories = getActiveCategories();
+          const featuredCategories = allCategories.slice(0, 6);
+          setCategories(featuredCategories);
+        }
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        // Fallback to hardcoded categories on error
+        const allCategories = getActiveCategories();
+        const featuredCategories = allCategories.slice(0, 6);
+        setCategories(featuredCategories);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   if (loading) {
@@ -108,33 +87,56 @@ export default function FeaturedCategories() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/categories/${category.id}`}
-              className="block"
-            >
-              <div className="group cursor-pointer transition-transform duration-200 hover:scale-105">
-                <div className="relative mb-2 sm:mb-3 overflow-hidden rounded-lg">
-                  <img
-                    src={category.image_url}
-                    alt={category.name}
-                    className="w-full h-20 sm:h-24 md:h-28 lg:h-32 object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-black/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </div>
+        {categories.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 mb-4">No categories available</p>
+            <p className="text-sm text-gray-500">
+              Categories will appear here once they are added to the system.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/categories/${category.slug || category.id}`}
+                className="block"
+              >
+                <div className="group cursor-pointer transition-transform duration-200 hover:scale-105">
+                  <div className="relative mb-2 sm:mb-3 overflow-hidden rounded-lg bg-gradient-to-br from-gray-100 to-gray-200">
+                    {category.image_url ? (
+                      <>
+                        <img
+                          src={category.image_url}
+                          alt={category.name}
+                          className="w-full h-20 sm:h-24 md:h-28 lg:h-32 object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            // Fallback to gradient background if image fails
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      </>
+                    ) : (
+                      <div className="w-full h-20 sm:h-24 md:h-28 lg:h-32 flex items-center justify-center">
+                        <span className="text-3xl sm:text-4xl">
+                          {category.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                <h3 className="font-semibold text-gray-900 mb-1 text-xs sm:text-sm">
-                  {category.name}
-                </h3>
-                <p className="text-xs text-gray-500 mb-2">
-                  {category.product_count} products
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
+                  <h3 className="font-semibold text-gray-900 mb-1 text-xs sm:text-sm line-clamp-1">
+                    {category.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {category.product_count || 0} {category.product_count === 1 ? "product" : "products"}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="text-center mt-8 sm:mt-12">
           <Link href="/categories">

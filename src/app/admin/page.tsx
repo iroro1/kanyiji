@@ -11,28 +11,31 @@ export default function AdminPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if admin is authenticated
-    const adminSession = localStorage.getItem('adminSession');
-    
-    if (adminSession) {
+    // Check if admin is authenticated via API
+    const checkAuth = async () => {
       try {
-        const session = JSON.parse(adminSession);
-        if (session.isAuthenticated && session.role === 'admin') {
+        const response = await fetch('/api/admin/auth', {
+          method: 'GET',
+          credentials: 'include', // Ensure cookies are sent
+          cache: 'no-store', // Don't cache the auth check
+        });
+        const data = await response.json();
+
+        if (data.authenticated && data.user?.role === 'admin') {
           setIsAuthenticated(true);
         } else {
-          // Invalid session, redirect to login
+          // Not authenticated or not admin, redirect to login
           router.push('/admin/login');
         }
       } catch (error) {
-        // Invalid session data, redirect to login
+        console.error('Auth check error:', error);
         router.push('/admin/login');
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      // No session, redirect to login
-      router.push('/admin/login');
-    }
-    
-    setIsLoading(false);
+    };
+
+    checkAuth();
   }, [router]);
 
   // Show loading state

@@ -7,6 +7,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import AppQueryProvider from "@/components/http/QueryHttp";
 import { ToastProvider } from "@/components/ui/Toast";
+// Validate environment variables on startup (server-side only)
+if (typeof window === "undefined") {
+  require("@/lib/envValidation");
+}
 
 const inter = Inter({
   subsets: ["latin"],

@@ -9,9 +9,6 @@ import {
   Edit,
   Save,
   X,
-  ShoppingBag,
-  Heart,
-  Package,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -240,8 +237,6 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
-    { id: "orders", label: "Orders", icon: Package },
-    { id: "wishlist", label: "Wishlist", icon: Heart },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -531,52 +526,6 @@ export default function ProfilePage() {
                       <p className="text-gray-900">{userData.country}</p>
                     )}
                   </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "orders" && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  My Orders
-                </h2>
-                <div className="text-center py-12">
-                  <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No orders yet
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Start shopping to see your order history here.
-                  </p>
-                  <Link
-                    href="/products"
-                    className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Browse Products
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "wishlist" && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  My Wishlist
-                </h2>
-                <div className="text-center py-12">
-                  <Heart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Your wishlist is empty
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Save products you love to your wishlist for later.
-                  </p>
-                  <Link
-                    href="/products"
-                    className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Discover Products
-                  </Link>
                 </div>
               </div>
             )}
