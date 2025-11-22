@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       if (!allError && allVendors) {
         console.log("Vendors API: Found vendors with these statuses:", {
           total: allVendors.length,
-          statuses: [...new Set(allVendors.map((v: any) => v.status))],
+          statuses: Array.from(new Set(allVendors.map((v: any) => v.status))),
           vendors: allVendors.map((v: any) => ({ id: v.id, name: v.business_name, status: v.status })),
         });
       } else if (allError) {
