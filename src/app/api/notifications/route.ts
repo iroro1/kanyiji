@@ -365,10 +365,6 @@ export async function PATCH(req: NextRequest) {
       throw updateError;
     }
 
-    if (error) {
-      throw error;
-    }
-
     return NextResponse.json({
       success: true,
       notification: updatedNotification,
@@ -452,10 +448,6 @@ export async function POST(req: NextRequest) {
         } else if (updateErrorAnon) {
           throw updateErrorAnon;
         }
-      }
-
-      if (error) {
-        throw error;
       }
 
       return NextResponse.json({
