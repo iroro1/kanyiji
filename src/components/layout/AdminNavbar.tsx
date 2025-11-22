@@ -191,7 +191,6 @@ export default function AdminNavbar() {
               {/* Notifications */}
               <NotificationDropdown 
                 unreadCount={unreadCount}
-                onUnreadCountChange={setUnreadCount} 
                 onUnreadCountChange={(count) => {
                   setUnreadCount(count);
                 }}

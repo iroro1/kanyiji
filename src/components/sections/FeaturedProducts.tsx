@@ -69,7 +69,7 @@ export default function FeaturedProducts() {
           }
           
           // Fetch vendor names for products
-          const vendorIds = [...new Set(productsToShow.map((p: any) => p.vendor_id).filter(Boolean))];
+          const vendorIds = Array.from(new Set(productsToShow.map((p: any) => p.vendor_id).filter(Boolean)));
           const vendorMap: Record<string, string> = {};
           
           if (vendorIds.length > 0) {
@@ -113,7 +113,7 @@ export default function FeaturedProducts() {
               console.error("Error mapping product:", product, err);
               return null;
             }
-          }).filter((p): p is Product => p !== null);
+          }).filter((p: Product | null): p is Product => p !== null);
           
           console.log("FeaturedProducts: Mapped products:", {
             count: mappedProducts.length,
