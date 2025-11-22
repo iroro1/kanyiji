@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       .limit(100);
 
     // Get active products for the category if category is provided
-    let categoryProducts = [];
+    let categoryProducts: any[] = [];
     if (category) {
       const { data: catProducts, error: catProductsError } = await adminSupabase
         .from("products")
