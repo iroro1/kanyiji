@@ -8,6 +8,11 @@ import {
   Truck,
   Shield,
   ArrowLeft,
+  Phone,
+  Mail,
+  Building2,
+  MapPin,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -31,6 +36,34 @@ export default function ProductDetailPage({
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState<"specifications" | "reviews" | "vendor">("specifications");
+  
+  // Fetch vendor info when vendor tab is active
+  const [vendor, setVendor] = useState<any>(null);
+  const [vendorLoading, setVendorLoading] = useState(false);
+  
+  useEffect(() => {
+    if (activeTab === "vendor" && data?.[0]?.vendor_id && !vendor) {
+      const fetchVendor = async () => {
+        setVendorLoading(true);
+        try {
+          const response = await fetch(`/api/vendors/${data[0].vendor_id}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+          if (response.ok) {
+            const vendorData = await response.json();
+            setVendor(vendorData.vendor);
+          }
+        } catch (err) {
+          console.error("Error fetching vendor:", err);
+        } finally {
+          setVendorLoading(false);
+        }
+      };
+      fetchVendor();
+    }
+  }, [activeTab, data, vendor]);
 
   // Mock product data - in real app this would come from API
   const shipping = {
@@ -289,30 +322,191 @@ export default function ProductDetailPage({
           <div className="mt-16">
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8">
-                <button className="border-b-2 border-primary-500 text-primary-600 py-4 px-1 font-medium">
+                <button
+                  onClick={() => setActiveTab("specifications")}
+                  className={`border-b-2 py-4 px-1 font-medium transition-colors ${
+                    activeTab === "specifications"
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
                   Specifications
                 </button>
-                <button className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 font-medium">
+                <button
+                  onClick={() => setActiveTab("reviews")}
+                  className={`border-b-2 py-4 px-1 font-medium transition-colors ${
+                    activeTab === "reviews"
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
                   Reviews
                 </button>
-                <button className="border-b-2 border-transparent text-gray-500 hover:text-gray-700 py-4 px-1 font-medium">
+                <button
+                  onClick={() => setActiveTab("vendor")}
+                  className={`border-b-2 py-4 px-1 font-medium transition-colors ${
+                    activeTab === "vendor"
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
                   Vendor Info
                 </button>
               </nav>
             </div>
 
             <div className="py-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* {Object.entries(product.specifications).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between py-3 border-b border-gray-100"
-                  >
-                    <span className="font-medium text-gray-700">{key}</span>
-                    <span className="text-gray-600">{"General"}</span>
+              {/* Specifications Tab */}
+              {activeTab === "specifications" && (
+                <div className="bg-white rounded-lg p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="flex justify-between py-3 border-b border-gray-100">
+                      <span className="font-medium text-gray-700">SKU</span>
+                      <span className="text-gray-600">{product.sku || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between py-3 border-b border-gray-100">
+                      <span className="font-medium text-gray-700">Category</span>
+                      <span className="text-gray-600">{product.category || "General"}</span>
+                    </div>
+                    {product.stock_quantity && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="font-medium text-gray-700">Stock Quantity</span>
+                        <span className="text-gray-600">{product.stock_quantity}</span>
+                      </div>
+                    )}
+                    {product.weight && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="font-medium text-gray-700">Weight</span>
+                        <span className="text-gray-600">{product.weight}</span>
+                      </div>
+                    )}
+                    {product.material && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="font-medium text-gray-700">Material</span>
+                        <span className="text-gray-600">{product.material}</span>
+                      </div>
+                    )}
                   </div>
-                ))} */}
-              </div>
+                  
+                  {product.description && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
+                      <p className="text-gray-600 whitespace-pre-wrap">{product.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Reviews Tab */}
+              {activeTab === "reviews" && (
+                <div className="bg-white rounded-lg p-6">
+                  <div className="text-center py-12">
+                    <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      No Reviews Yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Be the first to review this product!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Vendor Info Tab */}
+              {activeTab === "vendor" && (
+                <div className="bg-white rounded-lg p-6">
+                  {vendorLoading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Loading vendor information...</p>
+                    </div>
+                  ) : vendor ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 pb-6 border-b border-gray-200">
+                        {vendor.image_url ? (
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                            <Image
+                              src={vendor.image_url}
+                              alt={vendor.business_name}
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                            <Building2 className="w-8 h-8 text-gray-400" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-xl font-semibold text-gray-900">
+                            {vendor.business_name}
+                          </h3>
+                          {vendor.business_type && (
+                            <span className="inline-block bg-primary-100 text-primary-700 text-sm px-3 py-1 rounded-full mt-1">
+                              {vendor.business_type}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {vendor.business_description && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-2">About</h4>
+                          <p className="text-gray-600">{vendor.business_description}</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                        {vendor.email && (
+                          <div className="flex items-center gap-3">
+                            <Mail className="w-5 h-5 text-gray-400" />
+                            <span className="text-gray-700">{vendor.email}</span>
+                          </div>
+                        )}
+                        {vendor.phone && (
+                          <div className="flex items-center gap-3">
+                            <Phone className="w-5 h-5 text-gray-400" />
+                            <span className="text-gray-700">{vendor.phone}</span>
+                          </div>
+                        )}
+                        {vendor.location && (
+                          <div className="flex items-center gap-3">
+                            <MapPin className="w-5 h-5 text-gray-400" />
+                            <span className="text-gray-700">{vendor.location}</span>
+                          </div>
+                        )}
+                        {vendor.product_count > 0 && (
+                          <div className="flex items-center gap-3">
+                            <Users className="w-5 h-5 text-gray-400" />
+                            <span className="text-gray-700">{vendor.product_count} products</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-200">
+                        <Link
+                          href={`/vendors/${vendor.id}`}
+                          className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+                        >
+                          View Vendor Store
+                          <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Vendor Information Not Available
+                      </h3>
+                      <p className="text-gray-600">
+                        Unable to load vendor details at this time.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

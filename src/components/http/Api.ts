@@ -53,14 +53,26 @@ export async function getAllProducts(searchQuery: string) {
   }
 }
 
-export async function getSingleProduct(productSlug: string) {
-  const { data, error } = await supabase
+export async function getSingleProduct(productId: string) {
+  // Try to fetch by ID first (UUID format)
+  // If it's a valid UUID format, query by id
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+  
+  let query = supabase
     .from("products")
-    .select(`*, product_images( id, image_url )`)
-    .eq("slug", productSlug);
+    .select(`*, product_images( id, image_url )`);
+  
+  if (isUUID) {
+    query = query.eq("id", productId);
+  } else {
+    // Fallback to slug if not a UUID
+    query = query.eq("slug", productId);
+  }
+  
+  const { data, error } = await query.eq("status", "active").single();
 
   if (error) throw error;
-  return data;
+  return data ? [data] : []; // Return as array to match expected format
 }
 
 export async function getWishlist(userId: string): Promise<Product[]> {

@@ -3,9 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Debug configuration
-console.log("Supabase URL:", supabaseUrl);
-console.log("Supabase Key exists:", !!supabaseAnonKey);
+// Configuration validated at build time
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -18,11 +16,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Validate configuration
 export const validateSupabaseConfig = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn("Missing required Supabase environment variables");
-    console.warn("URL:", supabaseUrl);
-    console.warn("Key exists:", !!supabaseAnonKey);
+    if (typeof window === 'undefined') {
+      console.warn("Missing required Supabase environment variables");
+    }
     return false;
   }
-  console.log("Supabase configuration is valid");
   return true;
 };

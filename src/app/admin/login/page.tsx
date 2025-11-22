@@ -1,44 +1,56 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Lock, Eye, EyeOff, Shield } from "lucide-react";
 
 export default function AdminLoginPage() {
-  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
-    // Demo admin credentials
-    const adminCredentials = {
-      email: 'admin@kanyiji.com',
-      password: 'admin123'
-    };
+    try {
+      const response = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Ensure cookies are sent and received
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+        }),
+      });
 
-    if (credentials.email === adminCredentials.email && 
-        credentials.password === adminCredentials.password) {
-      // Set admin session
-      localStorage.setItem('adminSession', JSON.stringify({
-        isAuthenticated: true,
-        email: credentials.email,
-        role: 'admin',
-        loginTime: new Date().toISOString()
-      }));
-      
-      // Redirect to admin dashboard
-      router.push('/admin');
-    } else {
-      setError('Invalid admin credentials. Please try again.');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Invalid admin credentials. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.success && data.user) {
+        // Admin authenticated successfully
+        // Session is managed by Supabase via cookies
+        // Use window.location for a hard refresh to ensure cookies are read
+        window.location.href = "/admin";
+      } else {
+        setError("Authentication failed. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -49,8 +61,12 @@ export default function AdminLoginPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Portal</h1>
-          <p className="text-gray-600">Access Kanyiji marketplace administration</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Admin Portal
+          </h1>
+          <p className="text-gray-600">
+            Access Kanyiji marketplace administration
+          </p>
         </div>
 
         {/* Login Form */}
@@ -64,7 +80,10 @@ export default function AdminLoginPage() {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Admin Email
               </label>
               <div className="relative">
@@ -72,7 +91,9 @@ export default function AdminLoginPage() {
                   type="email"
                   id="email"
                   value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, email: e.target.value })
+                  }
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
                   placeholder="admin@kanyiji.com"
                   required
@@ -85,7 +106,10 @@ export default function AdminLoginPage() {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Admin Password
               </label>
               <div className="relative">
@@ -94,7 +118,9 @@ export default function AdminLoginPage() {
                   type={showPassword ? "text" : "password"}
                   id="password"
                   value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, password: e.target.value })
+                  }
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
                   placeholder="Enter admin password"
                   required
@@ -125,17 +151,25 @@ export default function AdminLoginPage() {
                   Signing In...
                 </div>
               ) : (
-                'Access Admin Portal'
+                "Access Admin Portal"
               )}
             </button>
           </form>
 
-          {/* Demo Credentials Info */}
+          {/* Security Notice */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-sm font-semibold text-blue-800 mb-2">Demo Admin Credentials</h3>
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">
+              Security Notice
+            </h3>
             <div className="text-xs text-blue-700 space-y-1">
-              <p><strong>Email:</strong> admin@kanyiji.com</p>
-              <p><strong>Password:</strong> admin123</p>
+              <p>
+                Admin access requires valid credentials with admin role in the
+                system.
+              </p>
+              <p>
+                All login attempts are logged and monitored for security
+                purposes.
+              </p>
             </div>
           </div>
         </div>

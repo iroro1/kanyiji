@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import kanyiyi from "../../assets/Kanyiji-light.png";
 import { useFetchCurrentUser } from "../http/QueryHttp";
+import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
 
 // Logo Component
 const Logo = () => (
@@ -146,12 +147,18 @@ const ActionIcons = ({
   onMobileSearchClick,
   onWishlistClick,
   onCartClick,
+  isAuthenticated = false,
+  unreadNotificationCount = 0,
+  onUnreadCountChange,
 }: // cartNumber,
 {
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;
   onCartClick?: () => void;
+  isAuthenticated?: boolean;
+  unreadNotificationCount?: number;
+  onUnreadCountChange?: (count: number) => void;
   // cartNumber: number;
 }) => (
   <div className="flex items-center space-x-3 lg:space-x-4">
@@ -162,6 +169,14 @@ const ActionIcons = ({
       >
         <Search className="w-4 h-4" />
       </button>
+    )}
+
+    {/* Notifications - Only show when authenticated */}
+    {isAuthenticated && (
+      <UserNotificationDropdown
+        unreadCount={unreadNotificationCount}
+        onUnreadCountChange={onUnreadCountChange}
+      />
     )}
 
     <button
@@ -617,6 +632,35 @@ export default function Navbar() {
   // Track if login is in progress to prevent modal from closing
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
+  // Notification unread count
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  // Fetch initial unread count when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchUnreadCount = async () => {
+        try {
+          const response = await fetch("/api/notifications?limit=1&unread_only=true", {
+            credentials: "include",
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setUnreadNotificationCount(data.unreadCount || 0);
+          }
+        } catch (error) {
+          console.error("Error fetching unread count:", error);
+        }
+      };
+      fetchUnreadCount();
+
+      // Poll for updates every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    } else {
+      setUnreadNotificationCount(0);
+    }
+  }, [isAuthenticated]);
+
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
     return !isLoginInProgress;
@@ -632,8 +676,8 @@ export default function Navbar() {
   );
 
   const navigation = [
-    { name: "Categories", href: "/categories", hasDropdown: true },
-    { name: "Products", href: "/products", hasDropdown: true },
+    { name: "Categories", href: "/categories" },
+    { name: "Products", href: "/products" },
     { name: "About", href: "/about" },
   ];
 
@@ -730,6 +774,9 @@ export default function Navbar() {
                 onMobileSearchClick={() => {}}
                 onWishlistClick={handleWishlistClick}
                 onCartClick={handleCartClick}
+                isAuthenticated={isAuthenticated}
+                unreadNotificationCount={unreadNotificationCount}
+                onUnreadCountChange={setUnreadNotificationCount}
                 // cartNumber={state.items.length}
               />
             </div>
