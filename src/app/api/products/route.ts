@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       if (!allError && allProducts) {
         console.log("Products API: Found products with these statuses:", {
           total: allProducts.length,
-          statuses: [...new Set(allProducts.map((p: any) => p.status))],
+          statuses: Array.from(new Set(allProducts.map((p: any) => p.status))),
           products: allProducts.map((p: any) => ({ id: p.id, name: p.name, status: p.status })),
         });
       } else if (allError) {
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
       console.log("Products API: Status filtering result:", {
         totalFetched: products.length,
         publicProducts: publicProducts.length,
-        statusesFound: [...new Set(products.map((p: any) => p.status))],
+        statusesFound: Array.from(new Set(products.map((p: any) => p.status))),
         allProducts: products.map((p: any) => ({ 
           id: p.id, 
           name: p.name, 
@@ -281,7 +281,7 @@ export async function GET(request: NextRequest) {
       
       console.log("Products API: Fallback - all products:", {
         totalFetched: allProducts?.length || 0,
-        statusesFound: [...new Set((allProducts || []).map((p: any) => p.status))],
+        statusesFound: Array.from(new Set((allProducts || []).map((p: any) => p.status))),
         allProducts: (allProducts || []).map((p: any) => ({ 
           id: p.id, 
           name: p.name, 
@@ -344,8 +344,8 @@ export async function GET(request: NextRequest) {
       console.log("Products API: After status filtering (fallback):", {
         totalFetched: filteredProducts.length,
         publicProducts: enrichedProducts.length,
-        statusesFound: [...new Set(filteredProducts.map((p: any) => p.status))],
-        publicStatuses: [...new Set(enrichedProducts.map((p: any) => p.status))],
+        statusesFound: Array.from(new Set(filteredProducts.map((p: any) => p.status))),
+        publicStatuses: Array.from(new Set(enrichedProducts.map((p: any) => p.status))),
       });
 
       return NextResponse.json({
@@ -359,7 +359,7 @@ export async function GET(request: NextRequest) {
     
     console.log("Products API: Final fallback - all products:", {
       totalFetched: (products || []).length,
-      statusesFound: [...new Set((products || []).map((p: any) => p.status))],
+      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
       allProducts: (products || []).map((p: any) => ({ 
         id: p.id, 
         name: p.name, 
@@ -397,8 +397,8 @@ export async function GET(request: NextRequest) {
     console.log("Products API: Final fallback response:", {
       totalFetched: (products || []).length,
       publicProducts: enrichedProducts.length,
-      statusesFound: [...new Set((products || []).map((p: any) => p.status))],
-      publicStatuses: [...new Set(enrichedProducts.map((p: any) => p.status))],
+      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
+      publicStatuses: Array.from(new Set(enrichedProducts.map((p: any) => p.status))),
     });
 
     return NextResponse.json({
