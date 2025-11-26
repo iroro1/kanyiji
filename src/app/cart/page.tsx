@@ -177,8 +177,8 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">
-                    {/* ₦{shipping.toLocaleString()} */}
+                  <span className="font-medium text-gray-400">
+                    Calculated at checkout
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
@@ -196,9 +196,11 @@ export default function CartPage() {
                 <h4 className="font-medium text-gray-900 mb-2">
                   Shipping Information
                 </h4>
-                <p className="text-sm text-gray-600">
-                  Free shipping on orders over ₦10,000. Standard delivery takes
-                  3-5 business days.
+                <p className="text-sm text-gray-600 mb-2">
+                  Shipping fees are calculated based on weight and destination at checkout.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Rates: ₦3,000-₦6,000/kg (Nigeria) • ₦14,500/kg (International)
                 </p>
               </div>
 
