@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomError from "../error";
 import { validateSignupForm } from "@/components/ui/ValidateInputs";
+import { calculateShippingFee, type ShippingLocation } from "@/utils/shippingCalculator";
+import { useMemo } from "react";
 
 export default function CheckoutPage() {
   const { user } = useAuth();
@@ -28,6 +30,7 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     state: "",
+    country: "Nigeria",
     zipCode: "",
   });
 
@@ -40,7 +43,29 @@ export default function CheckoutPage() {
 
   const { state } = useCart();
   const items = state.items;
-  const shipping = 800;
+  
+  // Calculate shipping fee based on destination and total weight
+  // Default weight: 1kg per item (can be adjusted if products have weight field)
+  const totalWeight = useMemo(() => {
+    return items.reduce((sum, item) => sum + (item.quantity * 1), 0); // 1kg per item default
+  }, [items]);
+
+  const shippingFee = useMemo(() => {
+    if (!shippingData.state && !shippingData.city && !shippingData.country) {
+      return 0; // No shipping calculated yet
+    }
+
+    const location: ShippingLocation = {
+      country: shippingData.country || "Nigeria",
+      state: shippingData.state,
+      city: shippingData.city,
+    };
+
+    const result = calculateShippingFee(totalWeight, location);
+    return result ? result.price : 0;
+  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight]);
+
+  const shipping = shippingFee || 0;
   const handlePlaceOrder = async () => {
     const validationErrors = validateSignupForm(shippingData);
 
@@ -283,6 +308,24 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={shippingData.country}
+                    onChange={(event) =>
+                      handleShippingData("country", event.target.value)
+                    }
+                  >
+                    <option value="Nigeria">Nigeria</option>
+                    <option value="UK">United Kingdom</option>
+                    <option value="US">United States</option>
+                    <option value="Canada">Canada</option>
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -347,28 +390,25 @@ export default function CheckoutPage() {
                         defaultChecked
                       />
                       <div className="flex-1">
-                        <div className="font-medium">Standard Shipping</div>
+                        <div className="font-medium">Kanyiji Standard Shipping</div>
                         <div className="text-sm text-gray-600">
-                          3-5 business days
+                          {shippingData.state || shippingData.city 
+                            ? `3-7 business days • ${totalWeight.toFixed(1)} kg`
+                            : "Enter destination to calculate shipping"}
                         </div>
                       </div>
-                      <div className="font-semibold">₦800</div>
-                    </label>
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="express"
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">Express Shipping</div>
-                        <div className="text-sm text-gray-600">
-                          1-2 business days
-                        </div>
+                      <div className="font-semibold">
+                        {shipping > 0 ? formatPrice(shipping) : "—"}
                       </div>
-                      <div className="font-semibold">₦1,200</div>
                     </label>
+                    {shipping > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                        <p className="font-medium mb-1">Shipping Details:</p>
+                        <p>Weight: {totalWeight.toFixed(1)} kg</p>
+                        <p>Destination: {shippingData.city || shippingData.state || "Not specified"}</p>
+                        <p className="mt-1 font-semibold">Rate: {formatPrice(shipping)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -614,7 +654,18 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
-                    ₦{shipping.toLocaleString()}
+                    {shipping > 0 ? (
+                      <>
+                        ₦{shipping.toLocaleString()}
+                        {shippingData.state || shippingData.city ? (
+                          <span className="text-xs text-gray-500 block">
+                            ({totalWeight.toFixed(1)} kg)
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Enter destination</span>
+                    )}
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
@@ -641,3 +692,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
