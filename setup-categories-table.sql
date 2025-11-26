@@ -54,17 +54,11 @@ INSERT INTO categories (id, name, slug, description, image_url, sort_order, is_a
 -- Art & Collectibles
 ('00000000-0000-0000-0000-000000000007', 'Art & Collectibles', 'art-collectibles', 'Original artwork, sculptures, and unique collectible items', 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 7, true, 0),
 
--- Electronics & Gadgets
-('00000000-0000-0000-0000-000000000008', 'Electronics & Gadgets', 'electronics-gadgets', 'African-made electronics and tech accessories', 'https://images.unsplash.com/photo-1468495244123-6c6c332eeece?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 8, true, 0),
-
 -- Books & Media
 ('00000000-0000-0000-0000-000000000009', 'Books & Media', 'books-media', 'African literature, music, and educational materials', 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 9, true, 0),
 
 -- Toys & Games
 ('00000000-0000-0000-0000-000000000010', 'Toys & Games', 'toys-games', 'Traditional and modern African games and toys', 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 10, true, 0),
-
--- Sports & Outdoors
-('00000000-0000-0000-0000-000000000011', 'Sports & Outdoors', 'sports-outdoors', 'Sports equipment and outdoor gear', 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 11, true, 0),
 
 -- Kitchen & Dining
 ('00000000-0000-0000-0000-000000000012', 'Kitchen & Dining', 'kitchen-dining', 'Traditional cookware, dining sets, and kitchen accessories', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 12, true, 0),
@@ -76,10 +70,7 @@ INSERT INTO categories (id, name, slug, description, image_url, sort_order, is_a
 ('00000000-0000-0000-0000-000000000014', 'Musical Instruments', 'musical-instruments', 'Traditional and modern African musical instruments', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 14, true, 0),
 
 -- Bags & Luggage
-('00000000-0000-0000-0000-000000000015', 'Bags & Luggage', 'bags-luggage', 'Handmade bags, backpacks, and luggage', 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 15, true, 0),
-
--- Pet Supplies
-('00000000-0000-0000-0000-000000000016', 'Pet Supplies', 'pet-supplies', 'Pet care products and accessories', 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 16, true, 0)
+('00000000-0000-0000-0000-000000000015', 'Bags & Luggage', 'bags-luggage', 'Handmade bags, backpacks, and luggage', 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', 15, true, 0)
 
 ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
