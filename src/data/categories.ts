@@ -69,14 +69,6 @@ export const CATEGORIES: Category[] = [
     product_count: 0,
   },
   {
-    id: "00000000-0000-0000-0000-000000000008",
-    name: "Electronics & Gadgets",
-    slug: "electronics-gadgets",
-    description: "African-made electronics and tech accessories",
-    image_url: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    product_count: 0,
-  },
-  {
     id: "00000000-0000-0000-0000-000000000009",
     name: "Books & Media",
     slug: "books-media",
@@ -90,14 +82,6 @@ export const CATEGORIES: Category[] = [
     slug: "toys-games",
     description: "Traditional and modern African games and toys",
     image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    product_count: 0,
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000011",
-    name: "Sports & Outdoors",
-    slug: "sports-outdoors",
-    description: "Sports equipment and outdoor gear",
-    image_url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
     product_count: 0,
   },
   {
@@ -130,14 +114,6 @@ export const CATEGORIES: Category[] = [
     slug: "bags-luggage",
     description: "Handmade bags, backpacks, and luggage",
     image_url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    product_count: 0,
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000016",
-    name: "Pet Supplies",
-    slug: "pet-supplies",
-    description: "Pet care products and accessories",
-    image_url: "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
     product_count: 0,
   },
 ];

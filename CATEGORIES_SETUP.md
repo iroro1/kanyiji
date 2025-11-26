@@ -22,14 +22,14 @@ The Kanyiji marketplace uses a `categories` table to organize products. Categori
    - Paste it into the SQL Editor
    - Click **Run** or press `Ctrl/Cmd + Enter`
 
-This will create **16 categories** including:
+This will create **13 categories** including:
 - Fashion & Textiles
 - Arts & Crafts
 - Food & Beverages
 - Home & Décor
 - Beauty & Wellness
 - Jewelry & Accessories
-- And 10 more categories
+- And 7 more categories
 
 ### Step 2: Verify Categories
 
@@ -43,7 +43,7 @@ ORDER BY sort_order, name;
 
 ## 📊 Categories Included
 
-The seeding script includes 16 diverse categories:
+The seeding script includes 13 diverse categories:
 
 1. **Fashion & Textiles** - Traditional and modern African clothing
 2. **Arts & Crafts** - Handcrafted Nigerian art and pottery
@@ -52,15 +52,12 @@ The seeding script includes 16 diverse categories:
 5. **Beauty & Wellness** - Natural Nigerian beauty products
 6. **Jewelry & Accessories** - Traditional Nigerian jewelry
 7. **Art & Collectibles** - Original artwork and sculptures
-8. **Electronics & Gadgets** - African-made electronics
-9. **Books & Media** - African literature and music
-10. **Toys & Games** - Traditional and modern games
-11. **Sports & Outdoors** - Sports equipment and gear
-12. **Kitchen & Dining** - Traditional cookware
-13. **Health & Medical** - Traditional medicine
-14. **Musical Instruments** - African musical instruments
-15. **Bags & Luggage** - Handmade bags and luggage
-16. **Pet Supplies** - Pet care products
+8. **Books & Media** - African literature and music
+9. **Toys & Games** - Traditional and modern games
+10. **Kitchen & Dining** - Traditional cookware
+11. **Health & Medical** - Traditional medicine
+12. **Musical Instruments** - African musical instruments
+13. **Bags & Luggage** - Handmade bags and luggage
 
 ## 🔄 Updating Product Counts
 
