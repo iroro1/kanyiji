@@ -67,8 +67,7 @@ export interface ProductFormData {
   // isFeatured: boolean;
 }
 export const productCategories = [
-  // Technology & Electronics
-  "Electronics",
+  // Technology
   "Computers & Laptops",
   "Mobile Phones & Tablets",
   "Gaming & Consoles",
@@ -94,12 +93,10 @@ export const productCategories = [
   "Bedding & Bath",
   "Lighting & Lamps",
   "Storage & Organization",
-  "Pet Supplies",
   "Baby & Kids Products",
 
   // Health & Wellness
   "Health & Fitness",
-  "Sports & Outdoor",
   "Nutrition & Supplements",
   "Medical & Healthcare",
   "Yoga & Meditation",
