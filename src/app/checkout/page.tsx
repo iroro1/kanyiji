@@ -657,7 +657,7 @@ export default function CheckoutPage() {
                   <span className="font-medium">
                     {shipping > 0 ? (
                       <>
-                        ₦{shipping.toLocaleString()}
+                    ₦{shipping.toLocaleString()}
                         {shippingData.state || shippingData.city ? (
                           <span className="text-xs text-gray-500 block">
                             ({totalWeight.toFixed(1)} kg)
