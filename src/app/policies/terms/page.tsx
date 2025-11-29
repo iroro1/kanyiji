@@ -22,6 +22,7 @@ import {
   Phone,
   Globe,
   ChevronDown,
+  CheckCircle,
 } from "lucide-react";
 
 export default function TermsConditionsPage() {

@@ -19,16 +19,17 @@ export async function createNotification(options: {
   try {
     const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const notificationData: any = {
-        title: options.title,
-        message: options.message,
-        type: options.type || "system",
-        recipient_type: options.recipient_type || (options.user_id ? "user" : "all"),
-        user_id: options.user_id || null,
-        created_by: options.created_by || null,
-        created_at: new Date().toISOString(),
-        // updated_at is optional - only include if column exists
-      };
+    const notificationData: any = {
+      title: options.title,
+      message: options.message,
+      type: options.type || "system",
+      recipient_type:
+        options.recipient_type || (options.user_id ? "user" : "all"),
+      user_id: options.user_id || null,
+      created_by: options.created_by || null,
+      created_at: new Date().toISOString(),
+      // updated_at is optional - only include if column exists
+    };
 
     // Only include metadata if provided and not empty
     if (options.metadata && Object.keys(options.metadata).length > 0) {
@@ -54,4 +55,3 @@ export async function createNotification(options: {
     return null;
   }
 }
-
