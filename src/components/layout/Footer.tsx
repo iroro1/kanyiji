@@ -51,18 +51,18 @@ export default function Footer() {
       links: [
         { name: "All Products", href: "/products" },
         { name: "Categories", href: "/categories" },
-        { name: "Vendors", href: "/vendors" },
-        { name: "Deals", href: "/deals" },
-        { name: "New Arrivals", href: "/new-arrivals" },
+        { name: "New Arrivals", href: "/products/new" },
+        { name: "Featured Products", href: "/products/featured" },
+        { name: "Trending", href: "/products/trending" },
       ],
     },
     {
       title: "For Vendors",
       links: [
         { name: "Become a Vendor", action: "openAuthModal" },
-        { name: "Vendor Guidelines", href: "/vendor/guidelines" },
-        { name: "Success Stories", href: "/vendor/success-stories" },
-        { name: "Vendor Support", href: "/vendor/support" },
+        { name: "Vendor Onboarding", href: "/vendor/onboarding" },
+        { name: "Vendor Agreement", href: "/policies/vendor-agreement" },
+        { name: "Vendor Recruitment", href: "/policies/vendor-recruitment" },
       ],
     },
     {
@@ -70,19 +70,17 @@ export default function Footer() {
       links: [
         { name: "Help Center", href: "/help" },
         { name: "Policies", href: "/policies" },
-        { name: "Contact Us", href: "/contact" },
-        { name: "Shipping Info", href: "/shipping" },
-        { name: "Returns", href: "/returns" },
+        { name: "Shipping & Delivery", href: "/policies/shipping-delivery" },
+        { name: "Returns & Refunds", href: "/policies/return-refund" },
+        { name: "Shipping Calculator", href: "/shipping" },
       ],
     },
     {
       title: "About Kanyiji",
       links: [
         { name: "Our Story", href: "/about" },
-        { name: "Mission & Vision", href: "/mission" },
-        { name: "Team", href: "/team" },
-        { name: "Careers", href: "/careers" },
-        { name: "Press", href: "/press" },
+        { name: "Privacy Policy", href: "/policies/privacy" },
+        { name: "Terms & Conditions", href: "/policies/terms" },
       ],
     },
   ];
@@ -175,8 +173,8 @@ export default function Footer() {
                   <li key={link.name}>
                     {link.action === "openAuthModal" ? (
                       <button
-                        // onClick={!user ? openAuthModal : vendorRegistration}
-                        className="text-gray-300 hover:text-blue-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
+                        onClick={openAuthModal}
+                        className="text-gray-300 hover:text-primary-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
                       >
                         {link.name}
                       </button>
