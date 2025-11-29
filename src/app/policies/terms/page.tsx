@@ -23,6 +23,7 @@ import {
   Globe,
   ChevronDown,
   CheckCircle,
+  DollarSign,
 } from "lucide-react";
 
 export default function TermsConditionsPage() {
