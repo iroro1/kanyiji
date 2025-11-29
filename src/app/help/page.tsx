@@ -185,6 +185,9 @@ export default function HelpPage() {
             <Link href="/orders" className="text-primary-600 hover:text-primary-700 underline">
               Order History
             </Link>
+            <Link href="/policies/return-refund" className="text-primary-600 hover:text-primary-700 underline">
+              Return & Refund Policy
+            </Link>
             <Link href="/vendor/register" className="text-primary-600 hover:text-primary-700 underline">
               Become a Vendor
             </Link>
