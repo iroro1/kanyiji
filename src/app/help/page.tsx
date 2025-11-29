@@ -188,6 +188,9 @@ export default function HelpPage() {
             <Link href="/policies/return-refund" className="text-primary-600 hover:text-primary-700 underline">
               Return & Refund Policy
             </Link>
+            <Link href="/policies/privacy" className="text-primary-600 hover:text-primary-700 underline">
+              Privacy Policy
+            </Link>
             <Link href="/policies/vendor-recruitment" className="text-primary-600 hover:text-primary-700 underline">
               Vendor Recruitment
             </Link>
