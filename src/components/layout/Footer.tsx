@@ -241,24 +241,30 @@ export default function Footer() {
             </div>
 
             {/* Legal Links */}
-            <div className="flex space-x-6 text-sm">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-sm">
               <Link
-                href="/privacy"
+                href="/policies"
+                className="text-gray-400 hover:text-primary-400 transition-colors duration-200 font-medium"
+              >
+                All Policies
+              </Link>
+              <Link
+                href="/policies/terms"
+                className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+              >
+                Terms & Conditions
+              </Link>
+              <Link
+                href="/policies/privacy"
                 className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
               >
                 Privacy Policy
               </Link>
               <Link
-                href="/terms"
+                href="/policies/return-refund"
                 className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
               >
-                Terms of Service
-              </Link>
-              <Link
-                href="/cookies"
-                className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
-              >
-                Cookie Policy
+                Returns & Refunds
               </Link>
             </div>
           </div>
