@@ -176,38 +176,31 @@ export default function HelpPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="mt-12 text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
-          <div className="flex flex-wrap justify-center gap-4">
+        <div className="mt-12">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Quick Links</h3>
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
             <Link href="/profile" className="text-primary-600 hover:text-primary-700 underline">
               My Profile
             </Link>
             <Link href="/orders" className="text-primary-600 hover:text-primary-700 underline">
               Order History
             </Link>
-            <Link href="/policies/terms" className="text-primary-600 hover:text-primary-700 underline">
-              Terms & Conditions
-            </Link>
-            <Link href="/policies/return-refund" className="text-primary-600 hover:text-primary-700 underline">
-              Return & Refund Policy
-            </Link>
-            <Link href="/policies/shipping-delivery" className="text-primary-600 hover:text-primary-700 underline">
-              Shipping & Delivery Policy
-            </Link>
-            <Link href="/policies/privacy" className="text-primary-600 hover:text-primary-700 underline">
-              Privacy Policy
-            </Link>
-            <Link href="/policies/vendor-agreement" className="text-primary-600 hover:text-primary-700 underline">
-              Vendor Agreement
-            </Link>
-            <Link href="/policies/vendor-recruitment" className="text-primary-600 hover:text-primary-700 underline">
-              Vendor Recruitment
-            </Link>
             <Link href="/vendor/register" className="text-primary-600 hover:text-primary-700 underline">
               Become a Vendor
             </Link>
             <Link href="/about" className="text-primary-600 hover:text-primary-700 underline">
               About Us
+            </Link>
+          </div>
+          
+          {/* All Policies Link */}
+          <div className="text-center">
+            <Link
+              href="/policies"
+              className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              View All Policies
             </Link>
           </div>
         </div>
