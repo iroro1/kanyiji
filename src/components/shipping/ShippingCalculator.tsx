@@ -105,10 +105,11 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
     setCalculatedFee(null);
 
     try {
-      // Calculate total weight
-      const totalWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+      // Calculate total weight (add 1kg extra for packaging)
+      const packagesWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+      const totalWeight = packagesWeight + 1; // Add 1kg extra for packaging
       
-      if (totalWeight <= 0) {
+      if (packagesWeight <= 0) {
         setError("Please enter a valid weight (greater than 0)");
         setLoading(false);
         return;
@@ -157,7 +158,8 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
     }
   };
 
-  const totalWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+  const packagesWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+  const totalWeight = packagesWeight + 1; // Add 1kg extra for packaging
   const totalValue = packages.reduce((sum, pkg) => sum + (pkg.value * pkg.quantity), 0);
 
   return (
@@ -399,7 +401,7 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-gray-600">Total Weight:</span>
+              <span className="text-gray-600">Total Weight (incl. packaging):</span>
               <span className="ml-2 font-medium">{totalWeight.toFixed(2)} kg</span>
             </div>
             <div>

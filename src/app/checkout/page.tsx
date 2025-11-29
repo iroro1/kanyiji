@@ -45,9 +45,10 @@ export default function CheckoutPage() {
   const items = state.items;
   
   // Calculate shipping fee based on destination and total weight
-  // Default weight: 1kg per item (can be adjusted if products have weight field)
+  // Default weight: 1kg per item + 1kg extra for packaging
   const totalWeight = useMemo(() => {
-    return items.reduce((sum, item) => sum + (item.quantity * 1), 0); // 1kg per item default
+    const itemsWeight = items.reduce((sum, item) => sum + (item.quantity * 1), 0); // 1kg per item default
+    return itemsWeight + 1; // Add 1kg extra for packaging
   }, [items]);
 
   const shippingFee = useMemo(() => {
