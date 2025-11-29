@@ -185,6 +185,9 @@ export default function HelpPage() {
             <Link href="/orders" className="text-primary-600 hover:text-primary-700 underline">
               Order History
             </Link>
+            <Link href="/policies/terms" className="text-primary-600 hover:text-primary-700 underline">
+              Terms & Conditions
+            </Link>
             <Link href="/policies/return-refund" className="text-primary-600 hover:text-primary-700 underline">
               Return & Refund Policy
             </Link>
@@ -193,6 +196,9 @@ export default function HelpPage() {
             </Link>
             <Link href="/policies/privacy" className="text-primary-600 hover:text-primary-700 underline">
               Privacy Policy
+            </Link>
+            <Link href="/policies/vendor-agreement" className="text-primary-600 hover:text-primary-700 underline">
+              Vendor Agreement
             </Link>
             <Link href="/policies/vendor-recruitment" className="text-primary-600 hover:text-primary-700 underline">
               Vendor Recruitment
