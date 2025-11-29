@@ -173,8 +173,8 @@ export default function Footer() {
                   <li key={link.name}>
                     {link.action === "openAuthModal" ? (
                       <button
-                        // onClick={!user ? openAuthModal : vendorRegistration}
-                        className="text-gray-300 hover:text-blue-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
+                        onClick={openAuthModal}
+                        className="text-gray-300 hover:text-primary-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
                       >
                         {link.name}
                       </button>
