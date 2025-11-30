@@ -957,10 +957,10 @@ export default function TermsConditionsPage() {
               <span>
                 <strong>Email:</strong>{" "}
                 <a
-                  href="mailto:support@kanyiji.com"
+                  href="mailto:support@kanyiji.ng"
                   className="underline hover:text-white"
                 >
-                  support@kanyiji.com
+                  support@kanyiji.ng
                 </a>
               </span>
             </div>
@@ -968,8 +968,8 @@ export default function TermsConditionsPage() {
               <Phone className="w-5 h-5" />
               <span>
                 <strong>Phone:</strong>{" "}
-                <a href="tel:+2348000000000" className="underline hover:text-white">
-                  +234 800 000 0000
+                <a href="tel:+2348177928061" className="underline hover:text-white">
+                  +234 817 792 8061
                 </a>
               </span>
             </div>

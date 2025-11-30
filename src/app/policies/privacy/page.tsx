@@ -593,10 +593,10 @@ export default function PrivacyPolicyPage() {
               <span>
                 <strong>Email:</strong>{" "}
                 <a
-                  href="mailto:privacy@kanyiji.com"
+                  href="mailto:support@kanyiji.ng"
                   className="underline hover:text-white"
                 >
-                  privacy@kanyiji.com
+                  support@kanyiji.ng
                 </a>
               </span>
             </div>
@@ -604,8 +604,8 @@ export default function PrivacyPolicyPage() {
               <Phone className="w-5 h-5" />
               <span>
                 <strong>Phone:</strong>{" "}
-                <a href="tel:+2348000000000" className="underline hover:text-white">
-                  +234 800 000 0000
+                <a href="tel:+2348177928061" className="underline hover:text-white">
+                  +234 817 792 8061
                 </a>
               </span>
             </div>
