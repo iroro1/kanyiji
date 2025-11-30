@@ -72,7 +72,6 @@ export default function Footer() {
         { name: "Policies", href: "/policies" },
         { name: "Shipping & Delivery", href: "/policies/shipping-delivery" },
         { name: "Returns & Refunds", href: "/policies/return-refund" },
-        { name: "Shipping Calculator", href: "/shipping" },
       ],
     },
     {
