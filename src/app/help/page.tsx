@@ -166,7 +166,7 @@ export default function HelpPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <div className="flex items-center justify-center space-x-3">
               <Mail className="w-5 h-5 text-primary-600" />
-              <span className="text-gray-700">support@kanyiji.com</span>
+              <span className="text-gray-700">support@kanyiji.ng</span>
             </div>
             <div className="flex items-center justify-center space-x-3">
               <Phone className="w-5 h-5 text-primary-600" />

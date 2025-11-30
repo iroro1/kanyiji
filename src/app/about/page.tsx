@@ -183,7 +183,7 @@ export default function AboutPage() {
       </div>
 
       {/* Team */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      {/* <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Meet Our Team
@@ -232,7 +232,7 @@ export default function AboutPage() {
             <p className="text-sm text-primary-600">8+ years experience</p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* CTA */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white py-20">

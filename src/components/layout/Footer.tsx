@@ -149,11 +149,11 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-gray-300">
                 <Mail className="w-5 h-5 text-primary-400" />
-                <span>hello@kanyiji.com</span>
+                <span>support@kanyiji.ng</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-300">
                 <Phone className="w-5 h-5 text-primary-400" />
-                <span>+234 800 KANYIJI</span>
+                <span>+234 817 792 8061</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-300">
                 <MapPin className="w-5 h-5 text-primary-400" />
