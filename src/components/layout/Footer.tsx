@@ -85,9 +85,9 @@ export default function Footer() {
   ];
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, href: "https://facebook.com" },
+    { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/share/182dVkCGtT/?mibextid=wwXIfr" },
     { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
-    { name: "Instagram", icon: Instagram, href: "https://instagram.com" },
+    { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/kanyiji.ng?igsh=MXBrMHhuNWwyZ3h3Nw%3D%3D&utm_source=qr" },
     { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
     { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
   ];
@@ -139,8 +139,8 @@ export default function Footer() {
               />
             </div>
             <p className="text-gray-300 mb-6 max-w-md">
-              Connecting Nigerian artisans, brands, and businesses with
-              customers nationwide. Discover authentic Made-in-Nigeria products
+              Connecting Nigerian entrepreneurs, brands, and businesses with
+              customers worldwide. Discover authentic Made-in-Nigeria products
               that tell the story of our rich heritage.
             </p>
 
