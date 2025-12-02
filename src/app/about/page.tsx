@@ -23,7 +23,7 @@ export default function AboutPage() {
           </h1>
           <p className="text-xl sm:text-2xl text-primary-100 max-w-3xl mx-auto leading-relaxed">
             Connecting the world with authentic Made-in-Africa products,
-            empowering local artisans and businesses while preserving cultural
+            empowering local entrepreneurs and businesses while preserving cultural
             heritage.
           </p>
         </div>
@@ -129,7 +129,7 @@ export default function AboutPage() {
                 Empowering Africa, One Purchase at a Time
               </h3>
               <p className="text-gray-700">
-                By shopping with us, you support African artisans, farmers, and
+                By shopping with us, you support African entrepreneurs, farmers, and
                 creators, helping communities grow and thrive.
               </p>
             </div>

@@ -28,7 +28,7 @@ export default function HeroSection() {
 
         {/* Subtitle */}
         <p className="text-lg sm:text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-          Connect with African artisans, brands, and businesses. Shop unique
+          Connect with African entrepreneurs, brands, and businesses. Shop unique
           products that tell the story of Africa's rich heritage.
         </p>
 

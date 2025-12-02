@@ -1,6 +1,6 @@
 # Kanyiji Marketplace
 
-A modern e-commerce marketplace connecting African artisans, brands, and businesses with global buyers. Built with Next.js 14, TypeScript, and Tailwind CSS.
+A modern e-commerce marketplace connecting African entrepreneurs, brands, and businesses with global buyers. Built with Next.js 14, TypeScript, and Tailwind CSS.
 
 ## 🚀 Features
 

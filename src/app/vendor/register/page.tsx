@@ -389,7 +389,7 @@ export default function VendorRegistrationPage() {
                     }`}
                   >
                     <option value="">Select business type</option>
-                    <option value="individual">Individual Artisan</option>
+                    <option value="individual">Individual Entrepreneur</option>
                     <option value="small-business">Small Business</option>
                     <option value="medium-business">Medium Business</option>
                     <option value="cooperative">Cooperative</option>

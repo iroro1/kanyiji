@@ -95,7 +95,7 @@ export default function FeaturedVendors() {
           <div className="text-center mb-12">
             <h2 className="section-title">Featured Vendors</h2>
             <p className="section-subtitle">
-              Meet the talented artisans behind our products
+              Meet the talented entrepreneurs behind our products
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -122,7 +122,7 @@ export default function FeaturedVendors() {
               Featured Vendors
             </h2>
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4">
-              Meet the talented artisans behind our products
+              Meet the talented entrepreneurs behind our products
             </p>
           </div>
           <div className="text-center py-8">
@@ -142,7 +142,7 @@ export default function FeaturedVendors() {
             Featured Vendors
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4">
-            Meet the talented artisans behind our products
+            Meet the talented entrepreneurs behind our products
           </p>
         </div>
 

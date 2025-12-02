@@ -27,9 +27,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Kanyiji - Made-in-Nigeria Marketplace",
   description:
-    "Connect with Nigerian artisans, brands, and businesses. Discover authentic Made-in-Nigeria products.",
+    "Connect with Nigerian entrepreneurs, brands, and businesses. Discover authentic Made-in-Nigeria products.",
   keywords:
-    "Nigerian marketplace, e-commerce, Made-in-Nigeria, artisans, crafts, fashion, food, Lagos, Abuja",
+    "Nigerian marketplace, e-commerce, Made-in-Nigeria, entrepreneurs, crafts, fashion, food, Lagos, Abuja",
   authors: [{ name: "Kanyiji Team" }],
   viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
