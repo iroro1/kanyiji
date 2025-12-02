@@ -6,10 +6,10 @@ import {
   Phone,
   MapPin,
   Facebook,
-  Twitter,
   Instagram,
-  Linkedin,
-  Youtube,
+  // Twitter,
+  // Linkedin,
+  // Youtube,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -86,10 +86,10 @@ export default function Footer() {
 
   const socialLinks = [
     { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/share/182dVkCGtT/?mibextid=wwXIfr" },
-    { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
     { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/kanyiji.ng?igsh=MXBrMHhuNWwyZ3h3Nw%3D%3D&utm_source=qr" },
-    { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
-    { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
+    // { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
+    // { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
+    // { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
   ];
 
   return (
