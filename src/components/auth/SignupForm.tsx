@@ -8,6 +8,7 @@ import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
+import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
 
 const signupSchema = z
   .object({
@@ -49,6 +50,17 @@ export default function SignupForm({
   });
 
   const onSubmit = async (data: SignupFormData) => {
+    // Check rate limit for signup attempts (3 per hour per email)
+    const rateLimitKey = `signup:${data.email.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
+
+    if (rateLimitCheck.isLimited) {
+      toast.error(
+        `Too many signup attempts. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+      );
+      return;
+    }
+
     setIsLoading(true);
     try {
       const userData = {
@@ -59,6 +71,9 @@ export default function SignupForm({
         role: "customer" as const, // Default role for new users
       };
 
+      // Record the attempt
+      recordAttempt(rateLimitKey, 3, 60 * 60 * 1000);
+
       const result = await registerUser(userData);
       if (result.success) {
         // If verification is required, the AuthContext will handle the redirect
@@ -66,9 +81,21 @@ export default function SignupForm({
         if (!result.requiresVerification) {
           onSuccess?.();
         }
+      } else {
+        // If signup failed due to rate limit, show helpful message
+        if (result.error?.toLowerCase().includes("rate limit")) {
+          toast.error(
+            `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+          );
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signup error:", error);
+      if (error?.message?.toLowerCase().includes("rate limit")) {
+        toast.error(
+          `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+        );
+      }
     } finally {
       setIsLoading(false);
     }
