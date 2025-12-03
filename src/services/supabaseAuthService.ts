@@ -133,7 +133,7 @@ class SupabaseAuthService {
         };
       }
 
-      // Create user account with email confirmation
+      // Create user account - Supabase will send verification email via Resend SMTP
       console.log("Creating user account...");
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
@@ -149,6 +149,8 @@ class SupabaseAuthService {
           }/verify-email?email=${encodeURIComponent(userData.email)}`,
         },
       });
+      
+      // Note: Verification email is automatically sent via Resend SMTP (configured in Supabase)
 
       console.log("Auth response:", { authData, authError });
 
@@ -345,8 +347,9 @@ class SupabaseAuthService {
 
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
-      console.log("Starting password reset OTP for:", email);
+      console.log("Starting password reset for:", email);
 
+      // Send password reset email via Supabase (which uses Resend SMTP)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -355,17 +358,17 @@ class SupabaseAuthService {
         console.error("Password reset error:", error);
         return {
           success: false,
-          error: error.message || "Failed to send password reset OTP",
+          error: error.message || "Failed to send password reset email",
         };
       }
 
-      console.log("Password reset OTP sent successfully");
+      console.log("Password reset email sent successfully via Resend SMTP");
       return { success: true };
     } catch (error: any) {
       console.error("Password reset error:", error);
       return {
         success: false,
-        error: error.message || "Failed to send password reset OTP",
+        error: error.message || "Failed to send password reset email",
       };
     }
   }
@@ -378,21 +381,22 @@ class SupabaseAuthService {
     try {
       console.log("Verifying password reset OTP for:", email);
 
-      const { data, error } = await supabase.auth.verifyOtp({
+      // Verify OTP using Supabase
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token,
         type: "recovery",
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
+      if (verifyError) {
+        console.error("OTP verification error:", verifyError);
         return {
           success: false,
-          error: error.message || "Invalid or expired OTP",
+          error: verifyError.message || "Invalid or expired OTP",
         };
       }
 
-      // Update password
+      // OTP is valid, now update password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
