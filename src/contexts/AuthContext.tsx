@@ -151,10 +151,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (
     userData: any
-  ): Promise<{ success: boolean; requiresVerification?: boolean }> => {
+  ): Promise<{ success: boolean; requiresVerification?: boolean; error?: string }> => {
     try {
       setIsLoading(true);
       const response = await supabaseAuthService.register(userData);
+
+      if (!response.success) {
+        return { success: false, error: response.error };
+      }
 
       if (response.success && response.user) {
         // Check if email verification is required
