@@ -14,6 +14,33 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
 
+// Server-side rate limit check
+async function checkServerRateLimit(email: string, actionType: "signup" | "resend") {
+  try {
+    const response = await fetch("/api/auth/rate-limit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: email,
+        actionType,
+        maxAttempts: 3,
+        windowDuration: "1 hour",
+      }),
+    });
+
+    if (!response.ok) {
+      // If API fails, fall back to client-side check
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Server rate limit check failed:", error);
+    return null; // Fall back to client-side
+  }
+}
+
 export default function VerifyEmailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -221,7 +248,18 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    // Check rate limit for resend attempts (3 per hour per email)
+    // Check server-side rate limit first (more reliable)
+    const serverRateLimit = await checkServerRateLimit(email, "resend");
+    
+    if (serverRateLimit?.is_limited) {
+      const timeUntilReset = serverRateLimit.time_until_reset_ms || 0;
+      setError(
+        `Too many resend attempts. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
+      );
+      return;
+    }
+
+    // Fallback to client-side rate limit check
     const rateLimitKey = `resend:${email.toLowerCase()}`;
     const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
 
