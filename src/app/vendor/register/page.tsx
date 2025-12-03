@@ -751,16 +751,16 @@ export default function VendorRegistrationPage() {
                     our Privacy Policy to provide our services and comply with
                     legal obligations.
                   </p>
-                  <label className="flex items-center">
+                  <label className="flex items-start">
                     <input
                       type="checkbox"
                       checked={formData.agreeToPrivacy}
                       onChange={(e) =>
                         handleInputChange("agreeToPrivacy", e.target.checked)
                       }
-                      className="mr-3"
+                      className="mt-1 mr-3 flex-shrink-0"
                     />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-xs sm:text-sm text-gray-700">
                       I agree to the Privacy Policy *
                     </span>
                   </label>
