@@ -177,28 +177,34 @@ export default function VendorRegistrationPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-center overflow-x-auto pb-2">
             {steps.map((stepItem, index) => (
-              <div key={stepItem.number} className="flex items-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                    step >= stepItem.number
-                      ? "bg-primary-500 text-white"
-                      : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {step > stepItem.number ? (
-                    <CheckCircle className="w-5 h-5" />
-                  ) : (
-                    stepItem.number
-                  )}
+              <div key={stepItem.number} className="flex items-center flex-shrink-0">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${
+                      step >= stepItem.number
+                        ? "bg-primary-500 text-white"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {step > stepItem.number ? (
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    ) : (
+                      stepItem.number
+                    )}
+                  </div>
+                  {/* Step label - visible on mobile */}
+                  <span className="text-xs text-gray-600 mt-1 sm:hidden max-w-[60px] text-center leading-tight">
+                    {stepItem.title.split(" ")[0]}
+                  </span>
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`w-16 h-1 ${
+                    className={`w-8 sm:w-12 md:w-16 h-1 mx-1 sm:mx-2 ${
                       step > stepItem.number ? "bg-primary-500" : "bg-gray-200"
                     }`}
                   ></div>
@@ -206,11 +212,12 @@ export default function VendorRegistrationPage() {
               </div>
             ))}
           </div>
-          <div className="flex justify-center mt-4">
+          {/* Step labels - hidden on mobile, visible on desktop */}
+          <div className="hidden sm:flex justify-center mt-4">
             {steps.map((stepItem) => (
               <span
                 key={stepItem.number}
-                className="text-sm text-gray-600 mx-4"
+                className="text-xs sm:text-sm text-gray-600 mx-2 sm:mx-4"
               >
                 {stepItem.title}
               </span>
@@ -219,7 +226,7 @@ export default function VendorRegistrationPage() {
         </div>
 
         {/* Form Content */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
           {/* {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -350,10 +357,10 @@ export default function VendorRegistrationPage() {
           )} */}
           {step === 1 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Business Information
               </h2>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Business Name *
@@ -445,10 +452,10 @@ export default function VendorRegistrationPage() {
           )}
           {step === 2 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Business Address
               </h2>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Street Address *
@@ -470,7 +477,7 @@ export default function VendorRegistrationPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       City *
@@ -549,26 +556,26 @@ export default function VendorRegistrationPage() {
           )}
           {step === 3 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Business Documents
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                 Please upload the following documents to verify your business.
                 All documents should be in PDF, JPG, or PNG format and maximum
                 of 5MB.
               </p>
 
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Business License/Registration *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
+                    <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
                       {formData.businessLicense
                         ? formData.businessLicense.name
-                        : "Click to upload or drag and drop"}
+                        : "Tap to upload"}
                     </p>
                     <input
                       type="file"
@@ -593,7 +600,7 @@ export default function VendorRegistrationPage() {
                     />
                     <label
                       htmlFor="businessLicense"
-                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base rounded-lg transition-colors inline-block"
                     >
                       Choose File
                     </label>
@@ -609,12 +616,12 @@ export default function VendorRegistrationPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tax Certificate *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
+                    <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
                       {formData.taxCertificate
                         ? formData.taxCertificate.name
-                        : "Click to upload or drag and drop"}
+                        : "Tap to upload"}
                     </p>
                     <input
                       type="file"
@@ -639,7 +646,7 @@ export default function VendorRegistrationPage() {
                     />
                     <label
                       htmlFor="taxCertificate"
-                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base rounded-lg transition-colors inline-block"
                     >
                       Choose File
                     </label>
@@ -655,12 +662,12 @@ export default function VendorRegistrationPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Bank Statement (Last 1 month) *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
+                    <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
                       {formData.bankStatement
                         ? formData.bankStatement.name
-                        : "Click to upload or drag and drop"}
+                        : "Tap to upload"}
                     </p>
                     <input
                       type="file"
@@ -685,7 +692,7 @@ export default function VendorRegistrationPage() {
                     />
                     <label
                       htmlFor="bankStatement"
-                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                      className="cursor-pointer bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base rounded-lg transition-colors inline-block"
                     >
                       Choose File
                     </label>
@@ -701,30 +708,30 @@ export default function VendorRegistrationPage() {
           )}
           {step === 4 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                 Terms & Conditions
               </h2>
 
-              <div className="space-y-6">
-                <div className="p-4 border border-gray-200 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-2">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="p-3 sm:p-4 border border-gray-200 rounded-lg">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2">
                     Kanyiji Marketplace Terms
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                     By becoming a vendor on Kanyiji, you agree to our
                     marketplace terms and conditions, including commission
                     rates, payment terms, and quality standards.
                   </p>
-                  <label className="flex items-center">
+                  <label className="flex items-start">
                     <input
                       type="checkbox"
                       checked={formData.agreeToTerms}
                       onChange={(e) =>
                         handleInputChange("agreeToTerms", e.target.checked)
                       }
-                      className="mr-3"
+                      className="mt-1 mr-3 flex-shrink-0"
                     />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-xs sm:text-sm text-gray-700">
                       I agree to the Kanyiji Marketplace Terms and Conditions *
                     </span>
                   </label>
@@ -735,11 +742,11 @@ export default function VendorRegistrationPage() {
                   )}
                 </div>
 
-                <div className="p-4 border border-gray-200 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-2">
+                <div className="p-3 sm:p-4 border border-gray-200 rounded-lg">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2">
                     Privacy Policy
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                     We collect and process your personal data in accordance with
                     our Privacy Policy to provide our services and comply with
                     legal obligations.
@@ -796,11 +803,11 @@ export default function VendorRegistrationPage() {
           )}
           {/* Navigation Buttons */}
           {step < 5 ? (
-            <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
               <button
                 onClick={handlePrevious}
                 disabled={step === 1}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
               >
                 Previous
               </button>
@@ -808,7 +815,7 @@ export default function VendorRegistrationPage() {
               <button
                 onClick={step === 4 ? handleSubmit : handleNext}
                 disabled={isRegistering} // Disable button while submitting
-                className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
               >
                 {step === 4 ? "Submit Application" : "Next"}
               </button>
