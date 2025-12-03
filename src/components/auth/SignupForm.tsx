@@ -10,6 +10,33 @@ import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
 
+// Server-side rate limit check
+async function checkServerRateLimit(email: string, actionType: "signup" | "resend") {
+  try {
+    const response = await fetch("/api/auth/rate-limit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: email,
+        actionType,
+        maxAttempts: 3,
+        windowDuration: "1 hour",
+      }),
+    });
+
+    if (!response.ok) {
+      // If API fails, fall back to client-side check
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Server rate limit check failed:", error);
+    return null; // Fall back to client-side
+  }
+}
+
 const signupSchema = z
   .object({
     firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -50,7 +77,18 @@ export default function SignupForm({
   });
 
   const onSubmit = async (data: SignupFormData) => {
-    // Check rate limit for signup attempts (3 per hour per email)
+    // Check server-side rate limit first (more reliable)
+    const serverRateLimit = await checkServerRateLimit(data.email, "signup");
+    
+    if (serverRateLimit?.is_limited) {
+      const timeUntilReset = serverRateLimit.time_until_reset_ms || 0;
+      toast.error(
+        `Too many signup attempts. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
+      );
+      return;
+    }
+
+    // Fallback to client-side rate limit check
     const rateLimitKey = `signup:${data.email.toLowerCase()}`;
     const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
 
