@@ -136,73 +136,73 @@ export default function VerifyEmailPage() {
       const verifiedUser = authData.user;
       console.log("OTP verification successful");
 
-        // Create or update profile
-        if (verifiedUser?.id) {
-          try {
-            // First, try to update existing profile
-            const { data: existingProfile, error: fetchError } = await supabase
+      // Create or update profile
+      if (verifiedUser?.id) {
+        try {
+          // First, try to update existing profile
+          const { data: existingProfile, error: fetchError } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", verifiedUser.id)
+            .single();
+
+          if (existingProfile) {
+            // Profile exists, update email_verified status and phone from metadata
+            const { error: profileError } = await supabase
               .from("profiles")
-              .select("id")
-              .eq("id", verifiedUser.id)
-              .single();
+              .update({
+                email_verified: true,
+                phone: verifiedUser.user_metadata?.phone || "", // Update phone from user metadata
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", verifiedUser.id);
 
-            if (existingProfile) {
-              // Profile exists, update email_verified status and phone from metadata
-              const { error: profileError } = await supabase
-                .from("profiles")
-                .update({
-                  email_verified: true,
-                  phone: verifiedUser.user_metadata?.phone || "", // Update phone from user metadata
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", verifiedUser.id);
-
-              if (profileError) {
-                console.error("Profile update error:", profileError);
-              } else {
-                console.log(
-                  "Profile email_verified status and phone updated successfully"
-                );
-                console.log(
-                  "Phone from metadata:",
-                  data.user.user_metadata?.phone
-                );
-              }
+            if (profileError) {
+              console.error("Profile update error:", profileError);
             } else {
-              // Profile doesn't exist, create it
-              console.log("Creating profile during email verification...");
-              const { error: createError } = await supabase
-                .from("profiles")
-                .insert({
-                  id: verifiedUser.id,
-                  email: verifiedUser.email || email,
-                  full_name: verifiedUser.user_metadata?.full_name || "User",
-                  role: verifiedUser.user_metadata?.role || "customer",
-                  phone: verifiedUser.user_metadata?.phone || "", // Use phone from user metadata
-                  address: "", // Initialize address as empty string
-                  city: "", // Initialize city as empty string
-                  state: "", // Initialize state as empty string
-                  zip_code: "", // Initialize zip_code as empty string
-                  country: "Nigeria", // Default country
-                  email_verified: true,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
+              console.log(
+                "Profile email_verified status and phone updated successfully"
+              );
+              console.log(
+                "Phone from metadata:",
+                verifiedUser.user_metadata?.phone
+              );
+            }
+          } else {
+            // Profile doesn't exist, create it
+            console.log("Creating profile during email verification...");
+            const { error: createError } = await supabase
+              .from("profiles")
+              .insert({
+                id: verifiedUser.id,
+                email: verifiedUser.email || email,
+                full_name: verifiedUser.user_metadata?.full_name || "User",
+                role: verifiedUser.user_metadata?.role || "customer",
+                phone: verifiedUser.user_metadata?.phone || "", // Use phone from user metadata
+                address: "", // Initialize address as empty string
+                city: "", // Initialize city as empty string
+                state: "", // Initialize state as empty string
+                zip_code: "", // Initialize zip_code as empty string
+                country: "Nigeria", // Default country
+                email_verified: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
 
-              if (createError) {
-                console.error("Profile creation error:", createError);
+            if (createError) {
+              console.error("Profile creation error:", createError);
 
-                // If it's a foreign key constraint error, try using the API route
-                if (createError.code === "23503") {
-                  console.log(
-                    "Foreign key constraint error - trying API route..."
-                  );
-                  try {
-                    const response = await fetch("/api/create-profile", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
+              // If it's a foreign key constraint error, try using the API route
+              if (createError.code === "23503") {
+                console.log(
+                  "Foreign key constraint error - trying API route..."
+                );
+                try {
+                  const response = await fetch("/api/create-profile", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
                     body: JSON.stringify({
                       userId: verifiedUser.id,
                       email: verifiedUser.email || email,
@@ -211,38 +211,37 @@ export default function VerifyEmailPage() {
                       phone: verifiedUser.user_metadata?.phone || "",
                       emailVerified: true,
                     }),
-                    });
+                  });
 
-                    if (response.ok) {
-                      console.log("Profile created successfully via API route");
-                    } else {
-                      console.error("API route also failed");
-                    }
-                  } catch (apiError) {
-                    console.error("API route error:", apiError);
+                  if (response.ok) {
+                    console.log("Profile created successfully via API route");
+                  } else {
+                    console.error("API route also failed");
                   }
+                } catch (apiError) {
+                  console.error("API route error:", apiError);
                 }
-                // Don't fail verification if profile creation fails
-              } else {
-                console.log(
-                  "Profile created successfully during email verification"
-                );
               }
+              // Don't fail verification if profile creation fails
+            } else {
+              console.log(
+                "Profile created successfully during email verification"
+              );
             }
-          } catch (profileError) {
-            console.error("Profile operation error:", profileError);
-            // Don't fail the verification if profile operation fails
           }
+        } catch (profileError) {
+          console.error("Profile operation error:", profileError);
+          // Don't fail the verification if profile operation fails
         }
-
-        setVerificationStatus("success");
-        toast.success("Email verified successfully!");
-
-        // Redirect to home page after 2 seconds
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
       }
+
+      setVerificationStatus("success");
+      toast.success("Email verified successfully!");
+
+      // Redirect to home page after 2 seconds
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
     } catch (error: any) {
       console.error("OTP verification error:", error);
       setError("An error occurred. Please try again.");
