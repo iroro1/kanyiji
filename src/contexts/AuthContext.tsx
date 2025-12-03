@@ -14,7 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     userData: any
-  ) => Promise<{ success: boolean; requiresVerification?: boolean }>;
+  ) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
