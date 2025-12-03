@@ -1,6 +1,18 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-load Resend client to avoid build-time errors
+let _resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (!_resend) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing RESEND_API_KEY environment variable");
+    }
+    _resend = new Resend(apiKey);
+  }
+  return _resend;
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 const FROM_NAME = process.env.RESEND_FROM_NAME || "Kanyiji Marketplace";
@@ -26,6 +38,7 @@ export async function sendVerificationEmail({
   fullName,
 }: SendVerificationEmailParams) {
   try {
+    const resend = getResend();
     const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
     
     const { data, error } = await resend.emails.send({
@@ -107,6 +120,7 @@ export async function sendPasswordResetEmail({
   fullName,
 }: SendPasswordResetEmailParams) {
   try {
+    const resend = getResend();
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
     
     const { data, error } = await resend.emails.send({
