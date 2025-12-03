@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Lock, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
-import { supabaseAuthService } from "@/services/supabaseAuthService";
+import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
 
@@ -48,42 +48,56 @@ export default function ResetPasswordPage() {
   });
 
   useEffect(() => {
-    const checkToken = async () => {
+    const checkSession = async () => {
       try {
-        const emailParam = searchParams.get("email");
-        const tokenParam = searchParams.get("token");
+        // Supabase password reset creates a session when user clicks the link
+        // Check if we have a valid session
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-        if (!emailParam || !tokenParam) {
-          toast.error("Invalid reset link. Missing email or token.");
+        if (error) {
+          console.error("Session check error:", error);
+          toast.error("Invalid or expired reset link");
           router.push("/");
           return;
         }
 
-        setEmail(emailParam);
-        setToken(tokenParam);
+        if (!session) {
+          // Try to get email and token from URL params (for OTP flow)
+          const emailParam = searchParams.get("email");
+          const tokenParam = searchParams.get("token");
 
-        // Verify token via API
-        const response = await fetch("/api/auth/verify-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: emailParam,
-            token: tokenParam,
-            type: "password_reset",
-          }),
-        });
+          if (emailParam && tokenParam) {
+            // Verify OTP token
+            const { error: verifyError } = await supabase.auth.verifyOtp({
+              email: emailParam,
+              token: tokenParam,
+              type: "recovery",
+            });
 
-        const data = await response.json();
+            if (verifyError) {
+              toast.error("Invalid or expired reset token");
+              router.push("/");
+              return;
+            }
 
-        if (!response.ok || !data.valid) {
-          toast.error("Invalid or expired reset token");
-          router.push("/");
-          return;
+            setEmail(emailParam);
+            setToken(tokenParam);
+            setIsValidToken(true);
+          } else {
+            toast.error("Invalid or expired reset link");
+            router.push("/");
+            return;
+          }
+        } else {
+          // Session exists, user is authenticated
+          setEmail(session.user.email || "");
+          setIsValidToken(true);
         }
-
-        setIsValidToken(true);
       } catch (error) {
-        console.error("Token check error:", error);
+        console.error("Session check error:", error);
         toast.error("An error occurred. Please try again.");
         router.push("/");
       } finally {
@@ -91,26 +105,35 @@ export default function ResetPasswordPage() {
       }
     };
 
-    checkToken();
+    checkSession();
   }, [router, searchParams]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
-    if (!email || !token) {
-      toast.error("Invalid reset link");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      // Verify and reset password using auth service
-      const result = await supabaseAuthService.verifyPasswordResetOTP(
-        email,
-        token,
-        data.password
-      );
+      // Update password using Supabase
+      // If we have a token, verify it first, otherwise use session
+      if (token && email) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type: "recovery",
+        });
 
-      if (!result.success) {
-        toast.error(result.error || "Failed to update password");
+        if (verifyError) {
+          toast.error("Invalid or expired reset token");
+          return;
+        }
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        toast.error(updateError.message || "Failed to update password");
         return;
       }
 
