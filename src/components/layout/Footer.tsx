@@ -43,6 +43,54 @@ export default function Footer() {
     return !isLoginInProgress;
   };
 
+  // Newsletter subscription state
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [newsletterMessage, setNewsletterMessage] = useState("");
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newsletterEmail || !newsletterEmail.includes("@")) {
+      setNewsletterStatus("error");
+      setNewsletterMessage("Please enter a valid email address");
+      return;
+    }
+
+    setNewsletterStatus("loading");
+    setNewsletterMessage("");
+
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setNewsletterStatus("success");
+        setNewsletterMessage("Successfully subscribed! Check your email for confirmation.");
+        setNewsletterEmail("");
+        // Reset message after 5 seconds
+        setTimeout(() => {
+          setNewsletterStatus("idle");
+          setNewsletterMessage("");
+        }, 5000);
+      } else {
+        setNewsletterStatus("error");
+        setNewsletterMessage(data.error || "Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error("Newsletter subscription error:", error);
+      setNewsletterStatus("error");
+      setNewsletterMessage("Failed to subscribe. Please try again later.");
+    }
+  };
+
   const currentYear = new Date().getFullYear();
 
   const footerSections = [
@@ -200,14 +248,37 @@ export default function Footer() {
               Get the latest updates on new products, vendor stories, and
               African culture.
             </p>
-            <div className="flex space-x-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <button className="btn-primary px-6 py-2">Subscribe</button>
-            </div>
+            <form onSubmit={handleNewsletterSubmit} className="space-y-2">
+              <div className="flex space-x-2">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  disabled={newsletterStatus === "loading"}
+                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={newsletterStatus === "loading"}
+                  className="btn-primary px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {newsletterStatus === "loading" ? "Subscribing..." : "Subscribe"}
+                </button>
+              </div>
+              {newsletterMessage && (
+                <p
+                  className={`text-sm ${
+                    newsletterStatus === "success"
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {newsletterMessage}
+                </p>
+              )}
+            </form>
           </div>
         </div>
       </div>
