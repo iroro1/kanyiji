@@ -203,13 +203,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         return { success: true, requiresVerification: false };
       } else {
-        toast.error(response.error || "Registration failed");
-        return { success: false };
+        const errorMessage = response.error || "Registration failed";
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error("An unexpected error occurred");
-      return { success: false };
+      const errorMessage = error?.message || "An unexpected error occurred";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
