@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Lock, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
 
@@ -34,8 +34,10 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isValidSession, setIsValidSession] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isValidToken, setIsValidToken] = useState(false);
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
 
   const {
     register,
@@ -46,56 +48,76 @@ export default function ResetPasswordPage() {
   });
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkToken = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        const emailParam = searchParams.get("email");
+        const tokenParam = searchParams.get("token");
 
-        if (error) {
-          console.error("Session check error:", error);
-          toast.error("Invalid or expired reset link");
+        if (!emailParam || !tokenParam) {
+          toast.error("Invalid reset link. Missing email or token.");
           router.push("/");
           return;
         }
 
-        if (!session) {
-          toast.error("Invalid or expired reset link");
+        setEmail(emailParam);
+        setToken(tokenParam);
+
+        // Verify token via API
+        const response = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: emailParam,
+            token: tokenParam,
+            type: "password_reset",
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.valid) {
+          toast.error("Invalid or expired reset token");
           router.push("/");
           return;
         }
 
-        setIsValidSession(true);
+        setIsValidToken(true);
       } catch (error) {
-        console.error("Session check error:", error);
+        console.error("Token check error:", error);
         toast.error("An error occurred. Please try again.");
         router.push("/");
       } finally {
-        setIsCheckingSession(false);
+        setIsCheckingToken(false);
       }
     };
 
-    checkSession();
-  }, [router]);
+    checkToken();
+  }, [router, searchParams]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!email || !token) {
+      toast.error("Invalid reset link");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.password,
-      });
+      // Verify and reset password using auth service
+      const result = await supabaseAuthService.verifyPasswordResetOTP(
+        email,
+        token,
+        data.password
+      );
 
-      if (error) {
-        console.error("Password update error:", error);
-        toast.error(error.message || "Failed to update password");
+      if (!result.success) {
+        toast.error(result.error || "Failed to update password");
         return;
       }
 
       toast.success(
         "Password updated successfully! You can now sign in with your new password."
       );
-      router.push("/");
+      router.push("/signin");
     } catch (error: any) {
       console.error("Password update error:", error);
       toast.error("An error occurred. Please try again.");
@@ -104,7 +126,7 @@ export default function ResetPasswordPage() {
     }
   };
 
-  if (isCheckingSession) {
+  if (isCheckingToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -115,7 +137,7 @@ export default function ResetPasswordPage() {
     );
   }
 
-  if (!isValidSession) {
+  if (!isValidToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

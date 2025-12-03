@@ -133,7 +133,7 @@ class SupabaseAuthService {
         };
       }
 
-      // Create user account with email confirmation
+      // Create user account (Supabase may still send email, but we'll also send via Resend)
       console.log("Creating user account...");
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
@@ -149,6 +149,26 @@ class SupabaseAuthService {
           }/verify-email?email=${encodeURIComponent(userData.email)}`,
         },
       });
+      
+      // Send verification email via Resend after user creation
+      // This ensures users get our branded email even if Supabase also sends one
+      if (!authError && authData.user) {
+        try {
+          const response = await fetch("/api/auth/send-verification-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userData.email }),
+          });
+          
+          if (!response.ok) {
+            console.error("Failed to send verification email via Resend");
+          } else {
+            console.log("Verification email sent via Resend");
+          }
+        } catch (emailError) {
+          console.error("Error sending verification email:", emailError);
+        }
+      }
 
       console.log("Auth response:", { authData, authError });
 
@@ -347,25 +367,30 @@ class SupabaseAuthService {
     try {
       console.log("Starting password reset OTP for:", email);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // Send password reset email via Resend API
+      const response = await fetch("/api/auth/send-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      if (error) {
-        console.error("Password reset error:", error);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Password reset error:", data);
         return {
           success: false,
-          error: error.message || "Failed to send password reset OTP",
+          error: data.error || "Failed to send password reset email",
         };
       }
 
-      console.log("Password reset OTP sent successfully");
+      console.log("Password reset email sent successfully via Resend");
       return { success: true };
     } catch (error: any) {
       console.error("Password reset error:", error);
       return {
         success: false,
-        error: error.message || "Failed to send password reset OTP",
+        error: error.message || "Failed to send password reset email",
       };
     }
   }
@@ -378,30 +403,44 @@ class SupabaseAuthService {
     try {
       console.log("Verifying password reset OTP for:", email);
 
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: "recovery",
+      // Verify OTP via our API (which uses Resend tokens)
+      const verifyResponse = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          token,
+          type: "password_reset",
+        }),
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok || !verifyData.valid) {
+        console.error("OTP verification error:", verifyData);
         return {
           success: false,
-          error: error.message || "Invalid or expired OTP",
+          error: verifyData.error || "Invalid or expired OTP",
         };
       }
 
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
+      // OTP is valid, now update password via API route
+      const resetResponse = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          newPassword,
+        }),
       });
 
-      if (updateError) {
-        console.error("Password update error:", updateError);
+      const resetData = await resetResponse.json();
+
+      if (!resetResponse.ok) {
+        console.error("Password reset error:", resetData);
         return {
           success: false,
-          error: updateError.message || "Failed to update password",
+          error: resetData.error || "Failed to update password",
         };
       }
 
