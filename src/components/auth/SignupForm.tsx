@@ -120,11 +120,16 @@ export default function SignupForm({
           onSuccess?.();
         }
       } else {
+        // If signup failed, show error message
+        const errorMessage = result.error || "Registration failed. Please try again.";
+        
         // If signup failed due to rate limit, show helpful message
-        if (result.error?.toLowerCase().includes("rate limit")) {
+        if (errorMessage.toLowerCase().includes("rate limit")) {
           toast.error(
             `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
           );
+        } else {
+          toast.error(errorMessage);
         }
       }
     } catch (error: any) {
