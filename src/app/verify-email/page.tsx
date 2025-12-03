@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
+import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function VerifyEmailPage() {
   >("pending");
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds (Supabase OTP expires quickly)
+  const [resendCooldown, setResendCooldown] = useState(0); // Cooldown in seconds between resends
 
   useEffect(() => {
     // Get email from URL params or session
@@ -55,6 +57,14 @@ export default function VerifyEmailPage() {
       setError("OTP has expired. Please request a new verification code.");
     }
   }, [timeLeft, verificationStatus]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,10 +221,24 @@ export default function VerifyEmailPage() {
       return;
     }
 
+    // Check rate limit for resend attempts (3 per hour per email)
+    const rateLimitKey = `resend:${email.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
+
+    if (rateLimitCheck.isLimited) {
+      setError(
+        `Too many resend attempts. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+      );
+      return;
+    }
+
     setIsResending(true);
     setError("");
 
     try {
+      // Record the attempt
+      recordAttempt(rateLimitKey, 3, 60 * 60 * 1000);
+
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email,
@@ -225,8 +249,9 @@ export default function VerifyEmailPage() {
 
         // Handle specific error cases
         if (error.message?.includes("rate limit")) {
+          const timeUntilReset = rateLimitCheck.timeUntilReset;
           setError(
-            "Too many requests. Please wait a moment before trying again."
+            `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
           );
         } else if (
           error.message?.includes("not found") ||
@@ -241,10 +266,17 @@ export default function VerifyEmailPage() {
         setVerificationStatus("pending");
         setOtp(""); // Clear the OTP input
         setTimeLeft(120); // Reset timer to 2 minutes
+        setResendCooldown(60); // Set 60 second cooldown before allowing another resend
       }
     } catch (error: any) {
       console.error("Resend OTP error:", error);
-      setError("An error occurred. Please try again.");
+      if (error?.message?.toLowerCase().includes("rate limit")) {
+        setError(
+          `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+        );
+      } else {
+        setError("An error occurred. Please try again.");
+      }
     } finally {
       setIsResending(false);
     }
@@ -381,10 +413,15 @@ export default function VerifyEmailPage() {
                   ? "Code has expired!"
                   : "Didn't receive the code?"}
               </p>
+              {resendCooldown > 0 && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Please wait {resendCooldown} second{resendCooldown > 1 ? "s" : ""} before requesting a new code
+                </p>
+              )}
               <button
                 type="button"
                 onClick={handleResendOTP}
-                disabled={isResending}
+                disabled={isResending || resendCooldown > 0}
                 className={`font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto ${
                   timeLeft === 0
                     ? "text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
