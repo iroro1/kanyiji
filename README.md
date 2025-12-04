@@ -15,10 +15,15 @@ A modern e-commerce marketplace connecting African entrepreneurs, brands, and bu
 
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **Styling**: Tailwind CSS with custom design system
-- **State Management**: Zustand
+- **Backend**: Supabase (PostgreSQL, Authentication, Storage)
+- **State Management**: Zustand, React Context
 - **Forms**: React Hook Form with Zod validation
 - **Icons**: Lucide React
 - **Notifications**: React Hot Toast
+- **Email Service**: Resend (via Supabase SMTP)
+- **Newsletter**: Mailchimp Marketing API
+- **Payment**: Paystack (planned)
+- **Data Fetching**: TanStack Query (React Query)
 
 ## 📋 Prerequisites
 
@@ -57,10 +62,27 @@ Update `.env.local` with your configuration:
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=Kanyiji Marketplace
 
-# Payment Gateway Configuration (for future use)
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Email Configuration (Resend)
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=hello@kanyiji.ng
+RESEND_FROM_NAME=Kanyiji Marketplace
+
+# Newsletter (Mailchimp)
+MAILCHIMP_API_KEY=your_mailchimp_api_key
+MAILCHIMP_SERVER_PREFIX=us3
+MAILCHIMP_LIST_ID=your_mailchimp_list_id
+
+# Payment Gateway Configuration
 NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=your_paystack_public_key
-NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY=your_flutterwave_public_key
+PAYSTACK_SECRET_KEY=your_paystack_secret_key
 ```
+
+See `docs/env.example` for a complete list of environment variables.
 
 ### 4. Run the Development Server
 
@@ -72,9 +94,18 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 🗄️ Database Schema (Future Implementation)
+## 🗄️ Database Schema
 
-The database schema will be implemented in the next phase. For now, the app uses mock data for UI development.
+The project uses Supabase (PostgreSQL) with a complete database schema including:
+
+- **User Management**: Profiles, authentication, roles
+- **Products**: Product listings, categories, inventory
+- **Vendors**: Vendor profiles, onboarding, verification
+- **Orders**: Order management, status tracking
+- **Email Rate Limiting**: Server-side rate limit tracking
+- **Row Level Security**: Comprehensive RLS policies for data protection
+
+See `docs/` directory for database setup scripts and documentation.
 
 ## 📁 Project Structure
 
@@ -121,17 +152,27 @@ The marketplace is built with a mobile-first approach and includes:
 - Optimized mobile navigation
 - Progressive Web App (PWA) features
 
-## 🔐 Authentication (Future Implementation)
+## 🔐 Authentication
 
-User authentication will be implemented in the next phase using a backend service.
+The application uses Supabase Authentication with the following features:
 
-## 💳 Payment Integration (Future Implementation)
+- ✅ Email/password authentication
+- ✅ Email verification with OTP
+- ✅ Password reset functionality
+- ✅ Session management
+- ✅ User profile management
+- ✅ Rate limiting for signup and email resend
+- ✅ Custom email templates via Resend SMTP
 
-The marketplace will support multiple payment gateways:
+See `docs/SUPABASE_SETUP.md` for authentication setup details.
 
-- **Paystack**: Primary payment gateway for Nigeria
-- **Flutterwave**: Secondary payment gateway for Pan-Africa
-- **Bank Transfer**: Fallback payment method
+## 💳 Payment Integration
+
+Payment integration is planned for Phase 3:
+
+- **Paystack**: Primary payment gateway for Nigeria (planned)
+- **Flutterwave**: Secondary payment gateway for Pan-Africa (planned)
+- **Bank Transfer**: Fallback payment method (planned)
 
 ## 🚚 Shipping & Logistics (Future Implementation)
 
@@ -189,23 +230,67 @@ For support and questions:
 
 ## 🔮 Development Phases
 
-### Phase 1: UI Development ✅ (Current)
-- [x] Component library
-- [x] Design system
-- [x] Responsive layouts
-- [x] Mock data integration
+### Phase 1: Foundation & UI Development ✅ (Completed)
+- [x] Component library and design system
+- [x] Responsive layouts (mobile-first approach)
+- [x] African heritage-inspired design tokens
+- [x] Homepage with hero section, featured products, and vendor showcases
+- [x] Product listing and detail pages
+- [x] Vendor registration and onboarding flow
+- [x] User authentication UI (signup, login, password reset)
+- [x] Footer with newsletter subscription
+- [x] Navigation and routing structure
 
-### Phase 2: Backend Integration 🚧
-- [ ] Database setup
-- [ ] Authentication system
-- [ ] API endpoints
-- [ ] Real data integration
+### Phase 2: Backend Integration & Authentication ✅ (Completed)
+- [x] Supabase database setup with complete schema
+- [x] User authentication system (email/password)
+- [x] Email verification with OTP
+- [x] Password reset functionality
+- [x] User profile management
+- [x] Vendor onboarding with document upload
+- [x] Row Level Security (RLS) policies
+- [x] Email service integration (Resend via Supabase SMTP)
+- [x] Rate limiting (client-side and server-side)
+- [x] Mailchimp newsletter integration
+- [x] API routes for authentication and user management
 
-### Phase 3: Advanced Features 📋
-- [ ] Payment processing
-- [ ] Order management
+### Phase 3: Core Marketplace Features 🚧 (In Progress)
+- [x] Product management (CRUD operations)
+- [x] Category management
+- [ ] Shopping cart functionality
+- [ ] Checkout process
+- [ ] Order management system
+- [ ] Payment gateway integration (Paystack)
+- [ ] Order tracking and status updates
+- [ ] Product search and filtering
+- [ ] Product reviews and ratings
+
+### Phase 4: Vendor & Admin Features 📋 (Planned)
 - [ ] Vendor dashboard
+  - [ ] Product management interface
+  - [ ] Order management
+  - [ ] Sales analytics
+  - [ ] Inventory management
 - [ ] Admin panel
+  - [ ] User management
+  - [ ] Vendor approval workflow
+  - [ ] Category management
+  - [ ] System analytics
+  - [ ] Content management
+
+### Phase 5: Advanced Features 📋 (Planned)
+- [ ] Wishlist functionality
+- [ ] Product comparison
+- [ ] Advanced search with filters
+- [ ] Product recommendations
+- [ ] Customer reviews and ratings
+- [ ] Shipping integration
+- [ ] Multi-currency support
+- [ ] International shipping options
+- [ ] Return and refund management
+- [ ] Customer support chat
+- [ ] Push notifications
+- [ ] Email marketing automation
 
 ---
 
