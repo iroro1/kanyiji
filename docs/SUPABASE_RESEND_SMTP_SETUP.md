@@ -13,7 +13,7 @@ This guide shows you exactly how to set up Resend as Supabase's custom SMTP prov
    - **SMTP Host**: `smtp.resend.com`
    - **SMTP Port**: `587` (TLS) or `465` (SSL)
    - **SMTP Username**: `resend`
-   - **SMTP Password**: Your Resend API key (`re_BgtPwQyG_tBLeSRN1LqDPmG4KsqNjQfLr`)
+   - **SMTP Password**: Your Resend API key (e.g., `re_...`)
 
 ### Step 2: Configure in Supabase Dashboard
 
@@ -47,9 +47,9 @@ This guide shows you exactly how to set up Resend as Supabase's custom SMTP prov
    
    **SMTP Password:**
    ```
-   re_BgtPwQyG_tBLeSRN1LqDPmG4KsqNjQfLr
+   YOUR_RESEND_API_KEY
    ```
-   (Your Resend API key - this is your SMTP password)
+   (Your Resend API key - this is your SMTP password, e.g., `re_...`)
    
    **Sender Email:**
    ```

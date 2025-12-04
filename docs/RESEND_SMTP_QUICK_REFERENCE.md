@@ -9,7 +9,7 @@ Copy and paste these values into Supabase SMTP Settings:
 | **SMTP Host** | `smtp.resend.com` |
 | **SMTP Port** | `587` |
 | **SMTP User** | `resend` |
-| **SMTP Password** | `re_BgtPwQyG_tBLeSRN1LqDPmG4KsqNjQfLr` |
+| **SMTP Password** | `YOUR_RESEND_API_KEY` (e.g., `re_...`) |
 | **Sender Email** | `hello@kanyiji.ng` |
 | **Sender Name** | `Kanyiji Marketplace` |
 | **Secure Email** | ✅ Enabled (TLS) |
