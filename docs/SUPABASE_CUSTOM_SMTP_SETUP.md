@@ -25,7 +25,7 @@ Instead of using Resend directly via API, you can configure Resend as Supabase's
      - **Host**: `smtp.resend.com`
      - **Port**: `465` (SSL) or `587` (TLS)
      - **Username**: `resend`
-     - **Password**: Your Resend API key (`re_BgtPwQyG_tBLeSRN1LqDPmG4KsqNjQfLr`)
+     - **Password**: Your Resend API key (e.g., `re_...`)
      - **Sender email**: `hello@kanyiji.ng`
      - **Sender name**: `Kanyiji Marketplace`
 
