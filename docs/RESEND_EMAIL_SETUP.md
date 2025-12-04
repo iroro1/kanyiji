@@ -31,7 +31,7 @@ Add to your `.env.local`:
 
 ```env
 # Resend Email Configuration
-RESEND_API_KEY=re_BgtPwQyG_tBLeSRN1LqDPmG4KsqNjQfLr
+RESEND_API_KEY=YOUR_RESEND_API_KEY
 RESEND_FROM_EMAIL=hello@kanyiji.ng
 RESEND_FROM_NAME=Kanyiji Marketplace
 ```
