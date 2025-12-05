@@ -248,9 +248,16 @@ export async function registerNewVendor({ formData, user }: any) {
       throw updateError; // Let the catch block handle this
     }
 
-    // 4. On success, return the new vendor data
+    // 4. Get user email from auth for confirmation email
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userEmail = authUser?.email;
+
+    // 5. On success, return the new vendor data with email
     console.log("Successfully inserted data:", vendorData);
-    return vendorData;
+    return {
+      ...vendorData,
+      userEmail, // Include email for confirmation email
+    };
   } catch (error: any) {
     // This will be caught by the mutation's onError
     console.error("Error during vendor registration:", error);
