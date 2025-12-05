@@ -205,7 +205,7 @@ export function useRegisterVendor(userId: string) {
     mutationFn: registerNewVendor, // (variables) => registerNewVendor(variables)
 
     // Handle success
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // 'data' is the vendorData returned from the API function
       // toast.success(`Vendor "${data.business_name}" registered successfully!`);
 
@@ -213,6 +213,38 @@ export function useRegisterVendor(userId: string) {
       // This will update any list of vendors shown elsewhere
       queryClient.invalidateQueries({ queryKey: ["vendor", userId] });
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
+      // Send confirmation email
+      try {
+        const userEmail = data.userEmail || data.user?.email || data.profiles?.email;
+        if (userEmail && data.business_name) {
+          const response = await fetch("/api/vendors/send-confirmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              businessName: data.business_name,
+              userId: userId,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Failed to send confirmation email:", errorData);
+            // Don't throw - registration was successful, email is just a bonus
+          } else {
+            console.log("Vendor confirmation email sent successfully");
+          }
+        } else {
+          console.warn("Cannot send confirmation email: missing email or business name", {
+            hasEmail: !!userEmail,
+            hasBusinessName: !!data.business_name,
+          });
+        }
+      } catch (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        // Don't throw - registration was successful, email is just a bonus
+      }
     },
 
     // Handle error
