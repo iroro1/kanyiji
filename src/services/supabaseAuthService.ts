@@ -209,8 +209,60 @@ class SupabaseAuthService {
         authData.user.email_confirmed_at === undefined
       ) {
         console.log(
-          "Email confirmation required, redirecting to verification page"
+          "Email confirmation required, sending verification email..."
         );
+        
+        // Explicitly resend verification email using Supabase's resend method
+        // This ensures the OTP email is sent even if Supabase didn't send it automatically
+        try {
+          const { error: resendError } = await supabase.auth.resend({
+            type: "signup",
+            email: userData.email,
+          });
+
+          if (resendError) {
+            console.error("Failed to resend verification email:", resendError);
+            // Also try the custom API as fallback
+            try {
+              const response = await fetch("/api/auth/send-verification-email", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  email: userData.email,
+                }),
+              });
+
+              if (!response.ok) {
+                console.error("Failed to send verification email via API fallback");
+              } else {
+                console.log("Verification email sent successfully via API fallback");
+              }
+            } catch (apiError) {
+              console.error("Error sending verification email via API:", apiError);
+            }
+          } else {
+            console.log("Verification email sent successfully via Supabase resend");
+          }
+        } catch (emailError) {
+          console.error("Error sending verification email:", emailError);
+          // Try the custom API as fallback
+          try {
+            await fetch("/api/auth/send-verification-email", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: userData.email,
+              }),
+            });
+          } catch (apiError) {
+            console.error("Error sending verification email via API fallback:", apiError);
+          }
+        }
+        
         return {
           success: true,
           user: {
