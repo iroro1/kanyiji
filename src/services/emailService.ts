@@ -302,3 +302,103 @@ export async function sendVendorConfirmationEmail({
   }
 }
 
+export interface SendWelcomeEmailParams {
+  email: string;
+  fullName?: string;
+}
+
+/**
+ * Send welcome email to new users
+ */
+export async function sendWelcomeEmail({
+  email,
+  fullName,
+}: SendWelcomeEmailParams) {
+  try {
+    const resend = getResend();
+    
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Welcome to Kanyiji Marketplace! 🎉",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to Kanyiji</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Welcome to Kanyiji Marketplace!</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">🎉 Welcome, ${fullName || 'there'}!</h2>
+              <p>Thank you for joining Kanyiji Marketplace! We're thrilled to have you as part of our community of African entrepreneurs and shoppers.</p>
+              
+              <div style="background: #f0f9ff; border-left: 4px solid #D4AF37; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                <h3 style="color: #1E3A8A; margin-top: 0;">What You Can Do:</h3>
+                <ul style="color: #4b5563; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;">🛍️ Browse and shop from thousands of products</li>
+                  <li style="margin-bottom: 10px;">🏪 Start your own store and sell products</li>
+                  <li style="margin-bottom: 10px;">💬 Connect with vendors and customers</li>
+                  <li style="margin-bottom: 10px;">⭐ Save your favorite items to wishlist</li>
+                  <li style="margin-bottom: 10px;">📦 Track your orders in real-time</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng'}" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Start Shopping</a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px;">
+                If you have any questions or need help, our support team is here for you. Just reply to this email or visit our help center.
+              </p>
+              
+              <p style="color: #6b7280; font-size: 12px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                Happy shopping!<br>
+                The Kanyiji Team
+              </p>
+            </div>
+            <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+              <p>&copy; ${new Date().getFullYear()} Kanyiji Marketplace. All rights reserved.</p>
+            </div>
+          </body>
+        </html>
+      `,
+      text: `
+        Welcome to Kanyiji Marketplace!
+        
+        ${fullName ? `Hello ${fullName},` : 'Hello,'}
+        
+        Thank you for joining Kanyiji Marketplace! We're thrilled to have you as part of our community of African entrepreneurs and shoppers.
+        
+        What You Can Do:
+        - Browse and shop from thousands of products
+        - Start your own store and sell products
+        - Connect with vendors and customers
+        - Save your favorite items to wishlist
+        - Track your orders in real-time
+        
+        Start shopping: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng'}
+        
+        If you have any questions or need help, our support team is here for you.
+        
+        Happy shopping!
+        The Kanyiji Team
+      `,
+    });
+
+    if (error) {
+      console.error("Resend email error:", error);
+      throw error;
+    }
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send welcome email error:", error);
+    throw error;
+  }
+}
+

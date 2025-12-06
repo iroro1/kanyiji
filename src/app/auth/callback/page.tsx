@@ -26,6 +26,83 @@ export default function AuthCallbackPage() {
         }
 
         if (data.session) {
+          const user = data.session.user;
+          
+          // Check if this is a new user (created within the last 2 minutes)
+          // This helps detect new Google OAuth signups
+          const userCreatedAt = new Date(user.created_at);
+          const now = new Date();
+          const timeDiff = now.getTime() - userCreatedAt.getTime();
+          const isNewUser = timeDiff < 2 * 60 * 1000; // 2 minutes
+
+          // Check if user signed up via Google OAuth
+          const isGoogleUser = user.app_metadata?.provider === "google" || 
+                               user.identities?.some((identity: any) => identity.provider === "google");
+
+          // If it's a new user from Google OAuth, send welcome email
+          if (isNewUser && isGoogleUser) {
+            // Check if profile exists to avoid duplicate emails
+            try {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("id, created_at")
+                .eq("id", user.id)
+                .maybeSingle();
+              
+              // If profile was just created (within last 2 minutes) or doesn't exist yet, send welcome email
+              const profileIsNew = !profile || (profile.created_at && 
+                (now.getTime() - new Date(profile.created_at).getTime()) < 2 * 60 * 1000);
+              
+              if (profileIsNew) {
+                // Send welcome email
+                try {
+                  const response = await fetch("/api/auth/send-welcome-email", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      email: user.email,
+                      fullName: user.user_metadata?.full_name || 
+                               user.user_metadata?.name ||
+                               user.user_metadata?.display_name,
+                    }),
+                  });
+
+                  if (response.ok) {
+                    console.log("Welcome email sent to new Google user");
+                  } else {
+                    console.error("Failed to send welcome email");
+                  }
+                } catch (emailError) {
+                  console.error("Error sending welcome email:", emailError);
+                  // Don't block the auth flow if email fails
+                }
+              }
+            } catch (profileError) {
+              console.error("Error checking profile:", profileError);
+              // If we can't check profile, still try to send welcome email for very new users
+              if (timeDiff < 60 * 1000) { // Less than 1 minute old
+                try {
+                  await fetch("/api/auth/send-welcome-email", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      email: user.email,
+                      fullName: user.user_metadata?.full_name || 
+                               user.user_metadata?.name ||
+                               user.user_metadata?.display_name,
+                    }),
+                  });
+                } catch (emailError) {
+                  console.error("Error sending welcome email:", emailError);
+                }
+              }
+            }
+          }
+
           // User is authenticated
           toast.success("Successfully signed in!");
           router.push("/");
