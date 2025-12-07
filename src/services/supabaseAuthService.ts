@@ -400,21 +400,48 @@ class SupabaseAuthService {
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
       console.log("Starting password reset for:", email);
+      const normalizedEmail = email.trim().toLowerCase();
 
-      // Send password reset email via Supabase (which uses Resend SMTP)
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // For OTP-based password reset, we need to use resetPasswordForEmail
+      // The email template in Supabase must be configured to include {{ .Token }} for OTP
+      // Make sure the "Reset Password" email template includes the OTP token
+      const { data, error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {
         console.error("Password reset error:", error);
+        console.error("Full error details:", JSON.stringify(error, null, 2));
+        
+        // Check for specific error types
+        const errorMessage = error.message.toLowerCase();
+        const errorString = JSON.stringify(error).toLowerCase();
+        
+        // Check for SMTP authentication errors (535 Invalid username)
+        // The error code might be in the error object, not just the message
+        if (errorString.includes("535") || errorString.includes("invalid username") || 
+            errorMessage.includes("authentication failed") || errorMessage.includes("535")) {
+          return {
+            success: false,
+            error: "SMTP Authentication Failed: The SMTP username in Supabase is incorrect. Go to Supabase → Settings → Auth → SMTP Settings and verify:\n1. Username is your FULL email (e.g., yourname@gmail.com)\n2. For Gmail, use App Password (not regular password)\n3. No extra spaces in username/password",
+          };
+        }
+        
+        // Generic email sending error - likely SMTP configuration issue
+        if (errorMessage.includes("error sending") || errorMessage.includes("recovery email") || errorMessage.includes("confirmation email")) {
+          return {
+            success: false,
+            error: "Unable to send password reset email. Based on Supabase logs, this is likely an SMTP authentication issue (535 Invalid username). Please:\n1. Check SMTP username is correct (full email for Gmail)\n2. Verify password (App Password for Gmail)\n3. Check Supabase → Settings → Auth → SMTP Settings",
+          };
+        }
+        
         return {
           success: false,
           error: error.message || "Failed to send password reset email",
         };
       }
 
-      console.log("Password reset email sent successfully via Resend SMTP");
+      console.log("Password reset email sent successfully", { data });
       return { success: true };
     } catch (error: any) {
       console.error("Password reset error:", error);
