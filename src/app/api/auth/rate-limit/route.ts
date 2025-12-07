@@ -37,8 +37,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
+      // Check if it's a "function not found" error (expected if DB setup not done)
+      if (error.code === 'PGRST204' || error.message?.includes('Could not find the function')) {
+        console.log("Rate limit function not found, falling back to manual check or allowing request");
+        // Fall back to manual check
+        return await manualRateLimitCheck(normalizedIdentifier, actionType, maxAttempts);
+      }
       console.error("Rate limit check error:", error);
-      // If function doesn't exist, fall back to manual check
+      // For other errors, fall back to manual check
       return await manualRateLimitCheck(normalizedIdentifier, actionType, maxAttempts);
     }
 
@@ -136,8 +142,21 @@ async function manualRateLimitCheck(
       });
     }
   } catch (error: any) {
+    // Check if it's a "table not found" error (expected if DB setup not done)
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.log("Rate limit table not found, allowing request (graceful degradation)");
+      // If table doesn't exist, allow the request (graceful degradation)
+      return NextResponse.json({
+        success: true,
+        is_limited: false,
+        attempt_count: 0,
+        max_attempts: maxAttempts,
+        time_until_reset_ms: 0,
+        fallback: true,
+      });
+    }
     console.error("Manual rate limit check error:", error);
-    // If table doesn't exist, allow the request (graceful degradation)
+    // For other errors, allow the request (graceful degradation)
     return NextResponse.json({
       success: true,
       is_limited: false,

@@ -175,7 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // Wait a bit for the session to be fully established
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Force a session refresh
         const {
@@ -184,8 +184,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("Session after registration:", session);
 
         if (session) {
-          setUser(response.user);
-          toast.success("Account created successfully! You are now logged in.");
+          // Get fresh user data
+          const currentUser = await supabaseAuthService.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+            toast.success("Account created successfully! You are now logged in.");
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          } else {
+            setUser(response.user);
+            toast.success("Account created successfully! You are now logged in.");
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
         } else {
           // If no session, try to get the user directly
           const currentUser = await supabaseAuthService.getCurrentUser();
@@ -194,11 +209,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             toast.success(
               "Account created successfully! You are now logged in."
             );
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           } else {
             setUser(response.user);
             toast.success(
               "Account created successfully! Please refresh the page to log in."
             );
+            // Force page reload
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           }
         }
         return { success: true, requiresVerification: false };
