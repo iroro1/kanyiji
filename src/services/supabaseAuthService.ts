@@ -263,6 +263,22 @@ class SupabaseAuthService {
           }
         }
         
+        // Send welcome email after registration (even if verification is required)
+        // Don't wait for it to complete - send asynchronously
+        fetch("/api/auth/send-welcome-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            fullName: userData.fullName,
+          }),
+        }).catch((emailError) => {
+          console.error("Error sending welcome email:", emailError);
+          // Don't fail signup if welcome email fails
+        });
+        
         return {
           success: true,
           user: {
@@ -278,6 +294,22 @@ class SupabaseAuthService {
             "Please check your email and verify your account to continue.",
         };
       }
+
+      // Send welcome email after successful registration
+      // Don't wait for it to complete - send asynchronously
+      fetch("/api/auth/send-welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          fullName: userData.fullName,
+        }),
+      }).catch((emailError) => {
+        console.error("Error sending welcome email:", emailError);
+        // Don't fail signup if welcome email fails
+      });
 
       // Wait a moment for the session to be established
       await new Promise((resolve) => setTimeout(resolve, 1000));
