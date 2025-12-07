@@ -904,13 +904,9 @@ export default function Navbar() {
             console.log("Login successful - closing modal");
             setShowAuthModal(false);
           } else {
-            console.log("Login failed - reopening modal in 100ms");
-            // Reopen the modal after a short delay
-            setTimeout(() => {
-              console.log("Reopening modal now");
-              setShowAuthModal(true);
-              setAuthModalMode("login");
-            }, 100);
+            console.log("Login failed - keeping modal open");
+            // Don't close the modal on failure - keep it open so user can try again
+            // Modal will stay open and show error message
           }
         }}
       />
