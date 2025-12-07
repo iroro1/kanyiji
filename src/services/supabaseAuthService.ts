@@ -196,7 +196,8 @@ class SupabaseAuthService {
           
           // If profile creation failed but phone exists, try to update it later
           // This handles the case where trigger creates profile without phone
-          if (userData.phone) {
+          if (userData.phone && authData.user) {
+            const userId = authData.user.id;
             setTimeout(async () => {
               try {
                 const { error: updateError } = await supabase
@@ -205,7 +206,7 @@ class SupabaseAuthService {
                     phone: userData.phone || "",
                     updated_at: new Date().toISOString(),
                   })
-                  .eq("id", authData.user.id);
+                  .eq("id", userId);
                 
                 if (!updateError) {
                   console.log("Phone number updated in profile after trigger creation");
@@ -226,7 +227,8 @@ class SupabaseAuthService {
         console.log("Profile will be created during email verification");
         
         // If profile creation failed but phone exists, try to update it later
-        if (userData.phone) {
+        if (userData.phone && authData.user) {
+          const userId = authData.user.id;
           setTimeout(async () => {
             try {
               const { error: updateError } = await supabase
@@ -235,7 +237,7 @@ class SupabaseAuthService {
                   phone: userData.phone || "",
                   updated_at: new Date().toISOString(),
                 })
-                .eq("id", authData.user.id);
+                .eq("id", userId);
               
               if (!updateError) {
                 console.log("Phone number updated in profile after trigger creation");
