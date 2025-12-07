@@ -115,8 +115,13 @@ export default function SignupForm({
       const result = await registerUser(userData);
       if (result.success) {
         // If verification is required, the AuthContext will handle the redirect
-        // If no verification is required, close the modal
+        // If no verification is required, refresh data and close the modal
         if (!result.requiresVerification) {
+          // Force a page reload to fetch new user data
+          // This ensures all user data is properly loaded
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
           onSuccess?.();
         }
       } else {

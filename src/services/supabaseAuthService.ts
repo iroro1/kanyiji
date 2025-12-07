@@ -180,6 +180,7 @@ class SupabaseAuthService {
             email: userData.email,
             full_name: userData.fullName,
             role: userData.role,
+            phone: userData.phone || "",
             email_verified: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -192,6 +193,28 @@ class SupabaseAuthService {
             profileError
           );
           console.log("Profile will be created during email verification");
+          
+          // If profile creation failed but phone exists, try to update it later
+          // This handles the case where trigger creates profile without phone
+          if (userData.phone) {
+            setTimeout(async () => {
+              try {
+                const { error: updateError } = await supabase
+                  .from("profiles")
+                  .update({
+                    phone: userData.phone || "",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", authData.user.id);
+                
+                if (!updateError) {
+                  console.log("Phone number updated in profile after trigger creation");
+                }
+              } catch (err) {
+                console.error("Error updating phone after profile creation:", err);
+              }
+            }, 2000); // Wait 2 seconds for trigger to create profile
+          }
         } else {
           console.log(
             "Profile created successfully during signup:",
@@ -201,6 +224,27 @@ class SupabaseAuthService {
       } catch (profileError) {
         console.error("Profile creation error:", profileError);
         console.log("Profile will be created during email verification");
+        
+        // If profile creation failed but phone exists, try to update it later
+        if (userData.phone) {
+          setTimeout(async () => {
+            try {
+              const { error: updateError } = await supabase
+                .from("profiles")
+                .update({
+                  phone: userData.phone || "",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", authData.user.id);
+              
+              if (!updateError) {
+                console.log("Phone number updated in profile after trigger creation");
+              }
+            } catch (err) {
+              console.error("Error updating phone after profile creation:", err);
+            }
+          }, 2000);
+        }
       }
 
       // Check if email confirmation is required
@@ -274,7 +318,15 @@ class SupabaseAuthService {
             email: userData.email,
             fullName: userData.fullName,
           }),
-        }).catch((emailError) => {
+        })
+        .then((response) => {
+          if (response.ok) {
+            console.log("Welcome email sent successfully for email/password signup");
+          } else {
+            console.error("Failed to send welcome email:", response.statusText);
+          }
+        })
+        .catch((emailError) => {
           console.error("Error sending welcome email:", emailError);
           // Don't fail signup if welcome email fails
         });
@@ -306,7 +358,15 @@ class SupabaseAuthService {
           email: userData.email,
           fullName: userData.fullName,
         }),
-      }).catch((emailError) => {
+      })
+      .then((response) => {
+        if (response.ok) {
+          console.log("Welcome email sent successfully for email/password signup");
+        } else {
+          console.error("Failed to send welcome email:", response.statusText);
+        }
+      })
+      .catch((emailError) => {
         console.error("Error sending welcome email:", emailError);
         // Don't fail signup if welcome email fails
       });
