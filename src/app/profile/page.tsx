@@ -78,9 +78,13 @@ export default function ProfilePage() {
 
   // Fetch user profile data from database
   useEffect(() => {
+    let isMounted = true;
+
     const fetchProfileData = async () => {
       if (!isAuthenticated || !user?.id) {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -93,11 +97,14 @@ export default function ProfilePage() {
 
         if (error) {
           console.error("Error fetching profile:", error);
-          toast.error("Failed to load profile data");
+          if (isMounted) {
+            toast.error("Failed to load profile data");
+            setIsLoading(false);
+          }
           return;
         }
 
-        if (profile) {
+        if (profile && isMounted) {
           console.log("Profile data from database:", profile);
 
           // Parse full_name into first and last name
@@ -148,18 +155,29 @@ export default function ProfilePage() {
 
           console.log("Processed profile data:", profileData);
 
-          setUserData(profileData);
-          setFormData(profileData);
+          if (isMounted) {
+            setUserData(profileData);
+            setFormData(profileData);
+          }
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
-        toast.error("Failed to load profile data");
+        if (isMounted) {
+          toast.error("Failed to load profile data");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchProfileData();
+
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isMounted = false;
+    };
   }, [isAuthenticated, user?.id, user?.email, (user as any)?.user_metadata]);
 
   const handleSave = async () => {
