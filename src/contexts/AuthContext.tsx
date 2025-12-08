@@ -78,6 +78,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
           setUser(null);
+          // Ensure loading state is cleared on sign out
+          // The logout function will handle the redirect
           setIsLoading(false);
         } else if (event === "INITIAL_SESSION") {
           console.log("Initial session check");
@@ -250,17 +252,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success) {
         console.log("Logout successful - clearing user and redirecting");
         setUser(null);
+        // Clear loading state before redirect to prevent spinner from staying
+        setIsLoading(false);
         toast.success("Logged out successfully");
-        // Redirect to home page after successful logout
-        router.push("/");
+        // Use window.location for a full page reload to ensure clean state
+        // This prevents the loading spinner from getting stuck
+        window.location.href = "/";
       } else {
         console.log("Logout failed:", response.error);
         toast.error(response.error || "Logout failed");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("An unexpected error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
