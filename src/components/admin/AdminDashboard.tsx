@@ -316,7 +316,9 @@ export default function AdminDashboard() {
       try {
         setUsersLoading(true);
         setUsersError(null);
-        const data = await fetchUsers(usersPage, 10);
+        // Pass the role filter if it's set
+        const roleFilter = usersRoleFilter || undefined;
+        const data = await fetchUsers(usersPage, 10, roleFilter);
         setAdminUsers(data.users || []);
         setUsersTotal(data.pagination?.total || 0);
       } catch (error: any) {
@@ -330,7 +332,7 @@ export default function AdminDashboard() {
     if (activeTab === "users") {
       loadUsers();
     }
-  }, [activeTab, usersPage]);
+  }, [activeTab, usersPage, usersRoleFilter]);
 
   // Fetch notifications
   useEffect(() => {
