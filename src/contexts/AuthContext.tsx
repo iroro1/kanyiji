@@ -36,28 +36,76 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
 
-  // console.log("from auth context", isLoading);
-
   // Check authentication status on mount
   useEffect(() => {
-    // setIsLoading(true);
+    let isMounted = true;
+
     // First validate configuration
     const configValid = validateSupabaseConfig();
     setIsConfigValid(configValid);
 
     console.log(configValid);
-
     console.log("after supabase validation");
 
     if (configValid) {
+      // First, check the current session immediately
+      const checkInitialSession = async () => {
+        try {
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          if (session?.user && isMounted) {
+            try {
+              const currentUser = await supabaseAuthService.getCurrentUser();
+              if (isMounted) {
+                setUser(currentUser);
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Error getting current user:", error);
+              if (isMounted) {
+                setUser(null);
+                setIsLoading(false);
+              }
+            }
+          } else {
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking initial session:", error);
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
+        }
+      };
+
+      checkInitialSession();
+
       // Listen for auth state changes
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
         console.log("Auth state change:", event, session?.user?.email);
         console.log("Session exists:", !!session);
         console.log("User exists:", !!session?.user);
@@ -65,55 +113,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (event === "SIGNED_IN" && session) {
           try {
             console.log("User signed in, getting current user...");
+            setIsLoading(true);
             const currentUser = await supabaseAuthService.getCurrentUser();
 
-            if (!currentUser)
+            if (!currentUser) {
               throw new Error("No current user found after sign-in");
+            }
             console.log("Current user:", currentUser);
-            setUser(currentUser);
-            setIsLoading(false);
+            if (isMounted) {
+              setUser(currentUser);
+              setIsLoading(false);
+            }
           } catch (error) {
-            console.log(error);
+            console.error("Error in SIGNED_IN handler:", error);
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
           }
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
-          setUser(null);
-          // Ensure loading state is cleared on sign out
-          // The logout function will handle the redirect
-          setIsLoading(false);
-        } else if (event === "INITIAL_SESSION") {
-          console.log("Initial session check");
-          setIsLoading(false);
-
-          // Handle initial session restoration
-          if (session) {
-            console.log(
-              "Session found on initial load, getting current user..."
-            );
-
-            try {
-              const currentUser = await supabaseAuthService.getCurrentUser();
-              console.log("Current user from initial session:", currentUser);
-              setUser(currentUser);
-              setIsLoading(false);
-            } catch (error) {
-              console.log(error);
-            }
-          } else {
-            console.log("No session found on initial load");
+          if (isMounted) {
+            setUser(null);
             setIsLoading(false);
           }
-          console.log("after user has been successfully validated");
-          setIsLoading(false);
+        } else if (event === "TOKEN_REFRESHED") {
+          // Handle token refresh - update user if session exists
+          if (session?.user) {
+            try {
+              const currentUser = await supabaseAuthService.getCurrentUser();
+              if (isMounted) {
+                setUser(currentUser);
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Error refreshing user after token refresh:", error);
+              if (isMounted) {
+                setIsLoading(false);
+              }
+            }
+          }
         }
       });
 
-      return () => subscription.unsubscribe();
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
     } else {
       setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, []);
 
   const checkAuthStatus = async () => {
