@@ -144,9 +144,11 @@ class SupabaseAuthService {
             role: userData.role,
             phone: userData.phone || "",
           },
-          emailRedirectTo: `${
-            window.location.origin
-          }/verify-email?email=${encodeURIComponent(userData.email)}`,
+          emailRedirectTo: typeof window !== "undefined"
+            ? `${window.location.origin}/verify-email?email=${encodeURIComponent(userData.email)}`
+            : process.env.NEXT_PUBLIC_APP_URL
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?email=${encodeURIComponent(userData.email)}`
+            : `https://kanyiji.ng/verify-email?email=${encodeURIComponent(userData.email)}`,
         },
       });
       
@@ -499,8 +501,17 @@ class SupabaseAuthService {
       // For OTP-based password reset, we need to use resetPasswordForEmail
       // The email template in Supabase must be configured to include {{ .Token }} for OTP
       // Make sure the "Reset Password" email template includes the OTP token
+      const getRedirectUrl = () => {
+        if (typeof window !== "undefined") {
+          return `${window.location.origin}/reset-password`;
+        }
+        return process.env.NEXT_PUBLIC_APP_URL
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`
+          : "https://kanyiji.ng/reset-password";
+      };
+
       const { data, error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: getRedirectUrl(),
       });
 
       if (error) {
@@ -604,10 +615,22 @@ class SupabaseAuthService {
         };
       }
 
+      // Get the redirect URL dynamically based on the current environment
+      const getRedirectUrl = () => {
+        if (typeof window !== "undefined") {
+          // Use current origin for local development
+          return `${window.location.origin}/auth/callback`;
+        }
+        // Fallback to environment variable or production URL
+        return process.env.NEXT_PUBLIC_APP_URL
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+          : "https://kanyiji.ng/auth/callback";
+      };
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getRedirectUrl(),
         },
       });
 
