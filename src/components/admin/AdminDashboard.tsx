@@ -985,7 +985,12 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=users";
+                    }}
+                    className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-green-100 text-xs sm:text-sm font-medium">
@@ -999,9 +1004,14 @@ export default function AdminDashboard() {
                         <Users className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=orders";
+                    }}
+                    className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-purple-100 text-xs sm:text-sm font-medium">
@@ -1018,9 +1028,14 @@ export default function AdminDashboard() {
                         <ShoppingBag className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=vendors";
+                    }}
+                    className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-orange-100 text-xs sm:text-sm font-medium">
@@ -1037,7 +1052,7 @@ export default function AdminDashboard() {
                         <Users className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Additional Stats */}
