@@ -15,8 +15,8 @@ import {
   sizes,
   ImagePreview, // This is now only for NEW images
   colors,
-  productCategories,
 } from "./VendorAddProduct";
+import { CATEGORIES } from "@/data/categories";
 import { useEditVendorProduct } from "../http/QueryHttp";
 
 // Type for EXISTING images loaded from DB
@@ -481,9 +481,9 @@ function EditProductModal({
                     }`}
                   >
                     <option value="">Select category</option>
-                    {productCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
+                    {CATEGORIES.map((category) => (
+                      <option key={category.id} value={category.name}>
+                        {category.name}
                       </option>
                     ))}
                   </select>

@@ -11,6 +11,7 @@ import { SuccessModal } from "../ui/ProductSuccessModal";
 import { useFetchVendorDetails, useAddProduct } from "../http/QueryHttp";
 import CustomError from "@/app/error";
 import { useFetchCurrentUser } from "../http/QueryHttp";
+import { CATEGORIES } from "@/data/categories";
 
 // Define type for a single product variant
 export type Variant = {
@@ -39,8 +40,9 @@ export const colors = [
   "white",
   "gray",
   "gold",
+  "Others",
 ];
-export const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+export const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size", "Others"];
 
 export interface ProductFormData {
   product_id?: string;
@@ -66,51 +68,8 @@ export interface ProductFormData {
   // features: string[];
   // isFeatured: boolean;
 }
-export const productCategories = [
-  // Technology
-  "Computers & Laptops",
-  "Mobile Phones & Tablets",
-  "Gaming & Consoles",
-  "Audio & Headphones",
-  "Cameras & Photography",
-  "Smart Home Devices",
-  "Wearable Technology",
-
-  // Fashion & Beauty
-  "Fashion & Apparel",
-  "Shoes & Footwear",
-  "Jewelry & Watches",
-  "Bags & Accessories",
-  "Beauty & Cosmetics",
-  "Hair Care & Styling",
-  "Skincare & Makeup",
-  "Perfumes & Fragrances",
-
-  // Home & Lifestyle
-  "Home & Garden",
-  "Furniture & Decor",
-  "Kitchen & Dining",
-  "Bedding & Bath",
-  "Lighting & Lamps",
-  "Storage & Organization",
-  "Baby & Kids Products",
-
-  // Health & Wellness
-  "Health & Fitness",
-  "Nutrition & Supplements",
-  "Medical & Healthcare",
-  "Yoga & Meditation",
-  "Personal Care",
-  "Fitness Equipment",
-
-  // Automotive & Transportation
-  "Automotive",
-  "Car Accessories",
-  "Motorcycle Parts",
-  "Bicycles & Cycling",
-  "Travel & Luggage",
-  "Navigation & GPS",
-];
+// Categories are now imported from @/data/categories
+// Use CATEGORIES.map(cat => cat.name) for category options
 
 // Main App Component
 function AddProductPage() {
@@ -423,9 +382,9 @@ function AddProductPage() {
                       }`}
                     >
                       <option value="">Select category</option>
-                      {productCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
+                      {CATEGORIES.map((category) => (
+                        <option key={category.id} value={category.name}>
+                          {category.name}
                         </option>
                       ))}
                     </select>
