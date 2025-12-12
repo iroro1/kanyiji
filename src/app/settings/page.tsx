@@ -608,7 +608,7 @@ export default function SettingsPage() {
                         </label>
                         <input
                           type="text"
-                          value={vendor.payout_method ? vendor.payout_method.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Bank Transfer'}
+                          value={vendor.payout_method ? vendor.payout_method.replace('_', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Bank Transfer'}
                           readOnly
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                         />

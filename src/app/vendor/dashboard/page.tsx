@@ -680,7 +680,7 @@ export default function VendorDashboard() {
                   ) : orders.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No orders yet</div>
                   ) : (
-                    orders.slice(0, 5).map((order) => {
+                    orders.slice(0, 5).map((order: Order) => {
                       const firstItem = order.order_items?.[0];
                       const productName = firstItem?.products?.name || "Multiple items";
                       const itemCount = order.order_items?.length || 0;
@@ -932,7 +932,7 @@ export default function VendorDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      orders.map((order) => {
+                      orders.map((order: Order) => {
                         const firstItem = order.order_items?.[0];
                         const productName = firstItem?.products?.name || "Multiple items";
                         const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
@@ -1370,7 +1370,7 @@ export default function VendorDashboard() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Payout Method</label>
                         <input
                           type="text"
-                          value={vendor.payout_method ? vendor.payout_method.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Bank Transfer'}
+                          value={vendor.payout_method ? vendor.payout_method.replace('_', ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Bank Transfer'}
                           readOnly
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                         />
