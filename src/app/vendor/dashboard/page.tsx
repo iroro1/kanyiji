@@ -932,7 +932,7 @@ export default function VendorDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      orders.map((order) => {
+                      orders.map((order: Order) => {
                         const firstItem = order.order_items?.[0];
                         const productName = firstItem?.products?.name || "Multiple items";
                         const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
