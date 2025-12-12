@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabaseAuthService, AuthUser } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { validateSupabaseConfig, supabase } from "@/lib/supabase";
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Check authentication status on mount
   useEffect(() => {
@@ -122,6 +124,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log("Current user:", currentUser);
             if (isMounted) {
               setUser(currentUser);
+              // Invalidate React Query cache to trigger refetch of current user
+              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
               setIsLoading(false);
             }
           } catch (error) {
@@ -135,6 +139,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("User signed out");
           if (isMounted) {
             setUser(null);
+            // Invalidate React Query cache to clear current user data
+            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
             setIsLoading(false);
           }
         } else if (event === "TOKEN_REFRESHED") {
@@ -185,6 +191,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.success && response.user) {
         setUser(response.user);
+        // Invalidate React Query cache to trigger refetch of current user
+        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
         toast.success("Login successful!");
         return true;
       } else {
