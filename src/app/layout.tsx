@@ -59,8 +59,8 @@ export default function RootLayout({
             `,
           }}
         />
-        <AuthProvider>
-          <AppQueryProvider>
+        <AppQueryProvider>
+          <AuthProvider>
             <ToastProvider>
               <CartProvider>
                 <LayoutWrapper>{children}</LayoutWrapper>
@@ -76,8 +76,8 @@ export default function RootLayout({
                 />
               </CartProvider>
             </ToastProvider>
-          </AppQueryProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </AppQueryProvider>
       </body>
     </html>
   );

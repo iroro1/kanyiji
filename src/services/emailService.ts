@@ -45,7 +45,8 @@ export async function sendVerificationEmail({
 }: SendVerificationEmailParams) {
   try {
     const resend = getResend();
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng';
+    const verificationUrl = `${baseUrl}/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
     
     const { data, error } = await resend.emails.send({
       from: `${FROM_NAME} <${FROM_EMAIL}>`,
@@ -127,7 +128,8 @@ export async function sendPasswordResetEmail({
 }: SendPasswordResetEmailParams) {
   try {
     const resend = getResend();
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng';
+    const resetUrl = `${baseUrl}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
     
     const { data, error } = await resend.emails.send({
       from: `${FROM_NAME} <${FROM_EMAIL}>`,
@@ -254,7 +256,7 @@ export async function sendVendorConfirmationEmail({
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng'}" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Visit Kanyiji Marketplace</a>
+                <a href="https://kanyiji.ng" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Visit Kanyiji Marketplace</a>
               </div>
               
               <p style="color: #6b7280; font-size: 12px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
@@ -349,7 +351,7 @@ export async function sendWelcomeEmail({
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng'}" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Start Shopping</a>
+                <a href="https://kanyiji.ng" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Start Shopping</a>
               </div>
               
               <p style="color: #6b7280; font-size: 14px;">
@@ -381,7 +383,7 @@ export async function sendWelcomeEmail({
         - Save your favorite items to wishlist
         - Track your orders in real-time
         
-        Start shopping: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kanyiji.ng'}
+        Start shopping: https://kanyiji.ng
         
         If you have any questions or need help, our support team is here for you.
         
