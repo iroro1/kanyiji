@@ -929,8 +929,6 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
-              )}
-            </div>
           )}
 
           {/* Notifications Tab */}
@@ -996,6 +994,7 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Privacy Tab */}
           {activeTab === 'privacy' && (
