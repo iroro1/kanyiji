@@ -680,7 +680,7 @@ export default function VendorDashboard() {
                   ) : orders.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No orders yet</div>
                   ) : (
-                    orders.slice(0, 5).map((order) => {
+                    orders.slice(0, 5).map((order: Order) => {
                       const firstItem = order.order_items?.[0];
                       const productName = firstItem?.products?.name || "Multiple items";
                       const itemCount = order.order_items?.length || 0;
