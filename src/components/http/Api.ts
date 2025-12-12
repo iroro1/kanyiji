@@ -267,10 +267,46 @@ export async function registerNewVendor({ formData, user }: any) {
 }
 
 // VENDOR DASHBOARD
+export async function fetchVendorOrders(vendorId?: string, status?: string) {
+  const params = new URLSearchParams();
+  if (status) {
+    params.append("status", status);
+  }
+
+  const response = await fetch(`/api/vendor/orders?${params}`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch vendor orders");
+  }
+
+  return response.json();
+}
+
+export async function updateVendorOrderStatus(orderId: string, status: string) {
+  const response = await fetch("/api/vendor/orders", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ orderId, status }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update order status");
+  }
+
+  return response.json();
+}
+
 export async function fetchVendorDetails(userId: string) {
   const { data, error } = await supabase
     .from("vendors")
-    .select(`*, products(*, product_images(*))`)
+    .select(`*, products(*, product_images(*)), vendor_bank_accounts(*)`)
     .eq("user_id", userId)
     .single();
 

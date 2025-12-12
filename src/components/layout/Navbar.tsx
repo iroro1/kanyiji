@@ -17,7 +17,7 @@ import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import kanyiyi from "../../assets/Kanyiji-light.png";
-import { useFetchCurrentUser } from "../http/QueryHttp";
+import { useFetchCurrentUser, useFetchVendorDetails } from "../http/QueryHttp";
 import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
 
 // Logo Component
@@ -616,6 +616,10 @@ export default function Navbar() {
   const { isAuthenticated, logout } = useAuth();
 
   const { data: user } = useFetchCurrentUser();
+  const { vendor } = useFetchVendorDetails(user?.id || "");
+  
+  // Check if user is a vendor (either by role or by having a vendor record)
+  const isVendor = user?.role === "vendor" || !!vendor;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -791,7 +795,7 @@ export default function Navbar() {
                 onBecomeVendor={handleBecomeVendor}
                 user={{
                   isAuthenticated,
-                  isVendor: user?.role === "vendor",
+                  isVendor: isVendor,
                   email: user?.email,
                   name: user?.name,
                 }}
@@ -809,7 +813,7 @@ export default function Navbar() {
                   >
                     Sign In
                   </button>
-                  {user?.role !== "vendor" && (
+                  {!isVendor && (
                     <button
                       onClick={handleBecomeVendor}
                       className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-3 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
@@ -876,7 +880,7 @@ export default function Navbar() {
           onBecomeVendor={handleBecomeVendor}
           user={{
             isAuthenticated,
-            isVendor: user?.role === "vendor",
+            isVendor: isVendor,
             email: user?.email,
             name: user?.name,
           }}

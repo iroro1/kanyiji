@@ -23,6 +23,8 @@ import {
   getSingleProduct,
   fetchAllOrders,
   fetchVendorDetails,
+  fetchVendorOrders,
+  updateVendorOrderStatus,
   deleteVendorProduct,
   deleteVendorProductImages,
   editProduct,
@@ -276,6 +278,7 @@ export function useFetchVendorDetails(userId: string) {
     staleTime: 15 * 60 * 1000,
     enabled: !!userId,
     gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false, // Prevent refetch when returning to tab
     // retry: 5,
   });
 
@@ -382,4 +385,50 @@ export function useEditVendorProduct() {
   });
 
   return { editVendorProduct, isEditing };
+}
+
+// FETCH VENDOR ORDERS
+export function useFetchVendorOrders(status?: string) {
+  const { authLoading } = useSupabaseAuthReady();
+  const {
+    data,
+    isLoading,
+    error,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["vendorOrders", status],
+    queryFn: () => fetchVendorOrders(undefined, status),
+    enabled: !authLoading,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  return {
+    orders: data?.orders || [],
+    stats: data?.stats || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+    },
+    pagination: data?.pagination,
+    isLoading,
+    error,
+    isError,
+    refetch,
+  };
+}
+
+// UPDATE VENDOR ORDER STATUS
+export function useUpdateVendorOrderStatus() {
+  const queryClient = useQueryClient();
+
+  const { mutate: updateOrderStatus, isPending } = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+      updateVendorOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendorOrders"] });
+    },
+  });
+
+  return { updateOrderStatus, isPending };
 }
