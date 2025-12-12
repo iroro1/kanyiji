@@ -3445,7 +3445,16 @@ export default function AdminDashboard() {
                     <div className="md:col-span-2">
                       <label className="text-xs font-medium text-gray-500 uppercase">Website</label>
                       <p className="text-sm text-gray-900 mt-1">
-                        <a href={vendorDetailsModal.website_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                        <a 
+                          href={
+                            vendorDetailsModal.website_url.startsWith('http://') || vendorDetailsModal.website_url.startsWith('https://')
+                              ? vendorDetailsModal.website_url
+                              : `https://${vendorDetailsModal.website_url}`
+                          } 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-primary-600 hover:underline"
+                        >
                           {vendorDetailsModal.website_url}
                         </a>
                       </p>
