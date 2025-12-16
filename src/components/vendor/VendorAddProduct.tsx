@@ -363,7 +363,7 @@ function AddProductPage() {
           message="Something went wrong, please try again later"
         />
       )}
-        <form onSubmit={addProduct}>
+      <form onSubmit={addProduct}>
           <div className="container mx-auto p-4 md:p-8">
             {/* Header */}
             <header className="flex items-center justify-between mb-8">
@@ -854,7 +854,6 @@ function AddProductPage() {
             </footer>
           </div>
         </form>
-      </div>
     </div>
   );
 }
