@@ -128,6 +128,9 @@ function AddProductPage() {
     salePercentage?: string;
   }>({});
 
+  // Use a ref to track if we've already handled success to prevent re-triggering
+  const successHandledRef = useRef(false);
+
   // Generate SKU once, only when name is entered and no SKU exists
   useEffect(() => {
     if (newProduct.name) {
@@ -138,6 +141,36 @@ function AddProductPage() {
       setNewProduct((prev) => ({ ...prev, sku }));
     }
   }, [newProduct.name]);
+
+  // Reset form and show success modal when product is created successfully
+  useEffect(() => {
+    if (isSuccess && !successHandledRef.current) {
+      successHandledRef.current = true;
+      setProductUploadSuccess(true);
+      setNewProduct({
+        name: "",
+        price: 0,
+        sku: "",
+        original_price: 0,
+        quantity: "",
+        description: ``,
+        category: "",
+        status: "active",
+        material: "",
+        type: "",
+        weight: "",
+        stock: 0,
+        isFeatured: false,
+        // stock_quantity, colors, sizes are now handled by variants
+      });
+      setImagePreviews([]);
+      setVariants([]);
+      setErrors({});
+      
+      // Reset mutation state after handling success to prevent re-triggering
+      reset();
+    }
+  }, [isSuccess, reset]);
 
   // ERROR MANAGEMENT
   const validateForm = (): boolean => {
@@ -285,39 +318,6 @@ function AddProductPage() {
       setErrors({});
     }
   }
-
-  // Reset form and show success modal when product is created successfully
-  // Use a ref to track if we've already handled this success to prevent re-triggering
-  const successHandledRef = React.useRef(false);
-  
-  useEffect(() => {
-    if (isSuccess && !successHandledRef.current) {
-      successHandledRef.current = true;
-      setProductUploadSuccess(true);
-      setNewProduct({
-        name: "",
-        price: 0,
-        sku: "",
-        original_price: 0,
-        quantity: "",
-        description: ``,
-        category: "",
-        status: "active",
-        material: "",
-        type: "",
-        weight: "",
-        stock: 0,
-        isFeatured: false,
-        // stock_quantity, colors, sizes are now handled by variants
-      });
-      setImagePreviews([]);
-      setVariants([]);
-      setErrors({});
-      
-      // Reset mutation state after handling success to prevent re-triggering
-      reset();
-    }
-  }, [isSuccess, reset]);
 
   // Reset success handled flag when modal closes
   const closeModal = () => {
