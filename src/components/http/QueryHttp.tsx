@@ -293,6 +293,8 @@ export function useAddProduct(userId: string) {
     mutate: createProduct, // Renamed 'mutate' to 'createProduct' for clarity
     isPending: isCreating, // Renamed 'isPending' to 'isCreating'
     isError,
+    isSuccess,
+    reset, // Add reset function to clear mutation state
   } = useMutation({
     // Pass the API function
     mutationFn: addNewProduct,
@@ -310,7 +312,7 @@ export function useAddProduct(userId: string) {
     },
   });
 
-  return { createProduct, isCreating, isError };
+  return { createProduct, isCreating, isError, isSuccess, reset };
 }
 
 // DELETE VENDOR PRODUCT
