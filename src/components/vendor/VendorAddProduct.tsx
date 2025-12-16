@@ -12,6 +12,7 @@ import { useFetchVendorDetails, useAddProduct } from "../http/QueryHttp";
 import CustomError from "@/app/error";
 import { useFetchCurrentUser } from "../http/QueryHttp";
 import { CATEGORIES } from "@/data/categories";
+import { toast } from "react-hot-toast";
 
 // Define type for a single product variant
 export type Variant = {
@@ -76,9 +77,7 @@ function AddProductPage() {
   const { data: user } = useFetchCurrentUser();
   const { vendor, isPending } = useFetchVendorDetails(user ? user.id : "");
 
-  const closeModal = () => setProductUploadSuccess(false);
-
-  const { createProduct, isCreating, isError } = useAddProduct(
+  const { createProduct, isCreating, isError, isSuccess, reset } = useAddProduct(
     user ? user.id : ""
   );
 
@@ -262,6 +261,17 @@ function AddProductPage() {
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
 
+    // Validate that vendor exists before attempting to create product
+    if (!vendor || !vendor.id) {
+      toast.error("Vendor information is not loaded. Please wait and try again.");
+      return;
+    }
+
+    if (!user || !user.id) {
+      toast.error("User information is missing. Please refresh the page.");
+      return;
+    }
+
     if (validateForm()) {
       createProduct({
         newProduct,
@@ -271,7 +281,18 @@ function AddProductPage() {
         slug,
         user,
       });
+      // Don't reset form or show success modal here - wait for mutation to complete
+      setErrors({});
+    }
+  }
 
+  // Reset form and show success modal when product is created successfully
+  // Use a ref to track if we've already handled this success to prevent re-triggering
+  const successHandledRef = React.useRef(false);
+  
+  useEffect(() => {
+    if (isSuccess && !successHandledRef.current) {
+      successHandledRef.current = true;
       setProductUploadSuccess(true);
       setNewProduct({
         name: "",
@@ -291,12 +312,18 @@ function AddProductPage() {
       });
       setImagePreviews([]);
       setVariants([]);
-
       setErrors({});
+      
+      // Reset mutation state after handling success to prevent re-triggering
+      reset();
     }
+  }, [isSuccess, reset]);
 
-    // PRODUCT IMAGE UPLOAD
-  }
+  // Reset success handled flag when modal closes
+  const closeModal = () => {
+    setProductUploadSuccess(false);
+    successHandledRef.current = false;
+  };
 
   if (user?.role !== "vendor") {
     return (
@@ -308,25 +335,34 @@ function AddProductPage() {
     );
   }
 
-  if (isCreating) {
-    return <LoadingSpinner />;
-  } else {
-    return (
-      <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800">
-        <SuccessModal
-          isOpen={productUploadSuccess}
-          onClose={closeModal}
-          title="Product has been added successfully"
-          message="Your product has been added to your catalog successfully"
-        />
+  return (
+    <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800 relative">
+      {/* Loading overlay - doesn't block navigation */}
+      {isCreating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8 flex flex-col items-center gap-4">
+            <LoadingSpinner />
+            <p className="text-center text-slate-700 font-medium text-sm sm:text-base">
+              Creating product...
+            </p>
+          </div>
+        </div>
+      )}
 
-        {isError && (
-          <CustomError
-            statusCode={500}
-            title="Server Error"
-            message="Something went wrong, please try again later"
-          />
-        )}
+      <SuccessModal
+        isOpen={productUploadSuccess}
+        onClose={closeModal}
+        title="Product has been added successfully"
+        message="Your product has been added to your catalog successfully"
+      />
+
+      {isError && (
+        <CustomError
+          statusCode={500}
+          title="Server Error"
+          message="Something went wrong, please try again later"
+        />
+      )}
         <form onSubmit={addProduct}>
           <div className="container mx-auto p-4 md:p-8">
             {/* Header */}
@@ -819,8 +855,8 @@ function AddProductPage() {
           </div>
         </form>
       </div>
-    );
-  }
+    </div>
+  );
 }
 
 export default AddProductPage;
