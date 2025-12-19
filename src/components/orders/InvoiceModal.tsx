@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Download, Printer, Share2, FileText, CheckCircle } from "lucide-react";
 import { OrderInvoice, OrderItem } from "@/types/orders";
 
@@ -33,13 +33,45 @@ export default function InvoiceModal({
   const [printing, setPrinting] = useState(false);
   const [sharing, setSharing] = useState(false);
 
+  // Reset loading states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setDownloading(false);
+      setPrinting(false);
+      setSharing(false);
+    }
+  }, [isOpen]);
+
+  // Track when loading states start to detect stuck operations
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // If any loading state is active for more than 30 seconds, reset it (likely stuck)
+    if (downloading || printing || sharing) {
+      timeoutId = setTimeout(() => {
+        if (downloading) setDownloading(false);
+        if (printing) setPrinting(false);
+        if (sharing) setSharing(false);
+      }, 30000); // 30 second timeout for stuck operations
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [downloading, printing, sharing]);
+
+  // Extract first part before first dash for invoice number
+  const invoiceNumberPrefix = orderNumber.split('-')[0];
+  // Extract last part after last dash for order number display
+  const orderNumberSuffix = orderNumber.split('-').pop() || orderNumber;
+
   // Generate dummy invoice data
   const invoice: OrderInvoice = {
     id: `INV-${orderId}`,
     orderId,
-    invoiceNumber: `INV-${orderNumber}`,
+    invoiceNumber: `INV-${invoiceNumberPrefix}`,
     issueDate: new Date(),
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week (7 days) from now
     items,
     subtotal,
     tax,
@@ -66,30 +98,312 @@ export default function InvoiceModal({
     }).format(date);
   };
 
+  // Helper function to convert image URL to base64
+  const getImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          resolve(base64);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error converting image to base64:", error);
+      return null;
+    }
+  };
+
+  // Generate PDF document (reusable function) - enhanced professional style
+  const generatePDF = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 25;
+    const leftColX = margin;
+    const rightColX = pageWidth / 2 + 15;
+    let yPos = margin;
+
+    // Top border line for professional look
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(229, 231, 235);
+    doc.line(margin, yPos - 5, pageWidth - margin, yPos - 5);
+
+    // Company Info (Left Column) - enhanced spacing
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Kanyiji Marketplace", leftColX, yPos);
+    yPos += 10;
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(75, 85, 99); // text-gray-600
+    doc.text("123 Market Street", leftColX, yPos);
+    yPos += 6;
+    doc.text("Lagos, Nigeria", leftColX, yPos);
+    yPos += 6;
+    doc.text("support@kanyiji.com", leftColX, yPos);
+    
+    // Invoice Details (Right Column) - better alignment
+    const invoiceYStart = margin;
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Invoice Details", rightColX, invoiceYStart);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(75, 85, 99); // text-gray-600
+    doc.text(`Invoice: ${invoice.invoiceNumber}`, rightColX, invoiceYStart + 10);
+    doc.text(`Order: ${orderNumberSuffix}`, rightColX, invoiceYStart + 16);
+    doc.text(`Date: ${formatDate(invoice.issueDate)}`, rightColX, invoiceYStart + 22);
+    doc.text(`Due: ${formatDate(invoice.dueDate)}`, rightColX, invoiceYStart + 28);
+    
+    yPos = Math.max(margin + 35, invoiceYStart + 35);
+    yPos += 20; // More spacing before table
+
+    // Order Items Section Header
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Order Items", leftColX, yPos);
+    yPos += 15;
+
+    // Table with enhanced header styling
+    const tableStartY = yPos - 8;
+    const headerHeight = 14;
+    doc.setFillColor(249, 250, 251); // bg-gray-50
+    doc.rect(leftColX, tableStartY, pageWidth - (margin * 2), headerHeight, "F");
+    
+    // Table headers with better spacing
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(75, 85, 99); // text-gray-500
+    
+    // Better column positioning
+    const itemColX = leftColX + 8;
+    const vendorColX = itemColX + 75;
+    const qtyColX = vendorColX + 45;
+    const priceColX = qtyColX + 30;
+    const totalColX = pageWidth - margin - 5;
+    
+    doc.text("ITEM", itemColX, yPos);
+    doc.text("VENDOR", vendorColX, yPos);
+    doc.text("QTY", qtyColX, yPos, { align: "right" });
+    doc.text("PRICE", priceColX, yPos, { align: "right" });
+    doc.text("TOTAL", totalColX, yPos, { align: "right" });
+    yPos += 12;
+
+    // Draw line under header
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(229, 231, 235); // border-gray-200
+    doc.line(leftColX, yPos - 2, pageWidth - margin, yPos - 2);
+    yPos += 10;
+
+    // Items rows with better spacing and larger images
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const rowHeight = 24; // Increased for better spacing
+    
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      
+      if (yPos > pageHeight - 70) {
+        doc.addPage();
+        yPos = margin + 10;
+      }
+
+      // Row background - alternate like modal
+      if (index % 2 === 0) {
+        doc.setFillColor(255, 255, 255);
+      } else {
+        doc.setFillColor(249, 250, 251);
+      }
+      doc.rect(leftColX, yPos - 10, pageWidth - (margin * 2), rowHeight, "F");
+
+      // Product image (larger and better positioned)
+      let imageX = itemColX;
+      const imageSize = 18; // Larger image
+      if (item.image) {
+        try {
+          const base64Image = await getImageAsBase64(item.image);
+          if (base64Image) {
+            // Add background rectangle for image
+            doc.setFillColor(243, 244, 246);
+            doc.rect(itemColX, yPos - 8, imageSize, imageSize, "F");
+            doc.addImage(base64Image, 'JPEG', itemColX + 1, yPos - 7, imageSize - 2, imageSize - 2, undefined, 'FAST');
+            imageX = itemColX + imageSize + 8; // Space after image
+          }
+        } catch (error) {
+          console.error("Error adding image to PDF:", error);
+        }
+      }
+
+      // Item name - better font sizing
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(17, 24, 39); // text-gray-900
+      const itemNameY = yPos;
+      const maxNameWidth = vendorColX - imageX - 5;
+      const itemName = doc.splitTextToSize(item.name, maxNameWidth);
+      doc.text(itemName[0], imageX, itemNameY);
+      
+      // SKU and variant info - if name wraps, adjust position
+      let detailY = itemName.length > 1 ? itemNameY + 5 : itemNameY + 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128); // text-gray-500
+      
+      if (item.sku) {
+        doc.text(`SKU: ${item.sku}`, imageX, detailY);
+        detailY += 4;
+      }
+      
+      // Size and Color
+      if (item.size || item.color) {
+        const variantText = [
+          item.size ? `Size: ${item.size}` : null,
+          item.color ? `Color: ${item.color}` : null
+        ].filter(Boolean).join(" • ");
+        doc.text(variantText, imageX, detailY);
+      }
+      
+      // Vendor
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(17, 24, 39); // text-gray-900
+      const vendorText = (item.vendor || "N/A").substring(0, 20);
+      doc.text(vendorText, vendorColX, itemNameY);
+      
+      // Quantity - right aligned
+      doc.text(item.quantity.toString(), qtyColX, itemNameY, { align: "right" });
+      
+      // Price - right aligned
+      doc.text(formatPrice(item.price), priceColX, itemNameY, { align: "right" });
+      
+      // Total - right aligned, bold
+      doc.setFont("helvetica", "bold");
+      doc.text(formatPrice(item.price * item.quantity), totalColX, itemNameY, { align: "right" });
+      
+      // Draw row divider
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(229, 231, 235);
+      doc.line(leftColX, yPos + rowHeight - 10, pageWidth - margin, yPos + rowHeight - 10);
+      
+      yPos += rowHeight;
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+    }
+
+    yPos += 20; // More spacing before summary
+
+    // Order Summary Section - enhanced layout
+    if (yPos > pageHeight - 120) {
+      doc.addPage();
+      yPos = margin + 10;
+    }
+
+    // Payment Status (Left Column)
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Payment Status", leftColX, yPos);
+    yPos += 15;
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    // Green checkmark with circle
+    doc.setFillColor(34, 197, 94); // green-500
+    doc.circle(leftColX + 3, yPos - 2, 3, "F");
+    doc.setTextColor(34, 197, 94); // text-green-500
+    doc.setFont("helvetica", "bold");
+    doc.text("Paid", leftColX + 10, yPos);
+    doc.setTextColor(75, 85, 99); // text-gray-600
+    yPos += 10;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Payment completed on ${formatDate(invoice.issueDate)}`, leftColX, yPos);
+    
+    // Order Summary (Right Column) - better alignment
+    const summaryYStart = yPos - 25;
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Order Summary", rightColX, summaryYStart);
+    
+    let summaryY = summaryYStart + 15;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    
+    // Summary items with better spacing
+    doc.setTextColor(75, 85, 99); // text-gray-600
+    doc.text("Subtotal:", rightColX, summaryY);
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text(formatPrice(subtotal), pageWidth - margin, summaryY, { align: "right" });
+    summaryY += 10;
+
+    doc.setTextColor(75, 85, 99);
+    doc.text("Tax:", rightColX, summaryY);
+    doc.setTextColor(17, 24, 39);
+    doc.text(formatPrice(tax), pageWidth - margin, summaryY, { align: "right" });
+    summaryY += 10;
+
+    doc.setTextColor(75, 85, 99);
+    doc.text("Shipping:", rightColX, summaryY);
+    doc.setTextColor(17, 24, 39);
+    doc.text(formatPrice(shipping), pageWidth - margin, summaryY, { align: "right" });
+    summaryY += 10;
+
+    if (discount > 0) {
+      doc.setTextColor(75, 85, 99);
+      doc.text("Discount:", rightColX, summaryY);
+      doc.setTextColor(17, 24, 39);
+      doc.text(`-${formatPrice(discount)}`, pageWidth - margin, summaryY, { align: "right" });
+      summaryY += 10;
+    }
+
+    // Total line separator - thicker line
+    doc.setLineWidth(0.8);
+    doc.setDrawColor(209, 213, 219); // darker gray
+    doc.line(rightColX, summaryY + 4, pageWidth - margin, summaryY + 4);
+    summaryY += 12;
+
+    // Total - larger and bolder
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Total:", rightColX, summaryY);
+    doc.text(formatPrice(total), pageWidth - margin, summaryY, { align: "right" });
+
+    // Footer - enhanced styling
+    const footerY = pageHeight - 20;
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(229, 231, 235);
+    doc.line(margin, footerY - 8, pageWidth - margin, footerY - 8);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(107, 114, 128); // text-gray-500
+    doc.text("Thank you for your order!", pageWidth / 2, footerY, { align: "center" });
+
+    return doc;
+  };
+
   const handleDownload = async () => {
     setDownloading(true);
     
     try {
-      // Simulate download delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In real app, this would generate and download a PDF
-      console.log("Downloading invoice:", invoice);
-      
-      // Create a dummy download link
-      const blob = new Blob([`Invoice ${invoice.invoiceNumber}`], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${invoice.invoiceNumber}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
+      const doc = await generatePDF();
+      // Save PDF
+      doc.save(`invoice-${invoice.invoiceNumber}.pdf`);
+      setDownloading(false);
     } catch (err) {
       console.error("Download failed:", err);
-    } finally {
       setDownloading(false);
     }
   };
@@ -98,16 +412,13 @@ export default function InvoiceModal({
     setPrinting(true);
     
     try {
-      // Simulate print delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In real app, this would open the print dialog
-      console.log("Printing invoice:", invoice);
-      window.print();
-      
+      const doc = await generatePDF();
+      // Open print dialog with PDF in new window (doesn't affect modal)
+      doc.autoPrint();
+      doc.output('dataurlnewwindow');
+      setPrinting(false);
     } catch (err) {
       console.error("Print failed:", err);
-    } finally {
       setPrinting(false);
     }
   };
@@ -190,7 +501,7 @@ export default function InvoiceModal({
               <div className="text-right">
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Invoice Details</h4>
                 <p className="text-sm text-gray-600">Invoice: {invoice.invoiceNumber}</p>
-                <p className="text-sm text-gray-600">Order: {orderNumber}</p>
+                <p className="text-sm text-gray-600">Order: {orderNumberSuffix}</p>
                 <p className="text-sm text-gray-600">Date: {formatDate(invoice.issueDate)}</p>
                 <p className="text-sm text-gray-600">Due: {formatDate(invoice.dueDate)}</p>
               </div>
@@ -232,7 +543,21 @@ export default function InvoiceModal({
                             />
                             <div>
                               <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                              {item.sku && (
                               <div className="text-sm text-gray-500">SKU: {item.sku}</div>
+                              )}
+                              {/* Display size and color if available */}
+                              {(item.size || item.color) && (
+                                <div className="text-sm text-gray-500">
+                                  {item.size && item.color 
+                                    ? `Size: ${item.size} • Color: ${item.color}`
+                                    : item.size 
+                                    ? `Size: ${item.size}`
+                                    : item.color
+                                    ? `Color: ${item.color}`
+                                    : ''}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -308,7 +633,7 @@ export default function InvoiceModal({
               </div>
               
               <div className="flex space-x-3">
-                <button
+                {/* <button
                   onClick={handleDownload}
                   disabled={downloading}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
@@ -333,7 +658,7 @@ export default function InvoiceModal({
                 >
                   <Share2 className="w-4 h-4 mr-2" />
                   {sharing ? "Sharing..." : "Share"}
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

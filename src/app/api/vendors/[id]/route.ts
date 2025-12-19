@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { calculateProductStock } from "@/utils/stockCalculator";
 
 // Public API route to fetch a single vendor by ID
 export async function GET(
@@ -66,10 +67,10 @@ export async function GET(
       );
     }
 
-    // Fetch active products for this vendor
+    // Fetch active products for this vendor with product_attributes
     const { data: products, error: productsError } = await supabase
       .from("products")
-      .select("*")
+      .select("*, product_attributes( id, size, color, quantity )")
       .eq("vendor_id", vendorId)
       .eq("status", "active")
       .order("created_at", { ascending: false });
@@ -100,21 +101,24 @@ export async function GET(
       }
     }
 
-    // Enrich products with images
-    const enrichedProducts = (products || []).map((product: any) => ({
+    // Enrich products with images and calculate stock from attributes
+    const enrichedProducts = (products || []).map((product: any) => {
+      const calculatedStock = calculateProductStock(product);
+      return {
       id: product.id,
       name: product.name,
       description: product.description || product.short_description || "",
       price: product.price,
       original_price: product.original_price || null,
       sku: product.sku || null,
-      stock_quantity: product.stock_quantity || 0,
+        stock_quantity: calculatedStock,
       status: product.status,
       is_featured: product.is_featured || false,
       is_on_sale: product.is_on_sale || false,
       category_id: product.category_id || null,
       images: productImages[product.id] || [],
-    }));
+      };
+    });
 
     // Map vendor data - handle columns that may not exist
     const enrichedVendor = {

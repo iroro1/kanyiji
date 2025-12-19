@@ -37,6 +37,7 @@ import {
 import DeleteConfirmationModal from "@/components/ui/DeleteModal";
 import EditProductModal from "@/components/vendor/EditProductModal";
 import DocumentViewerModal from "@/components/vendor/DocumentViewerModal";
+import OrderDetailModal from "@/components/vendor/OrderDetailModal";
 import { useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
 
@@ -91,7 +92,24 @@ export default function VendorDashboard() {
   const userId = user ? user.id : "";
   const { vendor, isPending } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();
-  const { orders, stats: orderStats, isLoading: ordersLoading } = useFetchVendorOrders();
+  const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders();
+  
+  // Debug: Log orders data
+  useEffect(() => {
+    if (orders) {
+      console.log("Vendor Dashboard - Orders received:", {
+        ordersCount: orders.length,
+        orders: orders.map((o: any) => ({
+          id: o.id,
+          vendor_id: o.vendor_id,
+          order_items_count: o.order_items?.length || 0,
+        })),
+      });
+    }
+    if (ordersError) {
+      console.error("Vendor Dashboard - Orders error:", ordersError);
+    }
+  }, [orders, ordersError]);
   const { updateOrderStatus, isPending: isUpdatingOrder } = useUpdateVendorOrderStatus();
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
@@ -104,6 +122,7 @@ export default function VendorDashboard() {
   const [isMounted, setIsMounted] = useState(true);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; docKey: string } | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   console.log(selectedProduct);
   const ProductToBeEdited = vendor?.products.find(
@@ -537,15 +556,14 @@ export default function VendorDashboard() {
     );
   }
 
-  if (isDeleting) {
-    return <LoadingSpinner />;
-  }
+  // Loading spinners disabled - show content immediately
+  // if (isDeleting) {
+  //   return <LoadingSpinner />;
+  // }
 
-  // Show loading only on initial load, not on refetch when user returns to tab
-  // Only show spinner if we haven't loaded vendor data yet AND we're pending
-  if (isPending && !vendor && !hasInitiallyLoaded && userId) {
-    return <LoadingSpinner />;
-  }
+  // if (isPending && !vendor && !hasInitiallyLoaded && userId) {
+  //   return <LoadingSpinner />;
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -936,9 +954,16 @@ export default function VendorDashboard() {
                         const firstItem = order.order_items?.[0];
                         const productName = firstItem?.products?.name || "Multiple items";
                         const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-                        const orderDate = new Date(order.created_at).toLocaleDateString();
+                        const orderDate = new Date(order.created_at).toLocaleDateString("en-NG", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        const hasSizeOrColor = firstItem?.size || firstItem?.color;
                         return (
-                          <tr key={order.id}>
+                          <tr key={order.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
                                 #{order.id.slice(0, 8)}
@@ -947,16 +972,32 @@ export default function VendorDashboard() {
                                 {orderDate}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {order.customer?.full_name || order.customer?.email || "N/A"}
-                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {productName}
-                                {order.order_items && order.order_items.length > 1 && ` +${order.order_items.length - 1} more`}
+                                {order.customer?.full_name || "N/A"}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              {order.customer?.email && (
+                                <div className="text-sm text-gray-500">
+                                  {order.customer.email}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900">
+                                {productName}
+                                {order.order_items && order.order_items.length > 1 && (
+                                  <span className="text-gray-500"> +{order.order_items.length - 1} more</span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
                                 Qty: {totalQuantity}
+                                {hasSizeOrColor && (
+                                  <span className="ml-2">
+                                    {firstItem?.size && `Size: ${firstItem.size}`}
+                                    {firstItem?.size && firstItem?.color && " • "}
+                                    {firstItem?.color && `Color: ${firstItem.color}`}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -969,27 +1010,35 @@ export default function VendorDashboard() {
                                 )}`}
                               >
                                 {getStatusIcon(order.status)}
-                                <span className="ml-1">{order.status}</span>
+                                <span className="ml-1 capitalize">{order.status}</span>
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <select
-                                value={order.status}
-                                onChange={(e) =>
-                                  handleUpdateOrderStatus(
-                                    order.id,
-                                    e.target.value as Order["status"]
-                                  )
-                                }
-                                disabled={isUpdatingOrder}
-                                className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="processing">Processing</option>
-                                <option value="shipped">Shipped</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="cancelled">Cancelled</option>
-                              </select>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setViewingOrder(order)}
+                                  className="text-primary-600 hover:text-primary-700 font-medium"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <select
+                                  value={order.status}
+                                  onChange={(e) =>
+                                    handleUpdateOrderStatus(
+                                      order.id,
+                                      e.target.value as Order["status"]
+                                    )
+                                  }
+                                  disabled={isUpdatingOrder}
+                                  className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="processing">Processing</option>
+                                  <option value="shipped">Shipped</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1737,6 +1786,13 @@ export default function VendorDashboard() {
               handleDownloadDocument(originalUrl, docKey, fileName);
             }
           } : undefined}
+        />
+
+        {/* Order Detail Modal */}
+        <OrderDetailModal
+          isOpen={!!viewingOrder}
+          onClose={() => setViewingOrder(null)}
+          order={viewingOrder}
         />
       </div>
     </div>

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/lib/supabase";
 import kanyiyi from "../../assets/Kanyiji-light.png";
 import { useFetchCurrentUser, useFetchVendorDetails } from "../http/QueryHttp";
 import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
@@ -150,8 +151,9 @@ const ActionIcons = ({
   isAuthenticated = false,
   unreadNotificationCount = 0,
   onUnreadCountChange,
-}: // cartNumber,
-{
+  cartNumber = 0,
+  wishlistCount = 0,
+}: {
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;
@@ -159,7 +161,8 @@ const ActionIcons = ({
   isAuthenticated?: boolean;
   unreadNotificationCount?: number;
   onUnreadCountChange?: (count: number) => void;
-  // cartNumber: number;
+  cartNumber?: number;
+  wishlistCount?: number;
 }) => (
   <div className="flex items-center space-x-3 lg:space-x-4">
     {showMobileSearch && (
@@ -184,9 +187,11 @@ const ActionIcons = ({
       className="p-2 lg:p-2.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-all duration-200 relative group hover:scale-105"
     >
       <Heart className="w-4 h-4 lg:w-5 lg:h-5" />
-      <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        0
+      {wishlistCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium shadow-sm">
+          {wishlistCount > 99 ? '99+' : wishlistCount}
       </span>
+      )}
     </button>
 
     <button
@@ -194,11 +199,11 @@ const ActionIcons = ({
       className="p-2 lg:p-2.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-all duration-200 relative group hover:scale-105"
     >
       <ShoppingCart className="w-4 h-4 lg:w-5 lg:h-5" />
-      {/* 
-      <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        {cartNumber} 
+      {cartNumber > 0 && (
+        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium shadow-sm">
+          {cartNumber > 99 ? '99+' : cartNumber}
       </span>
-      */}
+      )}
     </button>
   </div>
 );
@@ -639,9 +644,12 @@ export default function Navbar() {
   // Notification unread count
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  // Fetch initial unread count when authenticated
+  // Wishlist count
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+  // Fetch initial unread count and wishlist count when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.id) {
       const fetchUnreadCount = async () => {
         try {
           const response = await fetch("/api/notifications?limit=1&unread_only=true", {
@@ -655,15 +663,40 @@ export default function Navbar() {
           console.error("Error fetching unread count:", error);
         }
       };
+      
+      const fetchWishlistCount = async () => {
+        try {
+          const { count, error } = await supabase
+            .from("wishlist_items")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id);
+          
+          if (!error && count !== null) {
+            setWishlistCount(count || 0);
+          } else if (error) {
+            console.error("Error fetching wishlist count:", error);
+            setWishlistCount(0);
+          }
+        } catch (error) {
+          console.error("Error fetching wishlist count:", error);
+          setWishlistCount(0);
+        }
+      };
+      
       fetchUnreadCount();
+      fetchWishlistCount();
 
       // Poll for updates every 30 seconds
-      const interval = setInterval(fetchUnreadCount, 30000);
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+        fetchWishlistCount();
+      }, 30000);
       return () => clearInterval(interval);
     } else {
       setUnreadNotificationCount(0);
+      setWishlistCount(0);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
@@ -781,7 +814,8 @@ export default function Navbar() {
                 isAuthenticated={isAuthenticated}
                 unreadNotificationCount={unreadNotificationCount}
                 onUnreadCountChange={setUnreadNotificationCount}
-                // cartNumber={state.items.length}
+                cartNumber={state.items.length}
+                wishlistCount={wishlistCount}
               />
             </div>
 

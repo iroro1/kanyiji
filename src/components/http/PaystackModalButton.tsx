@@ -23,9 +23,9 @@ declare global {
       setup: (config: {
         key: string;
         email: string;
-
         amount: number;
         ref: string;
+        channels?: string[];
         metadata?: Record<string, string | number | boolean>;
         callback: (response: {
           reference: string;
@@ -81,6 +81,7 @@ export default function PaystackModalButton({
       email,
       amount: amountKobo,
       ref: result?.data.reference,
+      channels: ['card'], // Restrict to card payments only
       callback: function (response: { reference: string }) {
         onSuccess?.(response.reference);
       },

@@ -14,6 +14,8 @@ export interface OrderItem {
     width: number;
     height: number;
   };
+  size?: string | null;
+  color?: string | null;
 }
 
 export interface OrderAddress {
