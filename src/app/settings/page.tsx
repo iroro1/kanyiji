@@ -47,10 +47,15 @@ export default function SettingsPage() {
     setLoadingDocuments((prev) => ({ ...prev, [docKey]: true }));
 
     try {
-      const response = await fetch(`/api/admin/vendors/documents?url=${encodeURIComponent(originalUrl)}`);
+      // Use vendor documents endpoint (for vendors viewing their own documents)
+      const response = await fetch(`/api/vendor/documents?url=${encodeURIComponent(originalUrl)}`, {
+        credentials: "include",
+      });
       
       if (!response.ok) {
-        // If admin endpoint fails, try using the original URL
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error fetching document URL:', errorData);
+        // If vendor endpoint fails, try using the original URL
         setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
         return originalUrl;
       }
