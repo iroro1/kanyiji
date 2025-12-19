@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   ChevronDown,
 } from "lucide-react";
+import { calculateShippingFee, getShippingRates, type ShippingLocation } from "@/utils/shippingCalculator";
 
 export default function ShippingDeliveryPolicyPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -29,6 +30,36 @@ export default function ShippingDeliveryPolicyPage() {
 
   const effectiveDate = "November 2025";
   const lastUpdated = "November 2025";
+
+  // Calculate shipping rates for common destinations (using 1kg as example)
+  const exampleWeight = 1; // 1kg product + 1kg packaging = 2kg total
+  const totalWeight = exampleWeight + 1; // Add 1kg for packaging
+
+  const shippingExamples = useMemo(() => {
+    const destinations: Array<{ name: string; location: ShippingLocation; type: string }> = [
+      { name: "Lagos", location: { country: "Nigeria", state: "Lagos", city: "Lagos" }, type: "Standard" },
+      { name: "Abuja", location: { country: "Nigeria", state: "FCT", city: "Abuja" }, type: "Standard" },
+      { name: "Port Harcourt", location: { country: "Nigeria", state: "Rivers", city: "Port Harcourt" }, type: "Standard" },
+      { name: "Kano", location: { country: "Nigeria", state: "Kano", city: "Kano" }, type: "Express" },
+      { name: "Enugu", location: { country: "Nigeria", state: "Enugu", city: "Enugu" }, type: "Standard" },
+      { name: "UK", location: { country: "UK" }, type: "International" },
+      { name: "US", location: { country: "US" }, type: "International" },
+    ];
+
+    return destinations
+      .map(dest => {
+        const result = calculateShippingFee(totalWeight, dest.location);
+        if (result) {
+          return {
+            ...dest,
+            price: result.price,
+            pricePerKg: result.pricePerKg,
+          };
+        }
+        return null;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [totalWeight]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -165,39 +196,122 @@ export default function ShippingDeliveryPolicyPage() {
               <div className="space-y-3 ml-4">
                 <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
                   <Truck className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-1">
                       Standard Delivery
                     </h4>
-                    <p className="text-sm text-gray-700">7–14 business days</p>
+                    <p className="text-sm text-gray-700 mb-2">3–7 business days</p>
+                    <p className="text-xs text-gray-600">
+                      Available for all Nigerian destinations
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
                   <Clock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-1">
                       Express Delivery
                     </h4>
-                    <p className="text-sm text-gray-700">5-7 business days</p>
+                    <p className="text-sm text-gray-700 mb-2">2-4 business days</p>
+                    <p className="text-xs text-gray-600">
+                      Available for major cities
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg">
                   <Package className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold text-gray-900 mb-1">
-                      Same-Day Delivery
+                      International Delivery
                     </h4>
-                    <p className="text-sm text-gray-700">
-                      Available for select cities and vendors.
+                    <p className="text-sm text-gray-700 mb-2">7-14 business days</p>
+                    <p className="text-xs text-gray-600">
+                      Available for UK, US, Canada, and other international destinations
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* Shipping Rate Examples */}
+              <div className="mt-6">
+                <h4 className="font-semibold text-gray-900 mb-3">
+                  Shipping Rate Examples (for {exampleWeight}kg product + packaging):
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {shippingExamples.map((example) => (
+                    <div
+                      key={example.name}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{example.name}</p>
+                        <p className="text-xs text-gray-600">
+                          {example.type === "International" ? "International" : "Domestic"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          ₦{example.price.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          ₦{example.pricePerKg.toLocaleString()}/kg
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Shipping Rate Table */}
+              <div className="mt-6">
+                <h4 className="font-semibold text-gray-900 mb-3">
+                  Shipping Rates by Location (per kg):
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900">
+                          Location
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900">
+                          Rate per kg
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900">
+                          Example ({totalWeight}kg)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shippingExamples.map((example) => (
+                        <tr key={example.name} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 px-3 py-2 text-gray-700">
+                            {example.name}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-gray-700">
+                            ₦{example.pricePerKg.toLocaleString()}
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2 text-right font-medium text-gray-900">
+                            ₦{example.price.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <p className="text-sm text-gray-700">
-                  Shipping costs vary based on destination, package weight, and
-                  selected shipping method. Exact rates are displayed at checkout
-                  before payment.
+                <p className="text-sm text-gray-700 mb-2">
+                  <strong>Note:</strong> Shipping costs are calculated based on:
+                </p>
+                <ul className="text-sm text-gray-700 ml-4 space-y-1">
+                  <li>• Product weight + 1kg packaging</li>
+                  <li>• Destination location (city, state, country)</li>
+                  <li>• Shipping method selected</li>
+                </ul>
+                <p className="text-sm text-gray-700 mt-3">
+                  Exact rates are displayed at checkout before payment. Final shipping cost may vary based on actual product weight and your specific delivery address.
                 </p>
               </div>
             </div>

@@ -60,13 +60,14 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  // Loading spinner disabled - show content immediately
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <LoadingSpinner />
+  //     </div>
+  //   );
+  // }
 
   if (error) {
     return (

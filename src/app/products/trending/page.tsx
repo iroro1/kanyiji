@@ -27,12 +27,16 @@ export default function TrendingProductsPage() {
         ...product,
         id: String(product.id),
         price: Number(product.price),
+        stock_quantity: product.stock_quantity || 0,
+        vendor_id: product.vendor_id,
       },
     });
     notify("Product added to cart successfully", "success");
   }
 
-  if (isLoading) {
+  // Only show loading spinner on INITIAL load when no data exists
+  // This prevents blocking when switching tabs - background refetches won't trigger spinner
+  if (isLoading && !trendingProducts) {
     return <LoadingSpinner />;
   }
 

@@ -20,6 +20,7 @@ export async function POST(request: Request) {
           email,
           amount, // amount must be in kobo
           metadata: body.metadata || {},
+          channels: ['card'], // Restrict to card payments only
         }),
       }
     );

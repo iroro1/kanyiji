@@ -335,7 +335,7 @@ function AddProductPage() {
     );
   }
 
-  return (
+    return (
     <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800 relative">
       {/* Loading overlay - doesn't block navigation */}
       {isCreating && (
@@ -349,21 +349,21 @@ function AddProductPage() {
         </div>
       )}
 
-      <SuccessModal
-        isOpen={productUploadSuccess}
-        onClose={closeModal}
-        title="Product has been added successfully"
-        message="Your product has been added to your catalog successfully"
-      />
-
-      {isError && (
-        <CustomError
-          statusCode={500}
-          title="Server Error"
-          message="Something went wrong, please try again later"
+        <SuccessModal
+          isOpen={productUploadSuccess}
+          onClose={closeModal}
+          title="Product has been added successfully"
+          message="Your product has been added to your catalog successfully"
         />
-      )}
-      <form onSubmit={addProduct}>
+
+        {isError && (
+          <CustomError
+            statusCode={500}
+            title="Server Error"
+            message="Something went wrong, please try again later"
+          />
+        )}
+        <form onSubmit={addProduct}>
           <div className="container mx-auto p-4 md:p-8">
             {/* Header */}
             <header className="flex items-center justify-between mb-8">
@@ -854,8 +854,8 @@ function AddProductPage() {
             </footer>
           </div>
         </form>
-    </div>
-  );
+      </div>
+    );
 }
 
 export default AddProductPage;

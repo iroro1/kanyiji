@@ -7,7 +7,17 @@ import {
 } from "@tanstack/react-query";
 import { useToast } from "../ui/Toast";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Disable automatic refetch when tab becomes visible (prevents blocking)
+      refetchOnMount: false, // Don't auto-refetch on mount (prevents blocking when navigating)
+      refetchOnReconnect: false, // Don't auto-refetch on reconnect (prevents blocking)
+      retry: 1, // Reduce retry attempts
+      staleTime: 30 * 1000, // Consider data fresh for 30 seconds (reduces unnecessary refetches)
+    },
+  },
+});
 
 function AppQueryProvider({ children }: { children: React.ReactNode }) {
   return <RQProvider client={queryClient}>{children}</RQProvider>;
@@ -115,8 +125,11 @@ export function useFetchAllProducts(
       // Otherwise, return the next page number
       return allPages.length;
     },
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds (reduces unnecessary refetches)
     gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false, // Prevent blocking when returning to tab
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   // Flatten the pages array for easy rendering
@@ -152,15 +165,17 @@ export function useFetchAllProducts(
 // }
 
 export function useFetchSingleProduct(productId: string, retry: boolean) {
-  const { data, isPending, error, isError } = useQuery({
+  const { data, isPending, isLoading, error, isError, refetch } = useQuery({
     queryKey: ["singleProduct", productId, retry],
     queryFn: () => getSingleProduct(productId),
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
     gcTime: 15 * 60 * 1000,
     retry: 5,
+    refetchOnMount: false, // Don't auto-refetch on mount (prevents blocking)
+    // Use isLoading for initial load, isPending for background refetches
   });
 
-  return { data, isPending, error, isError };
+  return { data, isPending, isLoading, error, isError, refetch };
 }
 
 export function useFetchWishlist(userId: string, refresh: number) {
@@ -168,9 +183,12 @@ export function useFetchWishlist(userId: string, refresh: number) {
     queryKey: ["allwishlist", userId, refresh],
     queryFn: () => getWishlist(userId),
     enabled: !!userId,
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
     gcTime: 15 * 60 * 1000,
-    retry: 5,
+    retry: 1,
+    refetchOnWindowFocus: false, // Prevent blocking when returning to tab
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   console.log("from query api", data);
@@ -180,16 +198,19 @@ export function useFetchWishlist(userId: string, refresh: number) {
 
 // FETCH ORDERS
 export function useFetchUserOrders(userId: string) {
-  const { data, isPending, error, isError } = useQuery({
+  const { data, isPending, isLoading, error, isError } = useQuery({
     queryKey: ["userOrders", userId],
     queryFn: () => fetchAllOrders(userId),
-    staleTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     enabled: !!userId,
     gcTime: 15 * 60 * 1000,
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnWindowFocus: false, // Disabled to prevent blocking when returning to tab
+    refetchOnReconnect: false, // Don't refetch on reconnect
     // retry: 5,
   });
 
-  return { data, isPending, error, isError };
+  return { data, isPending, isLoading, error, isError };
 }
 
 // REGISTER NEW VENDOR

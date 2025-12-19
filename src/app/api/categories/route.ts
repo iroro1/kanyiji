@@ -17,17 +17,73 @@ export async function GET(req: NextRequest) {
 
     // If slug is provided, fetch a single category
     if (slug) {
-      const { data: category, error } = await supabase
+      // Normalize slug: remove trailing dashes and convert to lowercase
+      const normalizedSlug = slug.trim().toLowerCase().replace(/-+$/, ''); // Remove trailing dashes
+      
+      // First try exact match with normalized slug
+      let { data: category, error } = await supabase
         .from("categories")
         .select("id, name, slug, description, image_url, product_count")
-        .eq("slug", slug)
+        .eq("slug", normalizedSlug)
         .eq("is_active", true)
         .single();
 
+      // If not found, try with original slug (in case it has trailing dash)
+      if (error && slug !== normalizedSlug) {
+        const { data: categoryAlt, error: errorAlt } = await supabase
+          .from("categories")
+          .select("id, name, slug, description, image_url, product_count")
+          .eq("slug", slug.trim().toLowerCase())
+          .eq("is_active", true)
+          .single();
+        
+        if (!errorAlt && categoryAlt) {
+          category = categoryAlt;
+          error = null;
+        }
+      }
+
+      // If still not found, try partial match (slug starts with normalized slug)
       if (error) {
+        const { data: categories, error: partialError } = await supabase
+          .from("categories")
+          .select("id, name, slug, description, image_url, product_count")
+          .eq("is_active", true)
+          .ilike("slug", `${normalizedSlug}%`); // Case-insensitive partial match
+        
+        if (!partialError && categories && categories.length > 0) {
+          // Use the first matching category
+          category = categories[0];
+          error = null;
+        }
+      }
+
+      // If still not found, try matching by category name (case-insensitive partial match)
+      if (error) {
+        // Generate a slug-like string from the search term (e.g., "fashion" -> "fashion")
+        const searchTerm = normalizedSlug.replace(/-/g, ' '); // Replace dashes with spaces for name matching
+        
+        const { data: categories, error: nameError } = await supabase
+          .from("categories")
+          .select("id, name, slug, description, image_url, product_count")
+          .eq("is_active", true)
+          .or(`name.ilike.%${searchTerm}%,name.ilike.%${normalizedSlug}%`);
+        
+        if (!nameError && categories && categories.length > 0) {
+          // Find the best match (exact name match or contains the search term)
+          const exactMatch = categories.find(cat => 
+            cat.name.toLowerCase().includes(searchTerm) || 
+            cat.name.toLowerCase().includes(normalizedSlug)
+          );
+          category = exactMatch || categories[0];
+          error = null;
+        }
+      }
+
+      if (error || !category) {
         console.error("Get category by slug error:", error);
         return NextResponse.json(
-          { error: error.message || "Category not found", category: null },
+          { error: error?.message || "Category not found", category: null },
           { status: 404 }
         );
       }

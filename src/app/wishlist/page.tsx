@@ -39,7 +39,9 @@ export default function WishlistPage() {
     }
   }
 
-  if (isLoading) {
+  // Only show loading spinner on INITIAL load when no data exists
+  // This prevents blocking when switching tabs - background refetches won't trigger spinner
+  if (isLoading && !data) {
     return <LoadingSpinner />;
   }
 
@@ -81,14 +83,17 @@ export default function WishlistPage() {
             {data?.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200 group"
               >
                 {/* Image */}
-                <div className="relative">
+                <div className="relative aspect-square overflow-hidden bg-gray-100">
                   <img
-                    src={item.product_images[0].image_url}
+                    src={item.product_images[0]?.image_url || "/placeholder-product.png"}
                     alt={item.name}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/placeholder-product.png";
+                    }}
                   />
 
                   {/* Remove Button */}
@@ -100,8 +105,8 @@ export default function WishlistPage() {
                   </button>
 
                   {/* Discount Badge */}
-                  {item.original_price && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                  {item.original_price && item.original_price > item.price && (
+                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-md">
                       {Math.round(
                         ((item.original_price - item.price) /
                           item.original_price) *
@@ -113,42 +118,52 @@ export default function WishlistPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
+                <div className="p-5">
+                  {/* Product Name */}
+                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-base leading-tight">
                     {item.name}
                   </h3>
 
-                  <p className="text-sm text-gray-500 mb-3">
-                    Vendor: {"Kanyiji"}
+                  {/* Vendor */}
+                  <p className="text-xs text-gray-500 mb-3">
+                    {(() => {
+                      const vendorName = item.vendors?.business_name 
+                        || (item.vendors && typeof item.vendors === 'object' && item.vendors.business_name)
+                        || "Unknown Vendor";
+                      return vendorName;
+                    })()}
                   </p>
 
-                  {/* Rating */}
-                  <div className="flex items-center mb-3">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < Math.floor(5)
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
+                  {/* Rating & Reviews - Compact inline format */}
+                  {(item.rating || item.review_count) ? (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <div className="flex items-center gap-0.5">
+                        <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {item.rating ? item.rating.toFixed(1) : "0.0"}
+                        </span>
+                      </div>
+                      {item.review_count > 0 && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-xs text-gray-500">
+                            {item.review_count} review{item.review_count !== 1 ? "s" : ""}
+                          </span>
+                        </>
+                      )}
                     </div>
-                    <span className="text-sm text-gray-500 ml-2">
-                      20 reviews
-                    </span>
-                  </div>
+                  ) : (
+                    <div className="mb-3 h-5" />
+                  )}
 
                   {/* Price */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-gray-900">
+                  <div className="mb-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-gray-900">
                         {formatPrice(item.price)}
                       </span>
-                      {item.original_price && (
-                        <span className="text-sm text-gray-500 line-through">
+                      {item.original_price && item.original_price > item.price && (
+                        <span className="text-sm text-gray-400 line-through">
                           {formatPrice(item.original_price)}
                         </span>
                       )}
@@ -156,7 +171,7 @@ export default function WishlistPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-2">
+                  <div className="flex gap-2">
                     <button
                       onClick={() =>
                         dispatch({
@@ -165,6 +180,8 @@ export default function WishlistPage() {
                             ...item,
                             id: String(item.id),
                             price: Number(item.price),
+                            stock_quantity: item.stock_quantity || 0,
+                            vendor_id: item.vendor_id,
                             title: "",
                             product_images: item.product_images[0].image_url
                               ? [
@@ -177,17 +194,17 @@ export default function WishlistPage() {
                           },
                         })
                       }
-                      className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                      className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      <span>Add to Cart</span>
+                      <span className="text-sm">Add to Cart</span>
                     </button>
 
                     <Link
                       href={`/products/${item.id}`}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center min-w-[80px] shadow-sm hover:shadow-md"
                     >
-                      View
+                      <span className="text-sm">View</span>
                     </Link>
                   </div>
                 </div>
