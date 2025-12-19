@@ -63,6 +63,8 @@ interface Order {
     id: string;
     quantity: number;
     price: string;
+    size?: string;
+    color?: string;
     products?: {
       name: string;
       product_images?: Array<{ image_url: string }>;
