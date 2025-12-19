@@ -65,21 +65,26 @@ interface Order {
   };
   order_items?: Array<{
     id: string;
+    product_id: string;
+    vendor_id: string;
     quantity: number;
-    price: string;
+    unit_price: string;
+    total_price: string;
     size?: string;
     color?: string;
     products?: {
+      id: string;
       name: string;
       product_images?: Array<{ image_url: string }>;
     };
   }>;
   total_amount: string;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "confirmed" | "refunded";
+  payment_status?: "pending" | "paid" | "failed" | "refunded" | "partially_refunded";
+  fulfillment_status?: "unfulfilled" | "fulfilled" | "partially_fulfilled" | "shipped" | "delivered";
   created_at: string;
   updated_at?: string;
   payment_reference?: string;
-  payment_status?: string;
   shipping_address?: any;
   internal_notes?: string;
 }
