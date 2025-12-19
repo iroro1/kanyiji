@@ -11,10 +11,22 @@ export type Product = {
   original_price: number;
   rating: number;
   review_count: number;
+  stock_quantity?: number;
+  vendor_id?: string;
   product_images: {
     id: string;
     image_url: string;
   }[];
+  product_attributes?: {
+    id: string;
+    size?: string;
+    color?: string;
+    quantity: number;
+  }[];
+  vendors?: {
+    id?: string;
+    business_name?: string;
+  };
 };
 
 // AUTHENTICATION
@@ -120,21 +132,27 @@ export async function getWishlist(userId: string): Promise<Product[]> {
   if (error) throw error;
 
   // Map products and calculate stock
-  const products = (data ?? []).flatMap((row) => {
+  const products: Product[] = (data ?? []).flatMap((row: any) => {
     if (!row.products) return [];
     
-    const product = row.products;
+    const product: any = row.products;
     // Calculate stock from product_attributes
-    const stockQuantity = product.product_attributes && product.product_attributes.length > 0
-      ? product.product_attributes.reduce((sum: number, attr: any) => sum + (parseInt(attr.quantity) || 0), 0)
+    const stockQuantity = product.product_attributes && Array.isArray(product.product_attributes) && product.product_attributes.length > 0
+      ? product.product_attributes.reduce((sum: number, attr: any) => sum + (parseInt(String(attr.quantity || 0)) || 0), 0)
       : 0;
     
     return [{
-      ...product,
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      original_price: product.original_price,
+      rating: product.rating,
+      review_count: product.review_count,
       stock_quantity: stockQuantity,
       vendor_id: product.vendor_id,
+      product_images: product.product_images || [],
       vendors: product.vendors, // Include vendor relationship
-    }];
+    } as Product];
   });
 
   return products;
