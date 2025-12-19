@@ -10,7 +10,9 @@ import { ArrowLeft, Package } from "lucide-react";
 export default function CategoryPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const rawSlug = params.slug as string;
+  // Normalize slug: remove trailing dashes and convert to lowercase
+  const slug = rawSlug?.trim().toLowerCase().replace(/-+$/, '') || '';
   
   const [category, setCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -24,8 +26,9 @@ export default function CategoryPage() {
         setError(null);
 
         // First, try to fetch category from database by slug
+        // Try both normalized and original slug
         try {
-          const categoryResponse = await fetch(`/api/categories?slug=${slug}`, {
+          const categoryResponse = await fetch(`/api/categories?slug=${encodeURIComponent(slug)}`, {
             credentials: "include",
           });
 
@@ -124,13 +127,14 @@ export default function CategoryPage() {
     }
   }, [slug]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  // Loading spinner disabled - show content immediately
+  // if (loading) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <LoadingSpinner />
+  //     </div>
+  //   );
+  // }
 
   if (error || !category) {
     return (
