@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Plus, Minus, ShoppingBag, X } from "lucide-react";
-
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  quantity: number;
-  vendor: string;
-}
+import { useCart } from "@/contexts/CartContext";
+import Image from "next/image";
 
 interface CartProps {
   isOpen: boolean;
@@ -18,43 +11,72 @@ interface CartProps {
 }
 
 export default function Cart({ isOpen, onClose }: CartProps) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: "1",
-      name: "Handcrafted African Beaded Necklace",
-      price: 2500,
-      image: "/placeholder-product.jpg",
-      quantity: 1,
-      vendor: "African Crafts Co.",
-    },
-    {
-      id: "2",
-      name: "Traditional Nigerian Ankara Fabric",
-      price: 3500,
-      image: "/placeholder-product.jpg",
-      quantity: 2,
-      vendor: "Nigerian Textiles",
-    },
-  ]);
+  const { state, dispatch } = useCart();
+  const [vendorNames, setVendorNames] = useState<Record<string, string>>({});
+
+  // Fetch vendor names for cart items
+  useEffect(() => {
+    const fetchVendorNames = async () => {
+      const vendorIds = Array.from(
+        new Set(
+          state.items
+            .map((item) => (item as any).vendor_id)
+            .filter(Boolean)
+        )
+      );
+
+      if (vendorIds.length === 0) return;
+
+      try {
+        const vendorMap: Record<string, string> = {};
+        
+        for (const vendorId of vendorIds) {
+          try {
+            const response = await fetch(`/api/vendors/${vendorId}`, {
+              credentials: "include",
+              cache: "no-store",
+            });
+            if (response.ok) {
+              const vendorData = await response.json();
+              vendorMap[vendorId] = vendorData.vendor?.business_name || "Unknown Vendor";
+            }
+          } catch (err) {
+            console.error(`Error fetching vendor ${vendorId}:`, err);
+          }
+        }
+        
+        setVendorNames(vendorMap);
+      } catch (err) {
+        console.error("Error fetching vendor names:", err);
+      }
+    };
+
+    fetchVendorNames();
+  }, [state.items]);
 
   const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    if (newQuantity < 1) {
+      dispatch({ type: "REMOVE_FROM_CART", id });
+      return;
+    }
+    
+    const item = state.items.find((item) => item.id === id);
+    if (!item) return;
+
+    const currentQuantity = item.quantity;
+    if (newQuantity > currentQuantity) {
+      dispatch({ type: "INCREASE_QUANTITY", id });
+    } else if (newQuantity < currentQuantity) {
+      dispatch({ type: "DECREASE_QUANTITY", id });
+    }
   };
 
   const removeItem = (id: string) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
+    dispatch({ type: "REMOVE_FROM_CART", id });
   };
 
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-  const shipping = 500;
+  const subtotal = state.total;
+  const shipping = 0; // Shipping calculated at checkout
   const total = subtotal + shipping;
 
   if (!isOpen) return null;
@@ -85,7 +107,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
 
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            {cartItems.length === 0 ? (
+            {state.items.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -97,23 +119,33 @@ export default function Cart({ isOpen, onClose }: CartProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {cartItems.map((item) => (
+                {state.items.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center space-x-4 border-b border-gray-100 pb-4"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
+                    {item.product_images && item.product_images[0] ? (
+                      <Image
+                        src={item.product_images[0].image_url}
+                        alt={item.name}
+                        width={64}
+                        height={64}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <ShoppingBag className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium text-gray-900 truncate">
                         {item.name}
                       </h3>
-                      <p className="text-sm text-gray-500">{item.vendor}</p>
+                      <p className="text-sm text-gray-500">
+                        {vendorNames[(item as any).vendor_id] || "Unknown Vendor"}
+                      </p>
                       <p className="text-sm font-medium text-gray-900">
-                        ₦{item.price.toLocaleString()}
+                        ₦{(item.price * item.quantity).toLocaleString()}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -121,7 +153,8 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity - 1)
                         }
-                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50"
+                        disabled={item.quantity <= 1}
+                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
@@ -132,7 +165,8 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity + 1)
                         }
-                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50"
+                        disabled={!item.stock_quantity || item.quantity >= (item.stock_quantity || 0)}
+                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
@@ -150,7 +184,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
           </div>
 
           {/* Cart Summary */}
-          {cartItems.length > 0 && (
+          {state.items.length > 0 && (
             <div className="border-t border-gray-200 px-6 py-4">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
@@ -161,8 +195,8 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">
-                    ₦{shipping.toLocaleString()}
+                  <span className="font-medium text-gray-400">
+                    Calculated at checkout
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3">

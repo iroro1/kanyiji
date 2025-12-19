@@ -123,7 +123,7 @@ export default function CartPage() {
                           {item.name}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
-                          Vendor: {vendorNames[(item as any).vendor_id] || item.title || "Unknown Vendor"}
+                          Vendor: {vendorNames[(item as any).vendor_id] || "Unknown Vendor"}
                         </p>
                         <div className="flex items-center gap-4">
                           {/* Quantity Controls */}
