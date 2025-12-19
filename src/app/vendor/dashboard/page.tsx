@@ -55,9 +55,13 @@ interface Product {
 
 interface Order {
   id: string;
+  customer_id: string;
+  vendor_id?: string;
   customer?: {
+    id: string;
     full_name?: string;
     email?: string;
+    phone?: string;
   };
   order_items?: Array<{
     id: string;
@@ -73,6 +77,11 @@ interface Order {
   total_amount: string;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   created_at: string;
+  updated_at?: string;
+  payment_reference?: string;
+  payment_status?: string;
+  shipping_address?: any;
+  internal_notes?: string;
 }
 
 interface VendorStats {
