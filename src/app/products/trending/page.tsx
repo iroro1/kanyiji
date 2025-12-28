@@ -1,34 +1,44 @@
+"use client";
+
 import Link from "next/link";
 import { Star, ShoppingCart, Heart, TrendingUp } from "lucide-react";
+import Image from "next/image";
+import { useFetchAllProducts } from "@/components/http/QueryHttp";
+import { useCart } from "@/contexts/CartContext";
+import { useToast } from "@/components/ui/Toast";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export default function TrendingProductsPage() {
-  // Mock trending products data
-  const trendingProducts = [
-    {
-      id: 7,
-      name: "African Print Head Wrap",
-      price: 3500,
-      originalPrice: 4000,
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      rating: 4.7,
-      reviews: 156,
-      vendor: "Head Wrap Collection",
-      location: "Lagos, Nigeria",
-      trend: "🔥 Hot"
-    },
-    {
-      id: 8,
-      name: "Handmade Pottery Bowl",
-      price: 12000,
-      originalPrice: 15000,
-      image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-      rating: 4.8,
-      reviews: 89,
-      vendor: "Pottery Masters",
-      location: "Ibadan, Nigeria",
-      trend: "📈 Trending"
-    }
-  ];
+  const {
+    products: trendingProducts,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useFetchAllProducts(null, null, null, null, "trending", null);
+
+  const { dispatch } = useCart();
+  const { notify } = useToast();
+
+  function AddToCart(product: any) {
+    dispatch({
+      type: "ADD_TO_CART",
+      product: {
+        ...product,
+        id: String(product.id),
+        price: Number(product.price),
+        stock_quantity: product.stock_quantity || 0,
+        vendor_id: product.vendor_id,
+      },
+    });
+    notify("Product added to cart successfully", "success");
+  }
+
+  // Only show loading spinner on INITIAL load when no data exists
+  // This prevents blocking when switching tabs - background refetches won't trigger spinner
+  if (isLoading && !trendingProducts) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,88 +61,123 @@ export default function TrendingProductsPage() {
 
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {trendingProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              {/* Product Image */}
-              <div className="relative aspect-square rounded-t-xl overflow-hidden">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-3 right-3">
-                  <button className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors">
-                    <Heart className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-                <div className="absolute top-3 left-3">
-                  <span className="bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                    {product.trend}
-                  </span>
-                </div>
-              </div>
-
-              {/* Product Info */}
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(product.rating)
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">({product.reviews})</span>
-                </div>
-
-                <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {product.name}
-                </h3>
-
-                <p className="text-sm text-gray-600 mb-3">{product.vendor}</p>
-
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-gray-900">
-                      ₦{product.price.toLocaleString()}
-                    </span>
-                    {product.originalPrice > product.price && (
-                      <span className="text-sm text-gray-500 line-through">
-                        ₦{product.originalPrice.toLocaleString()}
+        {trendingProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No Trending Products
+            </h3>
+            <p className="text-gray-600 mb-6">
+              There are no trending products at the moment.
+            </p>
+            <Link
+              href="/products"
+              className="inline-block bg-primary-500 hover:bg-primary-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+            >
+              Browse All Products
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {trendingProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                >
+                  {/* Product Image */}
+                  <div className="relative aspect-square rounded-t-xl overflow-hidden">
+                    <Image
+                      width={1000}
+                      height={700}
+                      src={product.product_images[0]?.image_url || ""}
+                      alt={product.name}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-3 right-3">
+                      <button className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors">
+                        <Heart className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        Trending
                       </span>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.floor(4)
+                                ? "text-yellow-400 fill-current"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-600">(18 reviews)</span>
+                    </div>
+
+                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {product.name}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 mb-3">{product.vendor}</p>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold text-gray-900">
+                          ₦{product.price.toLocaleString()}
+                        </span>
+                        {product.original_price > product.price && (
+                          <span className="text-sm text-gray-500 line-through">
+                            ₦{product.original_price.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        onClick={() => AddToCart(product)}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        Add to Cart
+                      </button>
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
+                      >
+                        View
+                      </Link>
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    Add to Cart
-                  </button>
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    View
-                  </Link>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Load More Button */}
-        <div className="text-center mt-12">
-          <button className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-3 rounded-lg border border-gray-300 transition-colors">
-            Load More Trending Products
-          </button>
-        </div>
+            {/* Load More Button */}
+            <div className="text-center mt-12">
+              <button
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg border border-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasNextPage || isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
+                {isFetchingNextPage
+                  ? "Loading..."
+                  : "Load More Trending Products"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

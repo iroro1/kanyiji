@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { calculateProductStock } from "@/utils/stockCalculator";
 
 // Public API route to fetch products
 // Supports filtering by category_id
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at,
         vendor_id,
-        category_id
+        category_id,
+        product_attributes( id, size, color, quantity )
       `)
       // Temporarily remove status filter to see all products - will check statuses in logs
       // .or("status.eq.active,status.eq.approved") // Include both active and approved products
@@ -50,8 +52,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter by category if provided
+    // Try category_id first, then fallback to category name/slug matching
     let useCategoryFilter = false;
     if (categoryId) {
+      // First try filtering by category_id (UUID)
       query = query.eq("category_id", categoryId);
       useCategoryFilter = true;
     }
@@ -93,7 +97,7 @@ export async function GET(request: NextRequest) {
       if (!allError && allProducts) {
         console.log("Products API: Found products with these statuses:", {
           total: allProducts.length,
-          statuses: [...new Set(allProducts.map((p: any) => p.status))],
+          statuses: Array.from(new Set(allProducts.map((p: any) => p.status))),
           products: allProducts.map((p: any) => ({ id: p.id, name: p.name, status: p.status })),
         });
       } else if (allError) {
@@ -131,7 +135,8 @@ export async function GET(request: NextRequest) {
             status,
             created_at,
             updated_at,
-            vendor_id
+            vendor_id,
+            product_attributes( id, size, color, quantity )
           `)
           .eq("status", "active")
           .order("created_at", { ascending: false })
@@ -166,11 +171,15 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          const enrichedProducts = retryProducts.map((product) => ({
+          const enrichedProducts = retryProducts.map((product: any) => {
+            const calculatedStock = calculateProductStock(product);
+            return {
             ...product,
             category_id: null, // Not available
             images: productImages[product.id] || [],
-          }));
+              stock_quantity: calculatedStock,
+            };
+          });
 
           return NextResponse.json({
             products: enrichedProducts,
@@ -189,7 +198,7 @@ export async function GET(request: NextRequest) {
       console.log("Products API: Status filtering result:", {
         totalFetched: products.length,
         publicProducts: publicProducts.length,
-        statusesFound: [...new Set(products.map((p: any) => p.status))],
+        statusesFound: Array.from(new Set(products.map((p: any) => p.status))),
         allProducts: products.map((p: any) => ({ 
           id: p.id, 
           name: p.name, 
@@ -199,9 +208,36 @@ export async function GET(request: NextRequest) {
       });
 
       // Apply category filter if provided
-      const finalProducts = useCategoryFilter && categoryId
-        ? publicProducts.filter((p: any) => p.category_id === categoryId)
-        : publicProducts;
+      // If category_id filter didn't work, try matching by category name or slug
+      let finalProducts = publicProducts;
+      if (useCategoryFilter && categoryId) {
+        // First try exact category_id match
+        finalProducts = publicProducts.filter((p: any) => p.category_id === categoryId);
+        
+        // If no results and we have a categoryId, try to find category by ID and match by name
+        if (finalProducts.length === 0) {
+          try {
+            const { data: categoryData } = await supabase
+              .from("categories")
+              .select("id, name, slug")
+              .eq("id", categoryId)
+              .single();
+            
+            if (categoryData) {
+              // Try matching by category name or slug
+              finalProducts = publicProducts.filter((p: any) => 
+                p.category === categoryData.name || 
+                p.category === categoryData.slug ||
+                p.category_id === categoryId
+              );
+            }
+          } catch (err) {
+            console.error("Error fetching category for fallback:", err);
+            // Fallback: just return all products if category lookup fails
+            finalProducts = publicProducts;
+          }
+        }
+      }
 
       // Fetch product images
       const productIds = finalProducts.map((p) => p.id);
@@ -224,10 +260,14 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const enrichedProducts = finalProducts.map((product) => ({
+      const enrichedProducts = finalProducts.map((product: any) => {
+        const calculatedStock = calculateProductStock(product);
+        return {
         ...product,
         images: productImages[product.id] || [],
-      }));
+          stock_quantity: calculatedStock,
+        };
+      });
 
       return NextResponse.json({
         products: enrichedProducts,
@@ -261,7 +301,8 @@ export async function GET(request: NextRequest) {
           created_at,
           updated_at,
           vendor_id,
-          category_id
+          category_id,
+          product_attributes( id, size, color, quantity )
         `)
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
@@ -281,7 +322,7 @@ export async function GET(request: NextRequest) {
       
       console.log("Products API: Fallback - all products:", {
         totalFetched: allProducts?.length || 0,
-        statusesFound: [...new Set((allProducts || []).map((p: any) => p.status))],
+        statusesFound: Array.from(new Set((allProducts || []).map((p: any) => p.status))),
         allProducts: (allProducts || []).map((p: any) => ({ 
           id: p.id, 
           name: p.name, 
@@ -336,16 +377,20 @@ export async function GET(request: NextRequest) {
         !p.status // Include products with no status set
       );
 
-      const enrichedProducts = publicFilteredProducts.map((product: any) => ({
+      const enrichedProducts = publicFilteredProducts.map((product: any) => {
+        const calculatedStock = calculateProductStock(product);
+        return {
         ...product,
         images: productImages[product.id] || [],
-      }));
+          stock_quantity: calculatedStock,
+        };
+      });
 
       console.log("Products API: After status filtering (fallback):", {
         totalFetched: filteredProducts.length,
         publicProducts: enrichedProducts.length,
-        statusesFound: [...new Set(filteredProducts.map((p: any) => p.status))],
-        publicStatuses: [...new Set(enrichedProducts.map((p: any) => p.status))],
+        statusesFound: Array.from(new Set(filteredProducts.map((p: any) => p.status))),
+        publicStatuses: Array.from(new Set(enrichedProducts.map((p: any) => p.status))),
       });
 
       return NextResponse.json({
@@ -359,7 +404,7 @@ export async function GET(request: NextRequest) {
     
     console.log("Products API: Final fallback - all products:", {
       totalFetched: (products || []).length,
-      statusesFound: [...new Set((products || []).map((p: any) => p.status))],
+      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
       allProducts: (products || []).map((p: any) => ({ 
         id: p.id, 
         name: p.name, 
@@ -388,17 +433,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enrich products with images
-    const enrichedProducts = publicProducts.map((product) => ({
+    // Enrich products with images and calculate stock
+    const enrichedProducts = publicProducts.map((product: any) => {
+      const calculatedStock = calculateProductStock(product);
+      return {
       ...product,
       images: productImages[product.id] || [],
-    }));
+        stock_quantity: calculatedStock,
+      };
+    });
 
     console.log("Products API: Final fallback response:", {
       totalFetched: (products || []).length,
       publicProducts: enrichedProducts.length,
-      statusesFound: [...new Set((products || []).map((p: any) => p.status))],
-      publicStatuses: [...new Set(enrichedProducts.map((p: any) => p.status))],
+      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
+      publicStatuses: Array.from(new Set(enrichedProducts.map((p: any) => p.status))),
     });
 
     return NextResponse.json({

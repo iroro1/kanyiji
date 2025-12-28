@@ -15,8 +15,8 @@ import {
   sizes,
   ImagePreview, // This is now only for NEW images
   colors,
-  productCategories,
 } from "./VendorAddProduct";
+import { CATEGORIES } from "@/data/categories";
 import { useEditVendorProduct } from "../http/QueryHttp";
 
 // Type for EXISTING images loaded from DB
@@ -99,6 +99,13 @@ function EditProductModal({
   // It populates all form states from the productToEdit prop.
   useEffect(() => {
     if (productToEdit && isOpen) {
+      console.log("EditProductModal - Loading product data:", {
+        productId: productToEdit.id,
+        productName: productToEdit.name,
+        product_attributes: productToEdit.product_attributes,
+        product_attributes_count: productToEdit.product_attributes?.length || 0,
+      });
+      
       setProductForm({
         name: productToEdit.name || "",
         category: productToEdit.category || "",
@@ -114,7 +121,16 @@ function EditProductModal({
         isFeatured: productToEdit.is_featured || false, // Map from DB field
         sku: productToEdit.sku,
       });
-      setVariants(productToEdit.product_attributes || []);
+      
+      // Transform product_attributes to match Variant type (size, color, quantity as string)
+      const transformedVariants: Variant[] = (productToEdit.product_attributes || []).map((attr: any) => ({
+        size: attr.size || "",
+        color: attr.color || "",
+        quantity: String(attr.quantity || ""),
+      }));
+      
+      console.log("EditProductModal - Transformed variants:", transformedVariants);
+      setVariants(transformedVariants);
       setExistingImages(productToEdit.product_images || []);
       setSlug(productToEdit.slug || slugify(productToEdit.name));
 
@@ -481,9 +497,9 @@ function EditProductModal({
                     }`}
                   >
                     <option value="">Select category</option>
-                    {productCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
+                    {CATEGORIES.map((category) => (
+                      <option key={category.id} value={category.name}>
+                        {category.name}
                       </option>
                     ))}
                   </select>

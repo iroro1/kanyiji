@@ -11,6 +11,8 @@ import { SuccessModal } from "../ui/ProductSuccessModal";
 import { useFetchVendorDetails, useAddProduct } from "../http/QueryHttp";
 import CustomError from "@/app/error";
 import { useFetchCurrentUser } from "../http/QueryHttp";
+import { CATEGORIES } from "@/data/categories";
+import { toast } from "react-hot-toast";
 
 // Define type for a single product variant
 export type Variant = {
@@ -39,8 +41,9 @@ export const colors = [
   "white",
   "gray",
   "gold",
+  "Others",
 ];
-export const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size"];
+export const sizes = ["XS", "S", "M", "L", "XL", "XXL", "One Size", "Others"];
 
 export interface ProductFormData {
   product_id?: string;
@@ -66,63 +69,15 @@ export interface ProductFormData {
   // features: string[];
   // isFeatured: boolean;
 }
-export const productCategories = [
-  // Technology & Electronics
-  "Electronics",
-  "Computers & Laptops",
-  "Mobile Phones & Tablets",
-  "Gaming & Consoles",
-  "Audio & Headphones",
-  "Cameras & Photography",
-  "Smart Home Devices",
-  "Wearable Technology",
-
-  // Fashion & Beauty
-  "Fashion & Apparel",
-  "Shoes & Footwear",
-  "Jewelry & Watches",
-  "Bags & Accessories",
-  "Beauty & Cosmetics",
-  "Hair Care & Styling",
-  "Skincare & Makeup",
-  "Perfumes & Fragrances",
-
-  // Home & Lifestyle
-  "Home & Garden",
-  "Furniture & Decor",
-  "Kitchen & Dining",
-  "Bedding & Bath",
-  "Lighting & Lamps",
-  "Storage & Organization",
-  "Pet Supplies",
-  "Baby & Kids Products",
-
-  // Health & Wellness
-  "Health & Fitness",
-  "Sports & Outdoor",
-  "Nutrition & Supplements",
-  "Medical & Healthcare",
-  "Yoga & Meditation",
-  "Personal Care",
-  "Fitness Equipment",
-
-  // Automotive & Transportation
-  "Automotive",
-  "Car Accessories",
-  "Motorcycle Parts",
-  "Bicycles & Cycling",
-  "Travel & Luggage",
-  "Navigation & GPS",
-];
+// Categories are now imported from @/data/categories
+// Use CATEGORIES.map(cat => cat.name) for category options
 
 // Main App Component
 function AddProductPage() {
   const { data: user } = useFetchCurrentUser();
   const { vendor, isPending } = useFetchVendorDetails(user ? user.id : "");
 
-  const closeModal = () => setProductUploadSuccess(false);
-
-  const { createProduct, isCreating, isError } = useAddProduct(
+  const { createProduct, isCreating, isError, isSuccess, reset } = useAddProduct(
     user ? user.id : ""
   );
 
@@ -173,6 +128,9 @@ function AddProductPage() {
     salePercentage?: string;
   }>({});
 
+  // Use a ref to track if we've already handled success to prevent re-triggering
+  const successHandledRef = useRef(false);
+
   // Generate SKU once, only when name is entered and no SKU exists
   useEffect(() => {
     if (newProduct.name) {
@@ -183,6 +141,36 @@ function AddProductPage() {
       setNewProduct((prev) => ({ ...prev, sku }));
     }
   }, [newProduct.name]);
+
+  // Reset form and show success modal when product is created successfully
+  useEffect(() => {
+    if (isSuccess && !successHandledRef.current) {
+      successHandledRef.current = true;
+      setProductUploadSuccess(true);
+      setNewProduct({
+        name: "",
+        price: 0,
+        sku: "",
+        original_price: 0,
+        quantity: "",
+        description: ``,
+        category: "",
+        status: "active",
+        material: "",
+        type: "",
+        weight: "",
+        stock: 0,
+        isFeatured: false,
+        // stock_quantity, colors, sizes are now handled by variants
+      });
+      setImagePreviews([]);
+      setVariants([]);
+      setErrors({});
+      
+      // Reset mutation state after handling success to prevent re-triggering
+      reset();
+    }
+  }, [isSuccess, reset]);
 
   // ERROR MANAGEMENT
   const validateForm = (): boolean => {
@@ -306,6 +294,17 @@ function AddProductPage() {
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
 
+    // Validate that vendor exists before attempting to create product
+    if (!vendor || !vendor.id) {
+      toast.error("Vendor information is not loaded. Please wait and try again.");
+      return;
+    }
+
+    if (!user || !user.id) {
+      toast.error("User information is missing. Please refresh the page.");
+      return;
+    }
+
     if (validateForm()) {
       createProduct({
         newProduct,
@@ -315,32 +314,16 @@ function AddProductPage() {
         slug,
         user,
       });
-
-      setProductUploadSuccess(true);
-      setNewProduct({
-        name: "",
-        price: 0,
-        sku: "",
-        original_price: 0,
-        quantity: "",
-        description: ``,
-        category: "",
-        status: "active",
-        material: "",
-        type: "",
-        weight: "",
-        stock: 0,
-        isFeatured: false,
-        // stock_quantity, colors, sizes are now handled by variants
-      });
-      setImagePreviews([]);
-      setVariants([]);
-
+      // Don't reset form or show success modal here - wait for mutation to complete
       setErrors({});
     }
-
-    // PRODUCT IMAGE UPLOAD
   }
+
+  // Reset success handled flag when modal closes
+  const closeModal = () => {
+    setProductUploadSuccess(false);
+    successHandledRef.current = false;
+  };
 
   if (user?.role !== "vendor") {
     return (
@@ -352,11 +335,20 @@ function AddProductPage() {
     );
   }
 
-  if (isCreating) {
-    return <LoadingSpinner />;
-  } else {
     return (
-      <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800">
+    <div className="bg-gray-50 min-h-screen font-sans antialiased text-gray-800 relative">
+      {/* Loading overlay - doesn't block navigation */}
+      {isCreating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8 flex flex-col items-center gap-4">
+            <LoadingSpinner />
+            <p className="text-center text-slate-700 font-medium text-sm sm:text-base">
+              Creating product...
+            </p>
+          </div>
+        </div>
+      )}
+
         <SuccessModal
           isOpen={productUploadSuccess}
           onClose={closeModal}
@@ -426,9 +418,9 @@ function AddProductPage() {
                       }`}
                     >
                       <option value="">Select category</option>
-                      {productCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
+                      {CATEGORIES.map((category) => (
+                        <option key={category.id} value={category.name}>
+                          {category.name}
                         </option>
                       ))}
                     </select>
@@ -864,7 +856,6 @@ function AddProductPage() {
         </form>
       </div>
     );
-  }
 }
 
 export default AddProductPage;

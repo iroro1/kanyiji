@@ -6,10 +6,10 @@ import {
   Phone,
   MapPin,
   Facebook,
-  Twitter,
   Instagram,
-  Linkedin,
-  Youtube,
+  // Twitter,
+  // Linkedin,
+  // Youtube,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -43,6 +43,54 @@ export default function Footer() {
     return !isLoginInProgress;
   };
 
+  // Newsletter subscription state
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [newsletterMessage, setNewsletterMessage] = useState("");
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newsletterEmail || !newsletterEmail.includes("@")) {
+      setNewsletterStatus("error");
+      setNewsletterMessage("Please enter a valid email address");
+      return;
+    }
+
+    setNewsletterStatus("loading");
+    setNewsletterMessage("");
+
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setNewsletterStatus("success");
+        setNewsletterMessage("Successfully subscribed! Check your email for confirmation.");
+        setNewsletterEmail("");
+        // Reset message after 5 seconds
+        setTimeout(() => {
+          setNewsletterStatus("idle");
+          setNewsletterMessage("");
+        }, 5000);
+      } else {
+        setNewsletterStatus("error");
+        setNewsletterMessage(data.error || "Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error("Newsletter subscription error:", error);
+      setNewsletterStatus("error");
+      setNewsletterMessage("Failed to subscribe. Please try again later.");
+    }
+  };
+
   const currentYear = new Date().getFullYear();
 
   const footerSections = [
@@ -51,48 +99,45 @@ export default function Footer() {
       links: [
         { name: "All Products", href: "/products" },
         { name: "Categories", href: "/categories" },
-        { name: "Vendors", href: "/vendors" },
-        { name: "Deals", href: "/deals" },
-        { name: "New Arrivals", href: "/new-arrivals" },
+        { name: "New Arrivals", href: "/products/new" },
+        { name: "Featured Products", href: "/products/featured" },
+        { name: "Trending", href: "/products/trending" },
       ],
     },
     {
       title: "For Vendors",
       links: [
         { name: "Become a Vendor", action: "openAuthModal" },
-        { name: "Vendor Guidelines", href: "/vendor/guidelines" },
-        { name: "Success Stories", href: "/vendor/success-stories" },
-        { name: "Vendor Support", href: "/vendor/support" },
+        { name: "Vendor Onboarding", href: "/vendor/onboarding" },
+        { name: "Vendor Agreement", href: "/policies/vendor-agreement" },
+        { name: "Vendor Recruitment", href: "/policies/vendor-recruitment" },
       ],
     },
     {
       title: "Customer Service",
       links: [
         { name: "Help Center", href: "/help" },
-        { name: "Contact Us", href: "/contact" },
-        { name: "Shipping Info", href: "/shipping" },
-        { name: "Returns", href: "/returns" },
-        { name: "Size Guide", href: "/size-guide" },
+        { name: "Policies", href: "/policies" },
+        { name: "Shipping & Delivery", href: "/policies/shipping-delivery" },
+        { name: "Returns & Refunds", href: "/policies/return-refund" },
       ],
     },
     {
       title: "About Kanyiji",
       links: [
         { name: "Our Story", href: "/about" },
-        { name: "Mission & Vision", href: "/mission" },
-        { name: "Team", href: "/team" },
-        { name: "Careers", href: "/careers" },
-        { name: "Press", href: "/press" },
+        { name: "Privacy Policy", href: "/policies/privacy" },
+        { name: "Terms & Conditions", href: "/policies/terms" },
       ],
     },
   ];
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, href: "https://facebook.com" },
-    { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
-    { name: "Instagram", icon: Instagram, href: "https://instagram.com" },
-    { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
-    { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
+    { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/share/182dVkCGtT/?mibextid=wwXIfr" },
+    { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/kanyiji.ng?igsh=MXBrMHhuNWwyZ3h3Nw%3D%3D&utm_source=qr" },
+    // { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
+    // { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
+    // { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
   ];
 
   return (
@@ -142,8 +187,8 @@ export default function Footer() {
               />
             </div>
             <p className="text-gray-300 mb-6 max-w-md">
-              Connecting Nigerian artisans, brands, and businesses with
-              customers nationwide. Discover authentic Made-in-Nigeria products
+              Connecting Nigerian entrepreneurs, brands, and businesses with
+              customers worldwide. Discover authentic Made-in-Nigeria products
               that tell the story of our rich heritage.
             </p>
 
@@ -151,11 +196,11 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-gray-300">
                 <Mail className="w-5 h-5 text-primary-400" />
-                <span>hello@kanyiji.com</span>
+                <span>support@kanyiji.ng</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-300">
                 <Phone className="w-5 h-5 text-primary-400" />
-                <span>+234 800 KANYIJI</span>
+                <span>+234 817 792 8061</span>
               </div>
               <div className="flex items-center space-x-3 text-gray-300">
                 <MapPin className="w-5 h-5 text-primary-400" />
@@ -175,8 +220,8 @@ export default function Footer() {
                   <li key={link.name}>
                     {link.action === "openAuthModal" ? (
                       <button
-                        // onClick={!user ? openAuthModal : vendorRegistration}
-                        className="text-gray-300 hover:text-blue-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
+                        onClick={openAuthModal}
+                        className="text-gray-300 hover:text-primary-400 transition-colors duration-200 text-sm text-left w-full focus:outline-none"
                       >
                         {link.name}
                       </button>
@@ -203,14 +248,37 @@ export default function Footer() {
               Get the latest updates on new products, vendor stories, and
               African culture.
             </p>
-            <div className="flex space-x-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <button className="btn-primary px-6 py-2">Subscribe</button>
-            </div>
+            <form onSubmit={handleNewsletterSubmit} className="space-y-2">
+              <div className="flex space-x-2">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  disabled={newsletterStatus === "loading"}
+                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={newsletterStatus === "loading"}
+                  className="btn-primary px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {newsletterStatus === "loading" ? "Subscribing..." : "Subscribe"}
+                </button>
+              </div>
+              {newsletterMessage && (
+                <p
+                  className={`text-sm ${
+                    newsletterStatus === "success"
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {newsletterMessage}
+                </p>
+              )}
+            </form>
           </div>
         </div>
       </div>
@@ -241,24 +309,30 @@ export default function Footer() {
             </div>
 
             {/* Legal Links */}
-            <div className="flex space-x-6 text-sm">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-sm">
               <Link
-                href="/privacy"
+                href="/policies"
+                className="text-gray-400 hover:text-primary-400 transition-colors duration-200 font-medium"
+              >
+                All Policies
+              </Link>
+              <Link
+                href="/policies/terms"
+                className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
+              >
+                Terms & Conditions
+              </Link>
+              <Link
+                href="/policies/privacy"
                 className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
               >
                 Privacy Policy
               </Link>
               <Link
-                href="/terms"
+                href="/policies/return-refund"
                 className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
               >
-                Terms of Service
-              </Link>
-              <Link
-                href="/cookies"
-                className="text-gray-400 hover:text-primary-400 transition-colors duration-200"
-              >
-                Cookie Policy
+                Returns & Refunds
               </Link>
             </div>
           </div>

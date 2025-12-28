@@ -9,7 +9,7 @@ import React, {
   Dispatch,
   useState,
 } from "react";
-import { useToast } from "@/components/ui/Toast";
+import { toast } from "react-hot-toast";
 
 // --------------------
 // TYPES
@@ -18,11 +18,18 @@ type Product = {
   id: string;
   name: string;
   price: number;
-  title: string;
+  title?: string;
+  vendor_id?: string;
+  stock_quantity?: number;
   product_images: {
     id: string;
     image_url: string;
   }[];
+  selectedVariant?: {
+    size?: string;
+    color?: string;
+    variantId?: string;
+  };
 };
 
 type CartItem = Product & { quantity: number };
@@ -91,21 +98,70 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         (item) => item.id === action.product.id
       );
 
-      const updatedItems = existingItem
-        ? state.items.map((item) =>
-            item.id === action.product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          )
-        : [...state.items, { ...action.product, quantity: 1 }];
+      const maxStock = action.product.stock_quantity ?? Infinity;
+      
+      // Check if product is out of stock (only if stock_quantity is explicitly 0)
+      if (action.product.stock_quantity === 0) {
+        toast.error("This product is out of stock");
+        return state;
+      }
+
+      // Check if item with same ID and variant already exists
+      const existingItemWithVariant = state.items.find(
+        (item) => {
+          const sameId = item.id === action.product.id;
+          const sameVariant = 
+            (!item.selectedVariant && !action.product.selectedVariant) ||
+            (item.selectedVariant?.size === action.product.selectedVariant?.size &&
+             item.selectedVariant?.color === action.product.selectedVariant?.color &&
+             item.selectedVariant?.variantId === action.product.selectedVariant?.variantId);
+          return sameId && sameVariant;
+        }
+      );
+
+      const updatedItems = existingItemWithVariant
+        ? state.items.map((item) => {
+            const isSameItem = item.id === action.product.id &&
+              ((!item.selectedVariant && !action.product.selectedVariant) ||
+               (item.selectedVariant?.size === action.product.selectedVariant?.size &&
+                item.selectedVariant?.color === action.product.selectedVariant?.color &&
+                item.selectedVariant?.variantId === action.product.selectedVariant?.variantId));
+            
+            if (isSameItem) {
+              const newQuantity = Math.min(item.quantity + 1, maxStock);
+              if (newQuantity > maxStock) {
+                toast.error(`Only ${maxStock} items available in stock`);
+                return item;
+              }
+              return { 
+                ...item, 
+                quantity: newQuantity,
+                stock_quantity: action.product.stock_quantity ?? item.stock_quantity,
+                selectedVariant: action.product.selectedVariant ?? item.selectedVariant
+              };
+            }
+            return item;
+          })
+        : [...state.items, { ...action.product, quantity: Math.min(1, maxStock) }];
 
       return { items: updatedItems, total: calculateTotal(updatedItems) };
     }
 
     case "INCREASE_QUANTITY": {
-      const updatedItems = state.items.map((item) =>
-        item.id === action.id ? { ...item, quantity: item.quantity + 1 } : item
-      );
+      const updatedItems = state.items.map((item) => {
+        if (item.id === action.id) {
+          const maxStock = item.stock_quantity || Infinity;
+          if (item.quantity >= maxStock) {
+            toast.error(`Only ${maxStock} items available in stock`);
+            return item;
+          }
+          return { 
+            ...item, 
+            quantity: Math.min(item.quantity + 1, maxStock)
+          };
+        }
+        return item;
+      });
       return { items: updatedItems, total: calculateTotal(updatedItems) };
     }
 

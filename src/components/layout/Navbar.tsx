@@ -16,8 +16,9 @@ import { useRouter } from "next/navigation";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/lib/supabase";
 import kanyiyi from "../../assets/Kanyiji-light.png";
-import { useFetchCurrentUser } from "../http/QueryHttp";
+import { useFetchCurrentUser, useFetchVendorDetails } from "../http/QueryHttp";
 import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
 
 // Logo Component
@@ -150,8 +151,9 @@ const ActionIcons = ({
   isAuthenticated = false,
   unreadNotificationCount = 0,
   onUnreadCountChange,
-}: // cartNumber,
-{
+  cartNumber = 0,
+  wishlistCount = 0,
+}: {
   showMobileSearch?: boolean;
   onMobileSearchClick?: () => void;
   onWishlistClick?: () => void;
@@ -159,7 +161,8 @@ const ActionIcons = ({
   isAuthenticated?: boolean;
   unreadNotificationCount?: number;
   onUnreadCountChange?: (count: number) => void;
-  // cartNumber: number;
+  cartNumber?: number;
+  wishlistCount?: number;
 }) => (
   <div className="flex items-center space-x-3 lg:space-x-4">
     {showMobileSearch && (
@@ -184,9 +187,11 @@ const ActionIcons = ({
       className="p-2 lg:p-2.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-all duration-200 relative group hover:scale-105"
     >
       <Heart className="w-4 h-4 lg:w-5 lg:h-5" />
-      <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        0
+      {wishlistCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium shadow-sm">
+          {wishlistCount > 99 ? '99+' : wishlistCount}
       </span>
+      )}
     </button>
 
     <button
@@ -194,11 +199,11 @@ const ActionIcons = ({
       className="p-2 lg:p-2.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-all duration-200 relative group hover:scale-105"
     >
       <ShoppingCart className="w-4 h-4 lg:w-5 lg:h-5" />
-      {/* 
-      <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium shadow-sm animate-pulse">
-        {cartNumber} 
+      {cartNumber > 0 && (
+        <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium shadow-sm">
+          {cartNumber > 99 ? '99+' : cartNumber}
       </span>
-      */}
+      )}
     </button>
   </div>
 );
@@ -616,6 +621,10 @@ export default function Navbar() {
   const { isAuthenticated, logout } = useAuth();
 
   const { data: user } = useFetchCurrentUser();
+  const { vendor } = useFetchVendorDetails(user?.id || "");
+  
+  // Check if user is a vendor (either by role or by having a vendor record)
+  const isVendor = user?.role === "vendor" || !!vendor;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -635,9 +644,12 @@ export default function Navbar() {
   // Notification unread count
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  // Fetch initial unread count when authenticated
+  // Wishlist count
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+  // Fetch initial unread count and wishlist count when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.id) {
       const fetchUnreadCount = async () => {
         try {
           const response = await fetch("/api/notifications?limit=1&unread_only=true", {
@@ -651,15 +663,40 @@ export default function Navbar() {
           console.error("Error fetching unread count:", error);
         }
       };
+      
+      const fetchWishlistCount = async () => {
+        try {
+          const { count, error } = await supabase
+            .from("wishlist_items")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id);
+          
+          if (!error && count !== null) {
+            setWishlistCount(count || 0);
+          } else if (error) {
+            console.error("Error fetching wishlist count:", error);
+            setWishlistCount(0);
+          }
+        } catch (error) {
+          console.error("Error fetching wishlist count:", error);
+          setWishlistCount(0);
+        }
+      };
+      
       fetchUnreadCount();
+      fetchWishlistCount();
 
       // Poll for updates every 30 seconds
-      const interval = setInterval(fetchUnreadCount, 30000);
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+        fetchWishlistCount();
+      }, 30000);
       return () => clearInterval(interval);
     } else {
       setUnreadNotificationCount(0);
+      setWishlistCount(0);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
@@ -777,7 +814,8 @@ export default function Navbar() {
                 isAuthenticated={isAuthenticated}
                 unreadNotificationCount={unreadNotificationCount}
                 onUnreadCountChange={setUnreadNotificationCount}
-                // cartNumber={state.items.length}
+                cartNumber={state.items.length}
+                wishlistCount={wishlistCount}
               />
             </div>
 
@@ -791,7 +829,7 @@ export default function Navbar() {
                 onBecomeVendor={handleBecomeVendor}
                 user={{
                   isAuthenticated,
-                  isVendor: user?.role === "vendor",
+                  isVendor: isVendor,
                   email: user?.email,
                   name: user?.name,
                 }}
@@ -809,7 +847,7 @@ export default function Navbar() {
                   >
                     Sign In
                   </button>
-                  {user?.role !== "vendor" && (
+                  {!isVendor && (
                     <button
                       onClick={handleBecomeVendor}
                       className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-3 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
@@ -876,7 +914,7 @@ export default function Navbar() {
           onBecomeVendor={handleBecomeVendor}
           user={{
             isAuthenticated,
-            isVendor: user?.role === "vendor",
+            isVendor: isVendor,
             email: user?.email,
             name: user?.name,
           }}
@@ -904,13 +942,9 @@ export default function Navbar() {
             console.log("Login successful - closing modal");
             setShowAuthModal(false);
           } else {
-            console.log("Login failed - reopening modal in 100ms");
-            // Reopen the modal after a short delay
-            setTimeout(() => {
-              console.log("Reopening modal now");
-              setShowAuthModal(true);
-              setAuthModalMode("login");
-            }, 100);
+            console.log("Login failed - keeping modal open");
+            // Don't close the modal on failure - keep it open so user can try again
+            // Modal will stay open and show error message
           }
         }}
       />

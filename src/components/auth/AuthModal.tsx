@@ -24,23 +24,40 @@ export default function AuthModal({
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
 
   const handleClose = () => {
-    if (!isLoginInProgress) {
+    // Don't allow closing if login is in progress
+    // Don't allow closing immediately after login failure (user should see error)
+    if (!isLoginInProgress && !loginFailed) {
       onClose();
     }
-    // If login is in progress, block the close
   };
 
   const handleLoginStart = () => {
     console.log("Login starting - setting isLoginInProgress to true");
     setIsLoginInProgress(true);
+    setLoginFailed(false); // Reset failure state
     onLoginStart?.();
   };
 
   const handleLoginEnd = (success: boolean) => {
     console.log("Login ended, success:", success);
     setIsLoginInProgress(false);
+    
+    if (!success) {
+      // Login failed - keep modal open and prevent closing for a moment
+      // This ensures user sees the error message
+      setLoginFailed(true);
+      // Allow closing after 1 second (user can manually close if they want)
+      setTimeout(() => {
+        setLoginFailed(false);
+      }, 1000);
+    } else {
+      // Login successful - modal will close via onSuccess callback
+      setLoginFailed(false);
+    }
+    
     onLoginEnd?.(success);
   };
 
@@ -60,7 +77,12 @@ export default function AuthModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={handleClose}
+        onClick={() => {
+          // Don't close on backdrop click if login failed or in progress
+          if (!isLoginInProgress && !loginFailed) {
+            handleClose();
+          }
+        }}
       />
 
       {/* Modal */}
@@ -72,7 +94,11 @@ export default function AuthModal({
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            disabled={isLoginInProgress || loginFailed}
+            className={`absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors ${
+              (isLoginInProgress || loginFailed) ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            title={loginFailed ? "Please try again or wait a moment" : ""}
           >
             <X className="w-5 h-5" />
           </button>

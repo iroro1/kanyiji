@@ -13,6 +13,7 @@ import {
   X,
   BarChart3,
   Users,
+  UserCircle,
   Package,
   ShoppingBag,
   Settings,
@@ -106,8 +107,8 @@ export default function AdminNavbar() {
     { id: "vendors", name: "Vendors", href: "/admin?tab=vendors", icon: Users },
     { id: "products", name: "Products", href: "/admin?tab=products", icon: Package },
     { id: "orders", name: "Orders", href: "/admin?tab=orders", icon: ShoppingBag },
+    { id: "users", name: "Users", href: "/admin?tab=users", icon: UserCircle },
     { id: "notifications", name: "Notifications", href: "/admin?tab=notifications", icon: Bell },
-    { id: "users", name: "Users", href: "/admin?tab=users", icon: Users },
     { id: "analytics", name: "Analytics", href: "/admin?tab=analytics", icon: BarChart3 },
     { id: "settings", name: "Settings", href: "/admin?tab=settings", icon: Settings },
   ];
@@ -154,7 +155,7 @@ export default function AdminNavbar() {
 
             {/* Center: Desktop Navigation Tabs */}
             <div className="hidden lg:flex items-center space-x-1">
-              {adminNavigation.slice(0, 5).map((item) => (
+              {adminNavigation.slice(0, 6).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleTabChange(item.id)}
@@ -191,7 +192,6 @@ export default function AdminNavbar() {
               {/* Notifications */}
               <NotificationDropdown 
                 unreadCount={unreadCount}
-                onUnreadCountChange={setUnreadCount} 
                 onUnreadCountChange={(count) => {
                   setUnreadCount(count);
                 }}

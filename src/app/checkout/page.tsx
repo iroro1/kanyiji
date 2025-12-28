@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, CreditCard, Truck, Shield, Lock } from "lucide-react";
+import { ArrowLeft, CreditCard, Truck, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,14 +12,20 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomError from "../error";
 import { validateSignupForm } from "@/components/ui/ValidateInputs";
+import { calculateShippingFee, type ShippingLocation } from "@/utils/shippingCalculator";
+import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CheckoutPage() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const { notify } = useToast();
   const router = useRouter();
+  const { state, dispatch } = useCart();
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [paymentMethod, setPaymentMethod] = useState("card");
+  const [shippingMethod, setShippingMethod] = useState("Standard Delivery");
   const [shippingData, setShippingData] = useState({
     firstName: "",
     lastName: "",
@@ -28,6 +34,7 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     state: "",
+    country: "Nigeria",
     zipCode: "",
   });
 
@@ -38,9 +45,32 @@ export default function CheckoutPage() {
 
   const formatPrice = (price: number) => `₦${price.toLocaleString()}`;
 
-  const { state } = useCart();
   const items = state.items;
-  const shipping = 800;
+  
+  // Calculate shipping fee based on destination and total weight
+  // Default weight: 1kg per item + 1kg extra for packaging
+  const totalWeight = useMemo(() => {
+    const itemsWeight = items.reduce((sum, item) => sum + (item.quantity * 1), 0); // 1kg per item default
+    return itemsWeight + 1; // Add 1kg extra for packaging
+  }, [items]);
+
+  const shippingFee = useMemo(() => {
+    // Don't calculate shipping until at least state or city is provided
+    if (!shippingData.state && !shippingData.city) {
+      return null; // Return null to indicate shipping not calculated yet
+    }
+
+    const location: ShippingLocation = {
+      country: shippingData.country || "Nigeria",
+      state: shippingData.state,
+      city: shippingData.city,
+    };
+
+    const result = calculateShippingFee(totalWeight, location);
+    return result ? result.price : null; // Return null if calculation fails
+  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight]);
+
+  const shipping = shippingFee ?? 0; // Use nullish coalescing to handle null
   const handlePlaceOrder = async () => {
     const validationErrors = validateSignupForm(shippingData);
 
@@ -79,6 +109,21 @@ export default function CheckoutPage() {
           //     result.reference
           //   }`
           // );
+          // Clear cart after successful payment
+          dispatch({ type: "CLEAR_CART" });
+          
+          // Invalidate orders cache so new order appears immediately
+          if (user?.id) {
+            // Invalidate queries to refresh data after order
+            queryClient.invalidateQueries({ queryKey: ["userOrders", user.id] });
+            // Invalidate all product queries to refresh stock quantities - remove all cached data
+            queryClient.removeQueries({ queryKey: ["singleProduct"] });
+            queryClient.removeQueries({ queryKey: ["allProducts"] });
+            // Force refetch of all product-related queries
+            queryClient.refetchQueries({ queryKey: ["singleProduct"] });
+            queryClient.refetchQueries({ queryKey: ["allProducts"] });
+          }
+          
           setStep(3);
         } catch {
           notify("Payment failed. Please try again.", "error");
@@ -180,9 +225,9 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className={`grid grid-cols-1 ${step !== 3 ? 'lg:grid-cols-3' : ''} gap-8`}>
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className={step !== 3 ? "lg:col-span-2" : "lg:col-span-full"}>
             {step === 1 && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -283,6 +328,24 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={shippingData.country}
+                    onChange={(event) =>
+                      handleShippingData("country", event.target.value)
+                    }
+                  >
+                    <option value="Nigeria">Nigeria</option>
+                    <option value="UK">United Kingdom</option>
+                    <option value="US">United States</option>
+                    <option value="Canada">Canada</option>
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -338,37 +401,39 @@ export default function CheckoutPage() {
                     Shipping Method
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 bg-primary-50 border-primary-200">
                       <input
                         type="radio"
                         name="shipping"
                         value="standard"
                         className="mr-3"
-                        defaultChecked
+                        checked={shippingMethod === "Standard Delivery"}
+                        onChange={() => setShippingMethod("Standard Delivery")}
                       />
                       <div className="flex-1">
-                        <div className="font-medium">Standard Shipping</div>
+                        <div className="font-medium">Kanyiji Standard Shipping</div>
                         <div className="text-sm text-gray-600">
-                          3-5 business days
+                          {shippingData.state || shippingData.city 
+                            ? `3-7 business days • ${totalWeight.toFixed(1)} kg`
+                            : "Enter destination to calculate shipping"}
                         </div>
                       </div>
-                      <div className="font-semibold">₦800</div>
-                    </label>
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="express"
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">Express Shipping</div>
-                        <div className="text-sm text-gray-600">
-                          1-2 business days
-                        </div>
+                      <div className="font-semibold">
+                        {shippingFee === null 
+                          ? "Enter destination" 
+                          : shippingFee > 0 
+                            ? formatPrice(shippingFee) 
+                            : "Free"}
                       </div>
-                      <div className="font-semibold">₦1,200</div>
                     </label>
+                    {shippingFee !== null && shippingFee > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                        <p className="font-medium mb-1">Shipping Details:</p>
+                        <p>Weight: {totalWeight.toFixed(1)} kg</p>
+                        <p>Destination: {shippingData.city || shippingData.state || "Not specified"}</p>
+                        <p className="mt-1 font-semibold">Rate: {formatPrice(shipping)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -392,7 +457,7 @@ export default function CheckoutPage() {
                     Payment Method
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 bg-primary-50 border-primary-200">
                       <input
                         type="radio"
                         name="payment"
@@ -400,24 +465,11 @@ export default function CheckoutPage() {
                         className="mr-3"
                         checked={paymentMethod === "card"}
                         onChange={() => setPaymentMethod("card")}
+                        defaultChecked
                       />
                       <div className="flex items-center">
                         <CreditCard className="w-5 h-5 mr-2 text-primary-600" />
-                        <span>Credit/Debit Card</span>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="bank"
-                        className="mr-3"
-                        checked={paymentMethod === "bank"}
-                        onChange={() => setPaymentMethod("bank")}
-                      />
-                      <div className="flex items-center">
-                        <Shield className="w-5 h-5 mr-2 text-primary-600" />
-                        <span>Bank Transfer</span>
+                        <span className="font-medium">Credit/Debit Card</span>
                       </div>
                     </label>
                   </div>
@@ -463,11 +515,17 @@ export default function CheckoutPage() {
                                 items?.map((item) => ({
                                   name: item.name,
                                   id: item.id,
-                                  // seller: item?.seller_id,
+                                  vendor_id: (item as any).vendor_id,
                                   price: item.price,
-                                  image: item.product_images[0].image_url,
+                                  image: item.product_images?.[0]?.image_url || '',
                                   quantity: item.quantity,
-                                  address: shippingData,
+                                  size: (item as any).selectedVariant?.size || null,
+                                  color: (item as any).selectedVariant?.color || null,
+                                  variantId: (item as any).selectedVariant?.variantId || null,
+                                  address: {
+                                    ...shippingData,
+                                    shippingFee: shipping,
+                                  },
                                 }))
                               ),
                         totalAmount:
@@ -475,6 +533,11 @@ export default function CheckoutPage() {
                             ? checkoutOrders[0].price * checkOutQuantity +
                               shipping
                             : state.total + shipping,
+                        shippingFee: shipping,
+                        shippingMethod: shippingMethod,
+                        subtotal: checkoutItem.length !== 0
+                          ? checkoutOrders[0].price * checkOutQuantity
+                          : state.total,
 
                         cartCount: items.length,
                         // addressId: selectedAddress?.id,
@@ -495,21 +558,6 @@ export default function CheckoutPage() {
                         ? "Verifying payment..."
                         : `Pay ${formatPrice(state.total + shipping)}`}
                     </PaystackModalButton>
-                  </div>
-                )}
-
-                {paymentMethod === "bank" && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-gray-600 mb-3">
-                      You will receive bank transfer details after placing your
-                      order. Please complete the transfer within 24 hours to
-                      confirm your order.
-                    </p>
-                    <div className="text-sm text-gray-500">
-                      <p>Bank: First Bank of Nigeria</p>
-                      <p>Account: 1234567890</p>
-                      <p>Account Name: Kanyiji Marketplace</p>
-                    </div>
                   </div>
                 )}
 
@@ -570,7 +618,8 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - Hidden on confirmation step */}
+          {step !== 3 && (
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 sticky top-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -584,7 +633,7 @@ export default function CheckoutPage() {
                     <Image
                       width={500}
                       height={300}
-                      src={item.product_images[0]?.image_url}
+                      src={item.product_images?.[0]?.image_url || '/placeholder-image.jpg'}
                       alt={item.name}
                       className="w-16 h-16 object-cover rounded-lg"
                     />
@@ -592,6 +641,18 @@ export default function CheckoutPage() {
                       <h4 className="font-medium text-gray-900 text-sm">
                         {item.name}
                       </h4>
+                      {/* Display size and color if available */}
+                      {(item as any).selectedVariant && ((item as any).selectedVariant.size || (item as any).selectedVariant.color) && (
+                        <p className="text-gray-500 text-xs mt-1">
+                          {((item as any).selectedVariant.size && (item as any).selectedVariant.color) 
+                            ? `Size: ${(item as any).selectedVariant.size} • Color: ${(item as any).selectedVariant.color}`
+                            : (item as any).selectedVariant.size 
+                            ? `Size: ${(item as any).selectedVariant.size}`
+                            : (item as any).selectedVariant.color
+                            ? `Color: ${(item as any).selectedVariant.color}`
+                            : ''}
+                        </p>
+                      )}
                       <p className="text-gray-600 text-sm">
                         Qty: {item.quantity}
                       </p>
@@ -614,7 +675,20 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
-                    ₦{shipping.toLocaleString()}
+                    {shippingFee === null ? (
+                      <span className="text-gray-400">Enter destination</span>
+                    ) : shippingFee > 0 ? (
+                      <>
+                        ₦{shippingFee.toLocaleString()}
+                        {shippingData.state || shippingData.city ? (
+                          <span className="text-xs text-gray-500 block">
+                            ({totalWeight.toFixed(1)} kg)
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-green-600">Free</span>
+                    )}
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
@@ -636,8 +710,10 @@ export default function CheckoutPage() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

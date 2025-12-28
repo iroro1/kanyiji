@@ -7,7 +7,17 @@ import {
 } from "@tanstack/react-query";
 import { useToast } from "../ui/Toast";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Disable automatic refetch when tab becomes visible (prevents blocking)
+      refetchOnMount: false, // Don't auto-refetch on mount (prevents blocking when navigating)
+      refetchOnReconnect: false, // Don't auto-refetch on reconnect (prevents blocking)
+      retry: 1, // Reduce retry attempts
+      staleTime: 30 * 1000, // Consider data fresh for 30 seconds (reduces unnecessary refetches)
+    },
+  },
+});
 
 function AppQueryProvider({ children }: { children: React.ReactNode }) {
   return <RQProvider client={queryClient}>{children}</RQProvider>;
@@ -23,6 +33,8 @@ import {
   getSingleProduct,
   fetchAllOrders,
   fetchVendorDetails,
+  fetchVendorOrders,
+  updateVendorOrderStatus,
   deleteVendorProduct,
   deleteVendorProductImages,
   editProduct,
@@ -113,8 +125,11 @@ export function useFetchAllProducts(
       // Otherwise, return the next page number
       return allPages.length;
     },
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds (reduces unnecessary refetches)
     gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false, // Prevent blocking when returning to tab
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   // Flatten the pages array for easy rendering
@@ -150,15 +165,17 @@ export function useFetchAllProducts(
 // }
 
 export function useFetchSingleProduct(productId: string, retry: boolean) {
-  const { data, isPending, error, isError } = useQuery({
+  const { data, isPending, isLoading, error, isError, refetch } = useQuery({
     queryKey: ["singleProduct", productId, retry],
     queryFn: () => getSingleProduct(productId),
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
     gcTime: 15 * 60 * 1000,
     retry: 5,
+    refetchOnMount: false, // Don't auto-refetch on mount (prevents blocking)
+    // Use isLoading for initial load, isPending for background refetches
   });
 
-  return { data, isPending, error, isError };
+  return { data, isPending, isLoading, error, isError, refetch };
 }
 
 export function useFetchWishlist(userId: string, refresh: number) {
@@ -166,9 +183,12 @@ export function useFetchWishlist(userId: string, refresh: number) {
     queryKey: ["allwishlist", userId, refresh],
     queryFn: () => getWishlist(userId),
     enabled: !!userId,
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 1000, // Consider data fresh for 30 seconds
     gcTime: 15 * 60 * 1000,
-    retry: 5,
+    retry: 1,
+    refetchOnWindowFocus: false, // Prevent blocking when returning to tab
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   console.log("from query api", data);
@@ -178,16 +198,19 @@ export function useFetchWishlist(userId: string, refresh: number) {
 
 // FETCH ORDERS
 export function useFetchUserOrders(userId: string) {
-  const { data, isPending, error, isError } = useQuery({
+  const { data, isPending, isLoading, error, isError } = useQuery({
     queryKey: ["userOrders", userId],
     queryFn: () => fetchAllOrders(userId),
-    staleTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     enabled: !!userId,
     gcTime: 15 * 60 * 1000,
+    refetchOnMount: false, // Don't auto-refetch on mount
+    refetchOnWindowFocus: false, // Disabled to prevent blocking when returning to tab
+    refetchOnReconnect: false, // Don't refetch on reconnect
     // retry: 5,
   });
 
-  return { data, isPending, error, isError };
+  return { data, isPending, isLoading, error, isError };
 }
 
 // REGISTER NEW VENDOR
@@ -205,7 +228,7 @@ export function useRegisterVendor(userId: string) {
     mutationFn: registerNewVendor, // (variables) => registerNewVendor(variables)
 
     // Handle success
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // 'data' is the vendorData returned from the API function
       // toast.success(`Vendor "${data.business_name}" registered successfully!`);
 
@@ -213,6 +236,38 @@ export function useRegisterVendor(userId: string) {
       // This will update any list of vendors shown elsewhere
       queryClient.invalidateQueries({ queryKey: ["vendor", userId] });
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+
+      // Send confirmation email
+      try {
+        const userEmail = data.userEmail || data.user?.email || data.profiles?.email;
+        if (userEmail && data.business_name) {
+          const response = await fetch("/api/vendors/send-confirmation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              businessName: data.business_name,
+              userId: userId,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Failed to send confirmation email:", errorData);
+            // Don't throw - registration was successful, email is just a bonus
+          } else {
+            console.log("Vendor confirmation email sent successfully");
+          }
+        } else {
+          console.warn("Cannot send confirmation email: missing email or business name", {
+            hasEmail: !!userEmail,
+            hasBusinessName: !!data.business_name,
+          });
+        }
+      } catch (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        // Don't throw - registration was successful, email is just a bonus
+      }
     },
 
     // Handle error
@@ -244,6 +299,7 @@ export function useFetchVendorDetails(userId: string) {
     staleTime: 15 * 60 * 1000,
     enabled: !!userId,
     gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false, // Prevent refetch when returning to tab
     // retry: 5,
   });
 
@@ -258,6 +314,8 @@ export function useAddProduct(userId: string) {
     mutate: createProduct, // Renamed 'mutate' to 'createProduct' for clarity
     isPending: isCreating, // Renamed 'isPending' to 'isCreating'
     isError,
+    isSuccess,
+    reset, // Add reset function to clear mutation state
   } = useMutation({
     // Pass the API function
     mutationFn: addNewProduct,
@@ -275,7 +333,7 @@ export function useAddProduct(userId: string) {
     },
   });
 
-  return { createProduct, isCreating, isError };
+  return { createProduct, isCreating, isError, isSuccess, reset };
 }
 
 // DELETE VENDOR PRODUCT
@@ -350,4 +408,50 @@ export function useEditVendorProduct() {
   });
 
   return { editVendorProduct, isEditing };
+}
+
+// FETCH VENDOR ORDERS
+export function useFetchVendorOrders(status?: string) {
+  const { authLoading } = useSupabaseAuthReady();
+  const {
+    data,
+    isLoading,
+    error,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["vendorOrders", status],
+    queryFn: () => fetchVendorOrders(undefined, status),
+    enabled: !authLoading,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  return {
+    orders: data?.orders || [],
+    stats: data?.stats || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+    },
+    pagination: data?.pagination,
+    isLoading,
+    error,
+    isError,
+    refetch,
+  };
+}
+
+// UPDATE VENDOR ORDER STATUS
+export function useUpdateVendorOrderStatus() {
+  const queryClient = useQueryClient();
+
+  const { mutate: updateOrderStatus, isPending } = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+      updateVendorOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendorOrders"] });
+    },
+  });
+
+  return { updateOrderStatus, isPending };
 }

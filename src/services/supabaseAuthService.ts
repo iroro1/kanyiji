@@ -133,7 +133,7 @@ class SupabaseAuthService {
         };
       }
 
-      // Create user account with email confirmation
+      // Create user account - Supabase will send verification email via Resend SMTP
       console.log("Creating user account...");
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
@@ -144,11 +144,15 @@ class SupabaseAuthService {
             role: userData.role,
             phone: userData.phone || "",
           },
-          emailRedirectTo: `${
-            window.location.origin
-          }/verify-email?email=${encodeURIComponent(userData.email)}`,
+          emailRedirectTo: typeof window !== "undefined"
+            ? `${window.location.origin}/verify-email?email=${encodeURIComponent(userData.email)}`
+            : process.env.NEXT_PUBLIC_APP_URL
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?email=${encodeURIComponent(userData.email)}`
+            : `https://kanyiji.ng/verify-email?email=${encodeURIComponent(userData.email)}`,
         },
       });
+      
+      // Note: Verification email is automatically sent via Resend SMTP (configured in Supabase)
 
       console.log("Auth response:", { authData, authError });
 
@@ -178,6 +182,7 @@ class SupabaseAuthService {
             email: userData.email,
             full_name: userData.fullName,
             role: userData.role,
+            phone: userData.phone || "",
             email_verified: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -190,6 +195,29 @@ class SupabaseAuthService {
             profileError
           );
           console.log("Profile will be created during email verification");
+          
+          // If profile creation failed but phone exists, try to update it later
+          // This handles the case where trigger creates profile without phone
+          if (userData.phone && authData.user) {
+            const userId = authData.user.id;
+            setTimeout(async () => {
+              try {
+                const { error: updateError } = await supabase
+                  .from("profiles")
+                  .update({
+                    phone: userData.phone || "",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", userId);
+                
+                if (!updateError) {
+                  console.log("Phone number updated in profile after trigger creation");
+                }
+              } catch (err) {
+                console.error("Error updating phone after profile creation:", err);
+              }
+            }, 2000); // Wait 2 seconds for trigger to create profile
+          }
         } else {
           console.log(
             "Profile created successfully during signup:",
@@ -199,6 +227,28 @@ class SupabaseAuthService {
       } catch (profileError) {
         console.error("Profile creation error:", profileError);
         console.log("Profile will be created during email verification");
+        
+        // If profile creation failed but phone exists, try to update it later
+        if (userData.phone && authData.user) {
+          const userId = authData.user.id;
+          setTimeout(async () => {
+            try {
+              const { error: updateError } = await supabase
+                .from("profiles")
+                .update({
+                  phone: userData.phone || "",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", userId);
+              
+              if (!updateError) {
+                console.log("Phone number updated in profile after trigger creation");
+              }
+            } catch (err) {
+              console.error("Error updating phone after profile creation:", err);
+            }
+          }, 2000);
+        }
       }
 
       // Check if email confirmation is required
@@ -207,8 +257,84 @@ class SupabaseAuthService {
         authData.user.email_confirmed_at === undefined
       ) {
         console.log(
-          "Email confirmation required, redirecting to verification page"
+          "Email confirmation required, sending verification email..."
         );
+        
+        // Explicitly resend verification email using Supabase's resend method
+        // This ensures the OTP email is sent even if Supabase didn't send it automatically
+        try {
+          const { error: resendError } = await supabase.auth.resend({
+            type: "signup",
+            email: userData.email,
+          });
+
+          if (resendError) {
+            console.error("Failed to resend verification email:", resendError);
+            // Also try the custom API as fallback
+            try {
+              const response = await fetch("/api/auth/send-verification-email", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  email: userData.email,
+                }),
+              });
+
+              if (!response.ok) {
+                console.error("Failed to send verification email via API fallback");
+              } else {
+                console.log("Verification email sent successfully via API fallback");
+              }
+            } catch (apiError) {
+              console.error("Error sending verification email via API:", apiError);
+            }
+          } else {
+            console.log("Verification email sent successfully via Supabase resend");
+          }
+        } catch (emailError) {
+          console.error("Error sending verification email:", emailError);
+          // Try the custom API as fallback
+          try {
+            await fetch("/api/auth/send-verification-email", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: userData.email,
+              }),
+            });
+          } catch (apiError) {
+            console.error("Error sending verification email via API fallback:", apiError);
+          }
+        }
+        
+        // Send welcome email after registration (even if verification is required)
+        // Don't wait for it to complete - send asynchronously
+        fetch("/api/auth/send-welcome-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            fullName: userData.fullName,
+          }),
+        })
+        .then((response) => {
+          if (response.ok) {
+            console.log("Welcome email sent successfully for email/password signup");
+          } else {
+            console.error("Failed to send welcome email:", response.statusText);
+          }
+        })
+        .catch((emailError) => {
+          console.error("Error sending welcome email:", emailError);
+          // Don't fail signup if welcome email fails
+        });
+        
         return {
           success: true,
           user: {
@@ -224,6 +350,30 @@ class SupabaseAuthService {
             "Please check your email and verify your account to continue.",
         };
       }
+
+      // Send welcome email after successful registration
+      // Don't wait for it to complete - send asynchronously
+      fetch("/api/auth/send-welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          fullName: userData.fullName,
+        }),
+      })
+      .then((response) => {
+        if (response.ok) {
+          console.log("Welcome email sent successfully for email/password signup");
+        } else {
+          console.error("Failed to send welcome email:", response.statusText);
+        }
+      })
+      .catch((emailError) => {
+        console.error("Error sending welcome email:", emailError);
+        // Don't fail signup if welcome email fails
+      });
 
       // Wait a moment for the session to be established
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -345,27 +495,64 @@ class SupabaseAuthService {
 
   async resetPassword(email: string): Promise<AuthResponse> {
     try {
-      console.log("Starting password reset OTP for:", email);
+      console.log("Starting password reset for:", email);
+      const normalizedEmail = email.trim().toLowerCase();
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // For OTP-based password reset, we need to use resetPasswordForEmail
+      // The email template in Supabase must be configured to include {{ .Token }} for OTP
+      // Make sure the "Reset Password" email template includes the OTP token
+      const getRedirectUrl = () => {
+        if (typeof window !== "undefined") {
+          return `${window.location.origin}/reset-password`;
+        }
+        return process.env.NEXT_PUBLIC_APP_URL
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`
+          : "https://kanyiji.ng/reset-password";
+      };
+
+      const { data, error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: getRedirectUrl(),
       });
 
       if (error) {
         console.error("Password reset error:", error);
+        console.error("Full error details:", JSON.stringify(error, null, 2));
+        
+        // Check for specific error types
+        const errorMessage = error.message.toLowerCase();
+        const errorString = JSON.stringify(error).toLowerCase();
+        
+        // Check for SMTP authentication errors (535 Invalid username)
+        // The error code might be in the error object, not just the message
+        if (errorString.includes("535") || errorString.includes("invalid username") || 
+            errorMessage.includes("authentication failed") || errorMessage.includes("535")) {
+          return {
+            success: false,
+            error: "SMTP Authentication Failed: The SMTP username in Supabase is incorrect. Go to Supabase → Settings → Auth → SMTP Settings and verify:\n1. Username is your FULL email (e.g., yourname@gmail.com)\n2. For Gmail, use App Password (not regular password)\n3. No extra spaces in username/password",
+          };
+        }
+        
+        // Generic email sending error - likely SMTP configuration issue
+        if (errorMessage.includes("error sending") || errorMessage.includes("recovery email") || errorMessage.includes("confirmation email")) {
+          return {
+            success: false,
+            error: "Unable to send password reset email. Based on Supabase logs, this is likely an SMTP authentication issue (535 Invalid username). Please:\n1. Check SMTP username is correct (full email for Gmail)\n2. Verify password (App Password for Gmail)\n3. Check Supabase → Settings → Auth → SMTP Settings",
+          };
+        }
+        
         return {
           success: false,
-          error: error.message || "Failed to send password reset OTP",
+          error: error.message || "Failed to send password reset email",
         };
       }
 
-      console.log("Password reset OTP sent successfully");
+      console.log("Password reset email sent successfully", { data });
       return { success: true };
     } catch (error: any) {
       console.error("Password reset error:", error);
       return {
         success: false,
-        error: error.message || "Failed to send password reset OTP",
+        error: error.message || "Failed to send password reset email",
       };
     }
   }
@@ -378,21 +565,22 @@ class SupabaseAuthService {
     try {
       console.log("Verifying password reset OTP for:", email);
 
-      const { data, error } = await supabase.auth.verifyOtp({
+      // Verify OTP using Supabase
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token,
         type: "recovery",
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
+      if (verifyError) {
+        console.error("OTP verification error:", verifyError);
         return {
           success: false,
-          error: error.message || "Invalid or expired OTP",
+          error: verifyError.message || "Invalid or expired OTP",
         };
       }
 
-      // Update password
+      // OTP is valid, now update password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -427,10 +615,22 @@ class SupabaseAuthService {
         };
       }
 
+      // Get the redirect URL dynamically based on the current environment
+      const getRedirectUrl = () => {
+        if (typeof window !== "undefined") {
+          // Use current origin for local development
+          return `${window.location.origin}/auth/callback`;
+        }
+        // Fallback to environment variable or production URL
+        return process.env.NEXT_PUBLIC_APP_URL
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+          : "https://kanyiji.ng/auth/callback";
+      };
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getRedirectUrl(),
         },
       });
 

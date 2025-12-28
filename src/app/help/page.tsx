@@ -166,7 +166,7 @@ export default function HelpPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <div className="flex items-center justify-center space-x-3">
               <Mail className="w-5 h-5 text-primary-600" />
-              <span className="text-gray-700">support@kanyiji.com</span>
+              <span className="text-gray-700">support@kanyiji.ng</span>
             </div>
             <div className="flex items-center justify-center space-x-3">
               <Phone className="w-5 h-5 text-primary-600" />
@@ -176,9 +176,9 @@ export default function HelpPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="mt-12 text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
-          <div className="flex flex-wrap justify-center gap-4">
+        <div className="mt-12">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Quick Links</h3>
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
             <Link href="/profile" className="text-primary-600 hover:text-primary-700 underline">
               My Profile
             </Link>
@@ -190,6 +190,17 @@ export default function HelpPage() {
             </Link>
             <Link href="/about" className="text-primary-600 hover:text-primary-700 underline">
               About Us
+            </Link>
+          </div>
+          
+          {/* All Policies Link */}
+          <div className="text-center">
+            <Link
+              href="/policies"
+              className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              View All Policies
             </Link>
           </div>
         </div>

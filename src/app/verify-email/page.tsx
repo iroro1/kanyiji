@@ -12,6 +12,34 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
+import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
+
+// Server-side rate limit check
+async function checkServerRateLimit(email: string, actionType: "signup" | "resend") {
+  try {
+    const response = await fetch("/api/auth/rate-limit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: email,
+        actionType,
+        maxAttempts: 3,
+        windowDuration: "1 hour",
+      }),
+    });
+
+    if (!response.ok) {
+      // If API fails, fall back to client-side check
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Server rate limit check failed:", error);
+    return null; // Fall back to client-side
+  }
+}
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -25,6 +53,7 @@ export default function VerifyEmailPage() {
   >("pending");
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds (Supabase OTP expires quickly)
+  const [resendCooldown, setResendCooldown] = useState(0); // Cooldown in seconds between resends
 
   useEffect(() => {
     // Get email from URL params or session
@@ -56,6 +85,14 @@ export default function VerifyEmailPage() {
     }
   }, [timeLeft, verificationStatus]);
 
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp || otp.length !== 6) {
@@ -67,135 +104,144 @@ export default function VerifyEmailPage() {
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      // Verify OTP using Supabase (which uses Resend SMTP for sending)
+      const { data: authData, error: authError } = await supabase.auth.verifyOtp({
         email,
         token: otp,
         type: "email",
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
-
+      if (authError) {
+        console.error("OTP verification error:", authError);
+        
         // Handle specific error cases
         if (
-          error.message?.includes("expired") ||
-          error.message?.includes("invalid")
+          authError.message?.includes("expired") ||
+          authError.message?.includes("invalid")
         ) {
           setError("OTP has expired or is invalid. Please request a new one.");
         } else {
-          setError(error.message || "Invalid OTP. Please try again.");
+          setError(authError.message || "Invalid OTP. Please try again.");
         }
         setVerificationStatus("error");
-      } else {
-        console.log("OTP verification successful:", data);
-
-        // Create or update profile
-        if (data.user?.id) {
-          try {
-            // First, try to update existing profile
-            const { data: existingProfile, error: fetchError } = await supabase
-              .from("profiles")
-              .select("id")
-              .eq("id", data.user.id)
-              .single();
-
-            if (existingProfile) {
-              // Profile exists, update email_verified status and phone from metadata
-              const { error: profileError } = await supabase
-                .from("profiles")
-                .update({
-                  email_verified: true,
-                  phone: data.user.user_metadata?.phone || "", // Update phone from user metadata
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", data.user.id);
-
-              if (profileError) {
-                console.error("Profile update error:", profileError);
-              } else {
-                console.log(
-                  "Profile email_verified status and phone updated successfully"
-                );
-                console.log(
-                  "Phone from metadata:",
-                  data.user.user_metadata?.phone
-                );
-              }
-            } else {
-              // Profile doesn't exist, create it
-              console.log("Creating profile during email verification...");
-              const { error: createError } = await supabase
-                .from("profiles")
-                .insert({
-                  id: data.user.id,
-                  email: data.user.email || email,
-                  full_name: data.user.user_metadata?.full_name || "User",
-                  role: data.user.user_metadata?.role || "customer",
-                  phone: data.user.user_metadata?.phone || "", // Use phone from user metadata
-                  address: "", // Initialize address as empty string
-                  city: "", // Initialize city as empty string
-                  state: "", // Initialize state as empty string
-                  zip_code: "", // Initialize zip_code as empty string
-                  country: "Nigeria", // Default country
-                  email_verified: true,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
-
-              if (createError) {
-                console.error("Profile creation error:", createError);
-
-                // If it's a foreign key constraint error, try using the API route
-                if (createError.code === "23503") {
-                  console.log(
-                    "Foreign key constraint error - trying API route..."
-                  );
-                  try {
-                    const response = await fetch("/api/create-profile", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        userId: data.user.id,
-                        email: data.user.email || email,
-                        fullName: data.user.user_metadata?.full_name || "User",
-                        role: data.user.user_metadata?.role || "customer",
-                        phone: data.user.user_metadata?.phone || "",
-                        emailVerified: true,
-                      }),
-                    });
-
-                    if (response.ok) {
-                      console.log("Profile created successfully via API route");
-                    } else {
-                      console.error("API route also failed");
-                    }
-                  } catch (apiError) {
-                    console.error("API route error:", apiError);
-                  }
-                }
-                // Don't fail verification if profile creation fails
-              } else {
-                console.log(
-                  "Profile created successfully during email verification"
-                );
-              }
-            }
-          } catch (profileError) {
-            console.error("Profile operation error:", profileError);
-            // Don't fail the verification if profile operation fails
-          }
-        }
-
-        setVerificationStatus("success");
-        toast.success("Email verified successfully!");
-
-        // Redirect to home page after 2 seconds
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
+        return;
       }
+
+      if (!authData.user) {
+        setError("User not found. Please try signing up again.");
+        setVerificationStatus("error");
+        return;
+      }
+
+      const verifiedUser = authData.user;
+      console.log("OTP verification successful");
+
+      // Create or update profile
+      if (verifiedUser?.id) {
+        try {
+          // First, try to update existing profile
+          const { data: existingProfile, error: fetchError } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", verifiedUser.id)
+            .single();
+
+          if (existingProfile) {
+            // Profile exists, update email_verified status and phone from metadata
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .update({
+                email_verified: true,
+                phone: verifiedUser.user_metadata?.phone || "", // Update phone from user metadata
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", verifiedUser.id);
+
+            if (profileError) {
+              console.error("Profile update error:", profileError);
+            } else {
+              console.log(
+                "Profile email_verified status and phone updated successfully"
+              );
+              console.log(
+                "Phone from metadata:",
+                verifiedUser.user_metadata?.phone
+              );
+            }
+          } else {
+            // Profile doesn't exist, create it
+            console.log("Creating profile during email verification...");
+            const { error: createError } = await supabase
+              .from("profiles")
+              .insert({
+                id: verifiedUser.id,
+                email: verifiedUser.email || email,
+                full_name: verifiedUser.user_metadata?.full_name || "User",
+                role: verifiedUser.user_metadata?.role || "customer",
+                phone: verifiedUser.user_metadata?.phone || "", // Use phone from user metadata
+                address: "", // Initialize address as empty string
+                city: "", // Initialize city as empty string
+                state: "", // Initialize state as empty string
+                zip_code: "", // Initialize zip_code as empty string
+                country: "Nigeria", // Default country
+                email_verified: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+
+            if (createError) {
+              console.error("Profile creation error:", createError);
+
+              // If it's a foreign key constraint error, try using the API route
+              if (createError.code === "23503") {
+                console.log(
+                  "Foreign key constraint error - trying API route..."
+                );
+                try {
+                  const response = await fetch("/api/create-profile", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      userId: verifiedUser.id,
+                      email: verifiedUser.email || email,
+                      fullName: verifiedUser.user_metadata?.full_name || "User",
+                      role: verifiedUser.user_metadata?.role || "customer",
+                      phone: verifiedUser.user_metadata?.phone || "",
+                      emailVerified: true,
+                    }),
+                  });
+
+                  if (response.ok) {
+                    console.log("Profile created successfully via API route");
+                  } else {
+                    console.error("API route also failed");
+                  }
+                } catch (apiError) {
+                  console.error("API route error:", apiError);
+                }
+              }
+              // Don't fail verification if profile creation fails
+            } else {
+              console.log(
+                "Profile created successfully during email verification"
+              );
+            }
+          }
+        } catch (profileError) {
+          console.error("Profile operation error:", profileError);
+          // Don't fail the verification if profile operation fails
+        }
+      }
+
+      setVerificationStatus("success");
+      toast.success("Email verified successfully!");
+
+      // Redirect to home page after 2 seconds
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
     } catch (error: any) {
       console.error("OTP verification error:", error);
       setError("An error occurred. Please try again.");
@@ -211,10 +257,36 @@ export default function VerifyEmailPage() {
       return;
     }
 
+    // Check server-side rate limit first (more reliable)
+    const serverRateLimit = await checkServerRateLimit(email, "resend");
+    
+    if (serverRateLimit?.is_limited) {
+      const timeUntilReset = serverRateLimit.time_until_reset_ms || 0;
+      setError(
+        `Too many resend attempts. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
+      );
+      return;
+    }
+
+    // Fallback to client-side rate limit check
+    const rateLimitKey = `resend:${email.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
+
+    if (rateLimitCheck.isLimited) {
+      setError(
+        `Too many resend attempts. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+      );
+      return;
+    }
+
     setIsResending(true);
     setError("");
 
     try {
+      // Record the attempt
+      recordAttempt(rateLimitKey, 3, 60 * 60 * 1000);
+
+      // Resend verification email via Supabase (which uses Resend SMTP)
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email,
@@ -222,17 +294,13 @@ export default function VerifyEmailPage() {
 
       if (error) {
         console.error("Resend OTP error:", error);
-
+        
         // Handle specific error cases
         if (error.message?.includes("rate limit")) {
+          const timeUntilReset = rateLimitCheck.timeUntilReset;
           setError(
-            "Too many requests. Please wait a moment before trying again."
+            `Too many resend attempts. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
           );
-        } else if (
-          error.message?.includes("not found") ||
-          error.message?.includes("invalid")
-        ) {
-          setError("Email not found. Please try signing up again.");
         } else {
           setError(error.message || "Failed to resend OTP. Please try again.");
         }
@@ -241,6 +309,7 @@ export default function VerifyEmailPage() {
         setVerificationStatus("pending");
         setOtp(""); // Clear the OTP input
         setTimeLeft(120); // Reset timer to 2 minutes
+        setResendCooldown(60); // Set 60 second cooldown before allowing another resend
       }
     } catch (error: any) {
       console.error("Resend OTP error:", error);
@@ -381,10 +450,15 @@ export default function VerifyEmailPage() {
                   ? "Code has expired!"
                   : "Didn't receive the code?"}
               </p>
+              {resendCooldown > 0 && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Please wait {resendCooldown} second{resendCooldown > 1 ? "s" : ""} before requesting a new code
+                </p>
+              )}
               <button
                 type="button"
                 onClick={handleResendOTP}
-                disabled={isResending}
+                disabled={isResending || resendCooldown > 0}
                 className={`font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center mx-auto ${
                   timeLeft === 0
                     ? "text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"

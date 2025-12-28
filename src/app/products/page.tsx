@@ -42,6 +42,8 @@ export default function ProductsPage() {
         ...product,
         id: String(product.id),
         price: Number(product.price),
+        stock_quantity: product.stock_quantity || 0,
+        vendor_id: product.vendor_id,
       },
     });
     notify("Product added to cart successfully", "success");
@@ -105,7 +107,9 @@ export default function ProductsPage() {
           retry={false}
         />
       )}
-      {isLoading && <LoadingSpinner />}
+      {/* Only show loading spinner on INITIAL load when no data exists */}
+      {/* This prevents blocking when switching tabs - background refetches won't trigger spinner */}
+      {isLoading && !products && <LoadingSpinner />}
 
       {!isLoading && products?.length === 0 && (
         <EmptyState
@@ -120,9 +124,10 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {/* Product Card 1 */}
           {products?.map((product) => (
-            <div
+            <Link
               key={product.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              href={`/products/${product.id}`}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 block cursor-pointer"
             >
               <div className="relative">
                 <Image
@@ -155,9 +160,7 @@ export default function ProductsPage() {
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-gray-900 mb-2">
-                  <Link href={`/products/${product?.slug}`}>
                     {product.name}
-                  </Link>
                 </h3>
 
                 <p className="text-sm text-gray-600 mb-3">{product.title}</p>
@@ -167,14 +170,18 @@ export default function ProductsPage() {
                       <Star
                         key={i}
                         className={`w-4 h-4 ${
-                          i < 4
+                          i < Math.floor(product.rating || 0)
                             ? "text-yellow-400 fill-current"
                             : "text-gray-300"
                         }`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-500 ml-2">17 reviews</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    {product.review_count > 0 
+                      ? `${product.review_count} review${product.review_count !== 1 ? "s" : ""}`
+                      : "0 reviews"}
+                  </span>
                 </div>
                 <div className="flex flex-wrap pb-5 items-center  justify-between">
                   <div>
@@ -190,13 +197,17 @@ export default function ProductsPage() {
 
                 <button
                   className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                  onClick={() => AddToCart(product)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    AddToCart(product);
+                  }}
                 >
                   <ShoppingCart className="w-4 h-4 text-center" />
                   <span className="text-sm text-center">Add to Cart</span>
                 </button>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 

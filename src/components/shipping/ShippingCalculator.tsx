@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Calculator, Package, MapPin, Clock, Truck } from "lucide-react";
 import { ShippingAddress, Package as PackageType, ShippingRate } from "@/types/shipping";
-import GigLogisticsService from "@/services/gigLogisticsService";
+import { calculateShippingFee, type ShippingLocation } from "@/utils/shippingCalculator";
 
 interface ShippingCalculatorProps {
   onRateSelect?: (rate: ShippingRate) => void;
@@ -51,16 +51,12 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-
-  // Mock credentials - in production, these should come from environment variables
-  const mockCredentials = {
-    apiKey: "your_api_key_here",
-    apiSecret: "your_api_secret_here",
-    baseUrl: "https://api.giglogistics.com/v1",
-    merchantId: "your_merchant_id_here",
-  };
-
-  const gigLogisticsService = new GigLogisticsService(mockCredentials);
+  const [calculatedFee, setCalculatedFee] = useState<{
+    price: number;
+    pricePerKg: number;
+    weight: number;
+    location: string;
+  } | null>(null);
 
   const handleAddressChange = (
     type: "origin" | "destination",
@@ -102,22 +98,57 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
     }
   };
 
-  const calculateShipping = async () => {
+  const calculateShipping = () => {
     setLoading(true);
     setError("");
     setRates([]);
+    setCalculatedFee(null);
 
     try {
-      const response = await gigLogisticsService.getShippingRates({
-        origin,
-        destination,
-        packages,
-      });
+      // Calculate total weight (add 1kg extra for packaging)
+      const packagesWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+      const totalWeight = packagesWeight + 1; // Add 1kg extra for packaging
+      
+      if (packagesWeight <= 0) {
+        setError("Please enter a valid weight (greater than 0)");
+        setLoading(false);
+        return;
+      }
 
-      if (response.success && response.rates) {
-        setRates(response.rates);
-      } else {
-        setError(response.error || "Failed to get shipping rates");
+      // Build location object from destination
+      const location: ShippingLocation = {
+        country: destination.country,
+        state: destination.state,
+        city: destination.city,
+      };
+
+      // Calculate shipping fee using Kanyiji standard calculator
+      const result = calculateShippingFee(totalWeight, location);
+
+      if (!result) {
+        setError("Unable to calculate shipping for the selected location. Please check your destination details.");
+        setLoading(false);
+        return;
+      }
+
+      setCalculatedFee(result);
+
+      // Create a ShippingRate object for compatibility
+      const rate: ShippingRate = {
+        id: "kanyiji-standard",
+        serviceName: "Kanyiji Standard Shipping",
+        deliveryTime: "3-7 business days",
+        price: result.price,
+        currency: "NGN",
+        estimatedDays: destination.country && destination.country !== "Nigeria" ? 7 : 5,
+        trackingAvailable: true,
+      };
+
+      setRates([rate]);
+      
+      // Auto-select the rate if callback provided
+      if (onRateSelect) {
+        onRateSelect(rate);
       }
     } catch (err) {
       setError("An error occurred while calculating shipping");
@@ -127,7 +158,8 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
     }
   };
 
-  const totalWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+  const packagesWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
+  const totalWeight = packagesWeight + 1; // Add 1kg extra for packaging
   const totalValue = packages.reduce((sum, pkg) => sum + (pkg.value * pkg.quantity), 0);
 
   return (
@@ -369,7 +401,7 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-gray-600">Total Weight:</span>
+              <span className="text-gray-600">Total Weight (incl. packaging):</span>
               <span className="ml-2 font-medium">{totalWeight.toFixed(2)} kg</span>
             </div>
             <div>
@@ -395,6 +427,31 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Calculated Fee Details */}
+      {calculatedFee && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h4 className="font-medium text-green-900 mb-2">Shipping Calculation</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-green-700">Destination:</span>
+              <span className="ml-2 font-medium text-green-900">{calculatedFee.location}</span>
+            </div>
+            <div>
+              <span className="text-green-700">Weight:</span>
+              <span className="ml-2 font-medium text-green-900">{calculatedFee.weight.toFixed(2)} kg</span>
+            </div>
+            <div>
+              <span className="text-green-700">Rate per KG:</span>
+              <span className="ml-2 font-medium text-green-900">₦{calculatedFee.pricePerKg.toLocaleString()}</span>
+            </div>
+            <div>
+              <span className="text-green-700">Total Shipping:</span>
+              <span className="ml-2 font-semibold text-green-900 text-lg">₦{calculatedFee.price.toLocaleString()}</span>
+            </div>
+          </div>
         </div>
       )}
 

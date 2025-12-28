@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabaseAuthService, AuthUser } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { validateSupabaseConfig, supabase } from "@/lib/supabase";
@@ -14,7 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     userData: any
-  ) => Promise<{ success: boolean; requiresVerification?: boolean }>;
+  ) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -36,28 +37,77 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
-
-  // console.log("from auth context", isLoading);
+  const queryClient = useQueryClient();
 
   // Check authentication status on mount
   useEffect(() => {
-    // setIsLoading(true);
+    let isMounted = true;
+
     // First validate configuration
     const configValid = validateSupabaseConfig();
     setIsConfigValid(configValid);
 
     console.log(configValid);
-
     console.log("after supabase validation");
 
     if (configValid) {
+      // First, check the current session immediately
+      const checkInitialSession = async () => {
+        try {
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          if (session?.user && isMounted) {
+            try {
+              const currentUser = await supabaseAuthService.getCurrentUser();
+              if (isMounted) {
+                setUser(currentUser);
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Error getting current user:", error);
+              if (isMounted) {
+                setUser(null);
+                setIsLoading(false);
+              }
+            }
+          } else {
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking initial session:", error);
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
+        }
+      };
+
+      checkInitialSession();
+
       // Listen for auth state changes
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
         console.log("Auth state change:", event, session?.user?.email);
         console.log("Session exists:", !!session);
         console.log("User exists:", !!session?.user);
@@ -65,53 +115,60 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (event === "SIGNED_IN" && session) {
           try {
             console.log("User signed in, getting current user...");
+            setIsLoading(true);
             const currentUser = await supabaseAuthService.getCurrentUser();
 
-            if (!currentUser)
+            if (!currentUser) {
               throw new Error("No current user found after sign-in");
+            }
             console.log("Current user:", currentUser);
-            setUser(currentUser);
-            setIsLoading(false);
+            if (isMounted) {
+              setUser(currentUser);
+              // Invalidate React Query cache to trigger refetch of current user
+              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+              setIsLoading(false);
+            }
           } catch (error) {
-            console.log(error);
+            console.error("Error in SIGNED_IN handler:", error);
+            if (isMounted) {
+              setUser(null);
+              setIsLoading(false);
+            }
           }
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
-          setUser(null);
-          setIsLoading(false);
-        } else if (event === "INITIAL_SESSION") {
-          console.log("Initial session check");
-          setIsLoading(false);
-
-          // Handle initial session restoration
-          if (session) {
-            console.log(
-              "Session found on initial load, getting current user..."
-            );
-
-            try {
-              const currentUser = await supabaseAuthService.getCurrentUser();
-              console.log("Current user from initial session:", currentUser);
-              setUser(currentUser);
-              setIsLoading(false);
-            } catch (error) {
-              console.log(error);
-            }
-          } else {
-            console.log("No session found on initial load");
+          if (isMounted) {
+            setUser(null);
+            // Invalidate React Query cache to clear current user data
+            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
             setIsLoading(false);
           }
-          console.log("after user has been successfully validated");
-          setIsLoading(false);
+        } else if (event === "TOKEN_REFRESHED") {
+          // Handle token refresh - update user if session exists
+          if (session?.user) {
+            try {
+              const currentUser = await supabaseAuthService.getCurrentUser();
+              if (isMounted) {
+                setUser(currentUser);
+                setIsLoading(false);
+              }
+            } catch (error) {
+              console.error("Error refreshing user after token refresh:", error);
+              if (isMounted) {
+                setIsLoading(false);
+              }
+            }
+          }
         }
       });
 
-      return () => subscription.unsubscribe();
+      return () => {
+        isMounted = false;
+        subscription.unsubscribe();
+      };
     } else {
       setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, []);
 
   const checkAuthStatus = async () => {
@@ -134,6 +191,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.success && response.user) {
         setUser(response.user);
+        // Invalidate React Query cache to trigger refetch of current user
+        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
         toast.success("Login successful!");
         return true;
       } else {
@@ -151,10 +210,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (
     userData: any
-  ): Promise<{ success: boolean; requiresVerification?: boolean }> => {
+  ): Promise<{ success: boolean; requiresVerification?: boolean; error?: string }> => {
     try {
       setIsLoading(true);
       const response = await supabaseAuthService.register(userData);
+
+      if (!response.success) {
+        return { success: false, error: response.error };
+      }
 
       if (response.success && response.user) {
         // Check if email verification is required
@@ -171,7 +234,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // Wait a bit for the session to be fully established
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Force a session refresh
         const {
@@ -180,8 +243,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("Session after registration:", session);
 
         if (session) {
-          setUser(response.user);
-          toast.success("Account created successfully! You are now logged in.");
+          // Get fresh user data
+          const currentUser = await supabaseAuthService.getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+            toast.success("Account created successfully! You are now logged in.");
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          } else {
+            setUser(response.user);
+            toast.success("Account created successfully! You are now logged in.");
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
         } else {
           // If no session, try to get the user directly
           const currentUser = await supabaseAuthService.getCurrentUser();
@@ -190,22 +268,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             toast.success(
               "Account created successfully! You are now logged in."
             );
+            // Force page reload to ensure all data is fresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           } else {
             setUser(response.user);
             toast.success(
               "Account created successfully! Please refresh the page to log in."
             );
+            // Force page reload
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           }
         }
         return { success: true, requiresVerification: false };
       } else {
-        toast.error(response.error || "Registration failed");
-        return { success: false };
+        const errorMessage = response.error || "Registration failed";
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error("An unexpected error occurred");
-      return { success: false };
+      const errorMessage = error?.message || "An unexpected error occurred";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
@@ -221,17 +309,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success) {
         console.log("Logout successful - clearing user and redirecting");
         setUser(null);
+        // Clear loading state before redirect to prevent spinner from staying
+        setIsLoading(false);
         toast.success("Logged out successfully");
-        // Redirect to home page after successful logout
-        router.push("/");
+        // Use window.location for a full page reload to ensure clean state
+        // This prevents the loading spinner from getting stuck
+        window.location.href = "/";
       } else {
         console.log("Logout failed:", response.error);
         toast.error(response.error || "Logout failed");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("An unexpected error occurred");
-    } finally {
       setIsLoading(false);
     }
   };

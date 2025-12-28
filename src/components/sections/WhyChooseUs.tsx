@@ -28,12 +28,12 @@ const features = [
   {
     icon: Users,
     title: "Community Support",
-    description: "Supporting Nigerian artisans and small businesses",
+    description: "Supporting Nigerian entrepreneurs and small businesses",
   },
   {
     icon: Globe,
     title: "Local Focus",
-    description: "Connecting Nigerian products with customers nationwide",
+    description: "Connecting Nigerian products with customers worldwide",
   },
 ];
 

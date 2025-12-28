@@ -25,6 +25,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Settings modals state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -78,9 +79,13 @@ export default function ProfilePage() {
 
   // Fetch user profile data from database
   useEffect(() => {
+    let isMounted = true;
+
     const fetchProfileData = async () => {
       if (!isAuthenticated || !user?.id) {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -93,11 +98,14 @@ export default function ProfilePage() {
 
         if (error) {
           console.error("Error fetching profile:", error);
-          toast.error("Failed to load profile data");
+          if (isMounted) {
+            toast.error("Failed to load profile data");
+            setIsLoading(false);
+          }
           return;
         }
 
-        if (profile) {
+        if (profile && isMounted) {
           console.log("Profile data from database:", profile);
 
           // Parse full_name into first and last name
@@ -148,18 +156,29 @@ export default function ProfilePage() {
 
           console.log("Processed profile data:", profileData);
 
-          setUserData(profileData);
-          setFormData(profileData);
+          if (isMounted) {
+            setUserData(profileData);
+            setFormData(profileData);
+          }
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
-        toast.error("Failed to load profile data");
+        if (isMounted) {
+          toast.error("Failed to load profile data");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchProfileData();
+
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isMounted = false;
+    };
   }, [isAuthenticated, user?.id, user?.email, (user as any)?.user_metadata]);
 
   const handleSave = async () => {
@@ -169,7 +188,7 @@ export default function ProfilePage() {
     }
 
     try {
-      setIsLoading(true);
+      setIsSaving(true);
 
       // Update profile in database
       const { error } = await supabase
@@ -189,6 +208,7 @@ export default function ProfilePage() {
       if (error) {
         console.error("Error updating profile:", error);
         toast.error("Failed to update profile");
+        setIsSaving(false);
         return;
       }
 
@@ -222,7 +242,7 @@ export default function ProfilePage() {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -334,15 +354,15 @@ export default function ProfilePage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleSave}
-                        disabled={isLoading}
+                        disabled={isSaving}
                         className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
                       >
-                        {isLoading ? (
+                        {isSaving ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         ) : (
                           <Save className="w-4 h-4" />
                         )}
-                        {isLoading ? "Saving..." : "Save"}
+                        {isSaving ? "Saving..." : "Save"}
                       </button>
                       <button
                         onClick={handleCancel}

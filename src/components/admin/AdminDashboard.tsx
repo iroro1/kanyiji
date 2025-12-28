@@ -19,6 +19,7 @@ import {
   X,
   Upload,
   Bell,
+  FileText,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -54,6 +55,19 @@ interface Vendor {
   verification_status: "unverified" | "pending" | "verified" | "rejected";
   created_at: string;
   productsCount?: number;
+  kyc_documents?: Array<{
+    business_license_url?: string;
+    tax_certificate_url?: string;
+    bank_statement_url?: string;
+  }>;
+  business_type?: string;
+  business_description?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  website_url?: string;
 }
 
 interface Product {
@@ -123,6 +137,7 @@ export default function AdminDashboard() {
   const [vendorsPage, setVendorsPage] = useState(1);
   const [vendorsTotal, setVendorsTotal] = useState(0);
   const [vendorsStatusFilter, setVendorsStatusFilter] = useState<string>("");
+  const [vendorActionLoading, setVendorActionLoading] = useState<string | null>(null);
 
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
@@ -179,6 +194,8 @@ export default function AdminDashboard() {
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({});
+  const [loadingDocuments, setLoadingDocuments] = useState<Record<string, boolean>>({});
 
   // Get active tab from URL
   useEffect(() => {
@@ -316,7 +333,9 @@ export default function AdminDashboard() {
       try {
         setUsersLoading(true);
         setUsersError(null);
-        const data = await fetchUsers(usersPage, 10);
+        // Pass the role filter if it's set
+        const roleFilter = usersRoleFilter || undefined;
+        const data = await fetchUsers(usersPage, 10, roleFilter);
         setAdminUsers(data.users || []);
         setUsersTotal(data.pagination?.total || 0);
       } catch (error: any) {
@@ -330,7 +349,7 @@ export default function AdminDashboard() {
     if (activeTab === "users") {
       loadUsers();
     }
-  }, [activeTab, usersPage]);
+  }, [activeTab, usersPage, usersRoleFilter]);
 
   // Fetch notifications
   useEffect(() => {
@@ -422,11 +441,63 @@ export default function AdminDashboard() {
     loadData();
   }, [productModalOpen, editingProduct]);
 
+  // Fetch signed URL for document viewing
+  const getDocumentUrl = async (originalUrl: string, docKey: string): Promise<string | null> => {
+    // Check if we already have a cached signed URL
+    if (documentUrls[docKey]) {
+      return documentUrls[docKey];
+    }
+
+    // Set loading state
+    setLoadingDocuments((prev) => ({ ...prev, [docKey]: true }));
+
+    try {
+      // First, try to use the original URL directly (in case it's already accessible)
+      // If it fails, we'll get a signed URL
+      const response = await fetch(`/api/admin/vendors/documents?url=${encodeURIComponent(originalUrl)}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        // If API fails, try the original URL as fallback
+        console.warn('Failed to get signed URL, trying original URL');
+        setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
+        return originalUrl;
+      }
+
+      const data = await response.json();
+      
+      // Cache the signed URL
+      setDocumentUrls((prev) => ({ ...prev, [docKey]: data.url }));
+      
+      return data.url;
+    } catch (error: any) {
+      console.error('Error fetching document URL:', error);
+      // Fallback to original URL
+      setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
+      return originalUrl;
+    } finally {
+      setLoadingDocuments((prev => ({ ...prev, [docKey]: false })));
+    }
+  };
+
+  // Handle document view click
+  const handleViewDocument = async (originalUrl: string, docKey: string) => {
+    const signedUrl = await getDocumentUrl(originalUrl, docKey);
+    if (signedUrl) {
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      toast.error('Unable to open document');
+    }
+  };
+
   // Vendor actions
   const handleVendorAction = async (
     vendorId: string,
     action: "approve" | "reject" | "suspend" | "reinstated" | "enable"
   ) => {
+    // Set loading state for this specific vendor action
+    setVendorActionLoading(vendorId);
     try {
       if (action === "reinstated") {
         // Reinstated means changing from suspended back to approved
@@ -452,8 +523,14 @@ export default function AdminDashboard() {
       // Reload stats
       const stats = await fetchAdminStats();
       setAdminStats(stats);
+      
+      // Close modal if open
+      setVendorDetailsModal(null);
     } catch (error: any) {
       toast.error(error.message || `Failed to ${action} vendor`);
+    } finally {
+      // Always clear loading state, even on error
+      setVendorActionLoading(null);
     }
   };
 
@@ -983,7 +1060,12 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=users";
+                    }}
+                    className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-green-100 text-xs sm:text-sm font-medium">
@@ -997,9 +1079,14 @@ export default function AdminDashboard() {
                         <Users className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=orders";
+                    }}
+                    className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-purple-100 text-xs sm:text-sm font-medium">
@@ -1016,9 +1103,14 @@ export default function AdminDashboard() {
                         <ShoppingBag className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+                  <button
+                    onClick={() => {
+                      window.location.href = "/admin?tab=vendors";
+                    }}
+                    className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-6 text-white hover:shadow-xl hover:scale-105 transition-all duration-200 cursor-pointer text-left w-full"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-orange-100 text-xs sm:text-sm font-medium">
@@ -1035,7 +1127,7 @@ export default function AdminDashboard() {
                         <Users className="w-6 h-6 sm:w-8 sm:h-8" />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Additional Stats */}
@@ -1186,20 +1278,11 @@ export default function AdminDashboard() {
                             {vendor.status === "pending" && (
                               <>
                                 <button
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                  onClick={() =>
-                                    handleVendorAction(vendor.id, "approve")
-                                  }
+                                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                  onClick={() => setVendorDetailsModal(vendor)}
+                                  title="View Details & Approve"
                                 >
-                                  <Check className="w-5 h-5" />
-                                </button>
-                                <button
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  onClick={() =>
-                                    handleVendorAction(vendor.id, "reject")
-                                  }
-                                >
-                                  <XCircle className="w-5 h-5" />
+                                  <Eye className="w-5 h-5" />
                                 </button>
                               </>
                             )}
@@ -1347,26 +1430,13 @@ export default function AdminDashboard() {
                                   <Eye className="w-4 h-4" />
                                 </button>
                                 {vendor.status === "pending" && (
-                                  <>
-                                    <button
-                                      className="text-green-600 hover:text-green-900 p-1"
-                                      onClick={() =>
-                                        handleVendorAction(vendor.id, "approve")
-                                      }
-                                      title="Approve"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      className="text-red-600 hover:text-red-900 p-1"
-                                      onClick={() =>
-                                        handleVendorAction(vendor.id, "reject")
-                                      }
-                                      title="Reject"
-                                    >
-                                      <XCircle className="w-4 h-4" />
-                                    </button>
-                                  </>
+                                  <button
+                                    className="text-primary-600 hover:text-primary-900 p-1"
+                                    onClick={() => setVendorDetailsModal(vendor)}
+                                    title="View Details & Approve"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
                                 )}
                                 {vendor.status === "approved" && (
                                   <button
@@ -3343,7 +3413,12 @@ export default function AdminDashboard() {
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">Vendor Details</h3>
               <button
-                onClick={() => setVendorDetailsModal(null)}
+                onClick={() => {
+                  setVendorDetailsModal(null);
+                  // Clear document URLs cache when modal closes
+                  setDocumentUrls({});
+                  setLoadingDocuments({});
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -3358,6 +3433,33 @@ export default function AdminDashboard() {
                     <label className="text-xs font-medium text-gray-500 uppercase">Business Name</label>
                     <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.business_name}</p>
                   </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase">Business Type</label>
+                    <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.business_type || "N/A"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-gray-500 uppercase">Business Description</label>
+                    <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.business_description || "N/A"}</p>
+                  </div>
+                  {vendorDetailsModal.website_url && (
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-medium text-gray-500 uppercase">Website</label>
+                      <p className="text-sm text-gray-900 mt-1">
+                        <a 
+                          href={
+                            vendorDetailsModal.website_url.startsWith('http://') || vendorDetailsModal.website_url.startsWith('https://')
+                              ? vendorDetailsModal.website_url
+                              : `https://${vendorDetailsModal.website_url}`
+                          } 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-primary-600 hover:underline"
+                        >
+                          {vendorDetailsModal.website_url}
+                        </a>
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs font-medium text-gray-500 uppercase">Status</label>
                     <div className="mt-1">
@@ -3380,6 +3482,119 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Address Information */}
+              {(vendorDetailsModal.address || vendorDetailsModal.city || vendorDetailsModal.state) && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">Address Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {vendorDetailsModal.address && (
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-gray-500 uppercase">Address</label>
+                        <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.address}</p>
+                      </div>
+                    )}
+                    {vendorDetailsModal.city && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase">City</label>
+                        <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.city}</p>
+                      </div>
+                    )}
+                    {vendorDetailsModal.state && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase">State</label>
+                        <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.state}</p>
+                      </div>
+                    )}
+                    {vendorDetailsModal.postal_code && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase">Postal Code</label>
+                        <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.postal_code}</p>
+                      </div>
+                    )}
+                    {vendorDetailsModal.country && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase">Country</label>
+                        <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.country}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* KYC Documents */}
+              {vendorDetailsModal.kyc_documents && vendorDetailsModal.kyc_documents.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wide">KYC Documents</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {vendorDetailsModal.kyc_documents[0]?.business_license_url && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase mb-2 block">Business License</label>
+                        <button
+                          onClick={() => handleViewDocument(
+                            vendorDetailsModal.kyc_documents![0].business_license_url!,
+                            `business_license_${vendorDetailsModal.id}`
+                          )}
+                          disabled={loadingDocuments[`business_license_${vendorDetailsModal.id}`]}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingDocuments[`business_license_${vendorDetailsModal.id}`] ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {loadingDocuments[`business_license_${vendorDetailsModal.id}`] ? 'Loading...' : 'View Document'}
+                        </button>
+                      </div>
+                    )}
+                    {vendorDetailsModal.kyc_documents[0]?.tax_certificate_url && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase mb-2 block">Tax Certificate</label>
+                        <button
+                          onClick={() => handleViewDocument(
+                            vendorDetailsModal.kyc_documents![0].tax_certificate_url!,
+                            `tax_certificate_${vendorDetailsModal.id}`
+                          )}
+                          disabled={loadingDocuments[`tax_certificate_${vendorDetailsModal.id}`]}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingDocuments[`tax_certificate_${vendorDetailsModal.id}`] ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {loadingDocuments[`tax_certificate_${vendorDetailsModal.id}`] ? 'Loading...' : 'View Document'}
+                        </button>
+                      </div>
+                    )}
+                    {vendorDetailsModal.kyc_documents[0]?.bank_statement_url && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase mb-2 block">Bank Statement</label>
+                        <button
+                          onClick={() => handleViewDocument(
+                            vendorDetailsModal.kyc_documents![0].bank_statement_url!,
+                            `bank_statement_${vendorDetailsModal.id}`
+                          )}
+                          disabled={loadingDocuments[`bank_statement_${vendorDetailsModal.id}`]}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingDocuments[`bank_statement_${vendorDetailsModal.id}`] ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {loadingDocuments[`bank_statement_${vendorDetailsModal.id}`] ? 'Loading...' : 'View Document'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {(!vendorDetailsModal.kyc_documents[0]?.business_license_url && 
+                    !vendorDetailsModal.kyc_documents[0]?.tax_certificate_url && 
+                    !vendorDetailsModal.kyc_documents[0]?.bank_statement_url) && (
+                    <p className="text-sm text-gray-500 mt-2">No documents uploaded</p>
+                  )}
+                </div>
+              )}
 
               {/* Owner Information */}
               <div>
@@ -3410,7 +3625,12 @@ export default function AdminDashboard() {
               {/* Actions */}
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
-                  onClick={() => setVendorDetailsModal(null)}
+                  onClick={() => {
+                    setVendorDetailsModal(null);
+                    // Clear document URLs cache when modal closes
+                    setDocumentUrls({});
+                    setLoadingDocuments({});
+                  }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Close
@@ -3420,21 +3640,29 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => {
                         handleVendorAction(vendorDetailsModal.id, "approve");
-                        setVendorDetailsModal(null);
                       }}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                      disabled={vendorActionLoading === vendorDetailsModal.id}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check className="w-4 h-4" />
+                      {vendorActionLoading === vendorDetailsModal.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
                       Approve
                     </button>
                     <button
                       onClick={() => {
                         handleVendorAction(vendorDetailsModal.id, "reject");
-                        setVendorDetailsModal(null);
                       }}
-                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                      disabled={vendorActionLoading === vendorDetailsModal.id}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <XCircle className="w-4 h-4" />
+                      {vendorActionLoading === vendorDetailsModal.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <XCircle className="w-4 h-4" />
+                      )}
                       Reject
                     </button>
                   </>
@@ -3443,11 +3671,15 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => {
                       handleVendorAction(vendorDetailsModal.id, "suspend");
-                      setVendorDetailsModal(null);
                     }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                    disabled={vendorActionLoading === vendorDetailsModal.id}
+                    className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Ban className="w-4 h-4" />
+                    {vendorActionLoading === vendorDetailsModal.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Ban className="w-4 h-4" />
+                    )}
                     Suspend
                   </button>
                 )}
@@ -3455,11 +3687,15 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => {
                       handleVendorAction(vendorDetailsModal.id, "reinstated");
-                      setVendorDetailsModal(null);
                     }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                    disabled={vendorActionLoading === vendorDetailsModal.id}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check className="w-4 h-4" />
+                    {vendorActionLoading === vendorDetailsModal.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
                     Reinstate
                   </button>
                 )}
@@ -3467,11 +3703,15 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => {
                       handleVendorAction(vendorDetailsModal.id, "enable");
-                      setVendorDetailsModal(null);
                     }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    disabled={vendorActionLoading === vendorDetailsModal.id}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check className="w-4 h-4" />
+                    {vendorActionLoading === vendorDetailsModal.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
                     Enable (Set to Pending)
                   </button>
                 )}

@@ -1,12 +1,57 @@
 "use client";
 
-import { Trash2, Minus, Plus, ArrowRight } from "lucide-react";
+import { Trash2, Minus, Plus, ArrowRight, Heart } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 export default function CartPage() {
   const { state, dispatch } = useCart();
+  const { isAuthenticated } = useAuth();
+  const [vendorNames, setVendorNames] = useState<Record<string, string>>({});
+
+  // Fetch vendor names for cart items
+  useEffect(() => {
+    const fetchVendorNames = async () => {
+      const vendorIds = Array.from(
+        new Set(
+          state.items
+            .map((item) => (item as any).vendor_id)
+            .filter(Boolean)
+        )
+      );
+
+      if (vendorIds.length === 0) return;
+
+      try {
+        const vendorMap: Record<string, string> = {};
+        
+        // Fetch vendors in batches
+        for (const vendorId of vendorIds) {
+          try {
+            const response = await fetch(`/api/vendors/${vendorId}`, {
+              credentials: "include",
+              cache: "no-store",
+            });
+            if (response.ok) {
+              const vendorData = await response.json();
+              vendorMap[vendorId] = vendorData.vendor?.business_name || "Unknown Vendor";
+            }
+          } catch (err) {
+            console.error(`Error fetching vendor ${vendorId}:`, err);
+          }
+        }
+        
+        setVendorNames(vendorMap);
+      } catch (err) {
+        console.error("Error fetching vendor names:", err);
+      }
+    };
+
+    fetchVendorNames();
+  }, [state.items]);
 
   console.log(state.items);
 
@@ -78,7 +123,7 @@ export default function CartPage() {
                           {item.name}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
-                          Vendor: {item.title}
+                          Vendor: {vendorNames[(item as any).vendor_id] || "Unknown Vendor"}
                         </p>
                         <div className="flex items-center gap-4">
                           {/* Quantity Controls */}
@@ -90,7 +135,8 @@ export default function CartPage() {
                                   id: item.id,
                                 })
                               }
-                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                              disabled={item.quantity <= 1}
+                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
@@ -104,11 +150,17 @@ export default function CartPage() {
                                   id: item.id,
                                 })
                               }
-                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                              disabled={!item.stock_quantity || item.quantity >= (item.stock_quantity || 0)}
+                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
+                          {item.stock_quantity && (
+                            <span className="text-xs text-gray-500">
+                              {item.stock_quantity} available
+                            </span>
+                          )}
 
                           {/* Price */}
                           <span className="font-semibold text-gray-900">
@@ -177,8 +229,8 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">
-                    {/* ₦{shipping.toLocaleString()} */}
+                  <span className="font-medium text-gray-400">
+                    Calculated at checkout
                   </span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
@@ -196,9 +248,11 @@ export default function CartPage() {
                 <h4 className="font-medium text-gray-900 mb-2">
                   Shipping Information
                 </h4>
-                <p className="text-sm text-gray-600">
-                  Free shipping on orders over ₦10,000. Standard delivery takes
-                  3-5 business days.
+                <p className="text-sm text-gray-600 mb-2">
+                  Shipping fees are calculated based on weight and destination at checkout.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Rates: ₦3,000-₦6,000/kg (Nigeria) • ₦14,500/kg (International)
                 </p>
               </div>
 
@@ -219,7 +273,8 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Save for Later */}
+            {/* Save for Later / Wishlist */}
+            {!isAuthenticated ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Save for Later
@@ -227,10 +282,31 @@ export default function CartPage() {
               <p className="text-sm text-gray-600 mb-4">
                 Sign in to save items to your wishlist and access them later.
               </p>
-              <button className="w-full border border-primary-500 text-primary-600 font-semibold py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors">
+                <Link
+                  href="/auth/login"
+                  className="w-full border border-primary-500 text-primary-600 font-semibold py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors block text-center"
+                >
                 Sign In
-              </button>
+                </Link>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-primary-500" />
+                  Your Wishlist
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Save items you love for later purchase.
+                </p>
+                <Link
+                  href="/wishlist"
+                  className="w-full border border-primary-500 text-primary-600 font-semibold py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  View Wishlist
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
             </div>
+            )}
           </div>
         </div>
       </div>

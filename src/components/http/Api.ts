@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import axios from "axios";
 import { uploadProductImage } from "@/utils/supabase-images";
 import { supabaseAuthService } from "@/services/supabaseAuthService";
+import { calculateProductStock } from "@/utils/stockCalculator";
 
 export type Product = {
   id: string;
@@ -10,10 +11,22 @@ export type Product = {
   original_price: number;
   rating: number;
   review_count: number;
+  stock_quantity?: number;
+  vendor_id?: string;
   product_images: {
     id: string;
     image_url: string;
   }[];
+  product_attributes?: {
+    id: string;
+    size?: string;
+    color?: string;
+    quantity: number;
+  }[];
+  vendors?: {
+    id?: string;
+    business_name?: string;
+  };
 };
 
 // AUTHENTICATION
@@ -60,7 +73,7 @@ export async function getSingleProduct(productId: string) {
   
   let query = supabase
     .from("products")
-    .select(`*, product_images( id, image_url )`);
+    .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`);
   
   if (isUUID) {
     query = query.eq("id", productId);
@@ -72,6 +85,12 @@ export async function getSingleProduct(productId: string) {
   const { data, error } = await query.eq("status", "active").single();
 
   if (error) throw error;
+  
+  // Calculate stock_quantity from product_attributes if they exist
+  if (data) {
+    data.stock_quantity = calculateProductStock(data);
+  }
+  
   return data ? [data] : []; // Return as array to match expected format
 }
 
@@ -89,9 +108,20 @@ export async function getWishlist(userId: string): Promise<Product[]> {
       original_price,
       rating,
       review_count,
+      vendor_id,
       product_images (
         id,
         image_url
+      ),
+      product_attributes (
+        id,
+        size,
+        color,
+        quantity
+      ),
+      vendors:vendor_id (
+        id,
+        business_name
       )
     )
   `
@@ -101,7 +131,31 @@ export async function getWishlist(userId: string): Promise<Product[]> {
 
   if (error) throw error;
 
-  return (data ?? []).flatMap((row) => row.products);
+  // Map products and calculate stock
+  const products: Product[] = (data ?? []).flatMap((row: any) => {
+    if (!row.products) return [];
+    
+    const product: any = row.products;
+    // Calculate stock from product_attributes
+    const stockQuantity = product.product_attributes && Array.isArray(product.product_attributes) && product.product_attributes.length > 0
+      ? product.product_attributes.reduce((sum: number, attr: any) => sum + (parseInt(String(attr.quantity || 0)) || 0), 0)
+      : 0;
+    
+    return [{
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      original_price: product.original_price,
+      rating: product.rating,
+      review_count: product.review_count,
+      stock_quantity: stockQuantity,
+      vendor_id: product.vendor_id,
+      product_images: product.product_images || [],
+      vendors: product.vendors, // Include vendor relationship
+    } as Product];
+  });
+
+  return products;
 }
 
 // PAYMENT GATEWAY
@@ -134,15 +188,81 @@ export async function VerifyPayment(reference: string) {
 
 // FETCH ALL ORDERS
 export async function fetchAllOrders(userId: string) {
-  const { data, error } = await supabase
+  const { data: orders, error } = await supabase
     .from("orders")
-    .select(`*, order_items(*), shipping_addresses(*)`)
+    .select(`
+      *,
+      vendors:vendor_id(
+        id,
+        business_name
+      ),
+      order_items(
+        *,
+        products(
+          id,
+          name,
+          product_images(image_url)
+        ),
+        vendors:vendor_id(
+          id,
+          business_name
+        )
+      )
+    `)
     .eq("customer_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error fetching orders:", error);
+    throw error;
+  }
 
-  return data;
+  // If vendors aren't populated in order_items, fetch them separately
+  if (orders && orders.length > 0) {
+    const enrichedOrders = await Promise.all(
+      orders.map(async (order: any) => {
+        if (order.order_items && order.order_items.length > 0) {
+          const enrichedItems = await Promise.all(
+            order.order_items.map(async (item: any) => {
+              // If vendor info is missing, fetch it
+              if (!item.vendors && item.vendor_id) {
+                const { data: vendorData } = await supabase
+                  .from("vendors")
+                  .select("id, business_name")
+                  .eq("id", item.vendor_id)
+                  .single();
+                
+                if (vendorData) {
+                  item.vendors = vendorData;
+                }
+              }
+              return item;
+            })
+          );
+          order.order_items = enrichedItems;
+        }
+        
+        // Also ensure order-level vendor is populated
+        if (!order.vendors && order.vendor_id) {
+          const { data: vendorData } = await supabase
+            .from("vendors")
+            .select("id, business_name")
+            .eq("id", order.vendor_id)
+            .single();
+          
+          if (vendorData) {
+            order.vendors = vendorData;
+          }
+        }
+        
+        return order;
+      })
+    );
+    
+    return enrichedOrders;
+  }
+
+  return orders || [];
 }
 
 // REGISTER TO BE A VENDOR
@@ -248,9 +368,16 @@ export async function registerNewVendor({ formData, user }: any) {
       throw updateError; // Let the catch block handle this
     }
 
-    // 4. On success, return the new vendor data
+    // 4. Get user email from auth for confirmation email
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userEmail = authUser?.email;
+
+    // 5. On success, return the new vendor data with email
     console.log("Successfully inserted data:", vendorData);
-    return vendorData;
+    return {
+      ...vendorData,
+      userEmail, // Include email for confirmation email
+    };
   } catch (error: any) {
     // This will be caught by the mutation's onError
     console.error("Error during vendor registration:", error);
@@ -260,14 +387,59 @@ export async function registerNewVendor({ formData, user }: any) {
 }
 
 // VENDOR DASHBOARD
+export async function fetchVendorOrders(vendorId?: string, status?: string) {
+  const params = new URLSearchParams();
+  if (status) {
+    params.append("status", status);
+  }
+
+  const response = await fetch(`/api/vendor/orders?${params}`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch vendor orders");
+  }
+
+  return response.json();
+}
+
+export async function updateVendorOrderStatus(orderId: string, status: string) {
+  const response = await fetch("/api/vendor/orders", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ orderId, status }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update order status");
+  }
+
+  return response.json();
+}
+
 export async function fetchVendorDetails(userId: string) {
   const { data, error } = await supabase
     .from("vendors")
-    .select(`*, products(*, product_images(*))`)
+    .select(`*, products(*, product_images(*), product_attributes( id, size, color, quantity )), vendor_bank_accounts(*)`)
     .eq("user_id", userId)
     .single();
 
   if (error) throw error;
+  
+  // Calculate stock_quantity for each product from product_attributes if they exist
+  if (data && data.products && Array.isArray(data.products)) {
+    data.products = data.products.map((product: any) => {
+      product.stock_quantity = calculateProductStock(product);
+      return product;
+    });
+  }
+  
   return data;
 }
 
@@ -348,6 +520,22 @@ export async function addNewProduct({
       console.error("Error inserting variants:", firstError.error);
       throw new Error(firstError.error.message); // <-- MUST THROW
     }
+    
+    // Calculate total stock from variants and update product stock_quantity
+    const totalStock = variants.reduce((sum: number, variant: any) => {
+      return sum + (parseInt(variant.quantity) || 0);
+    }, 0);
+    
+    // Update product stock_quantity with calculated total
+    const { error: updateStockError } = await supabase
+      .from("products")
+      .update({ stock_quantity: totalStock })
+      .eq("id", productId);
+    
+    if (updateStockError) {
+      console.error("Error updating product stock_quantity:", updateStockError);
+      // Don't throw - product was created successfully, stock update is secondary
+    }
   }
 
   // 3. Upload images and save URLs in parallel
@@ -421,7 +609,7 @@ export async function fetchAllProducts(
     console.log("from search query");
     const { data, error } = await supabase
       .from("products")
-      .select(`*, product_images( id, image_url )`)
+      .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
       .ilike("name", `%${searchQuery}%`)
       .range(from, to); // Fetches rows from 'from' to 'to'
     // .range(pageParam * PAGE_SIZE, pageParam * PAGE_SIZE + PAGE_SIZE);
@@ -430,7 +618,13 @@ export async function fetchAllProducts(
       throw error;
     }
 
-    return data;
+    // Calculate stock_quantity from product_attributes if they exist
+    const enrichedData = data?.map((product: any) => {
+      product.stock_quantity = calculateProductStock(product);
+      return product;
+    }) || [];
+
+    return enrichedData;
   } else if (category) {
     const { data, error } = await supabase
       .from("products")
@@ -486,7 +680,7 @@ export async function fetchAllProducts(
   } else if (feature) {
     const { data, error } = await supabase
       .from("products")
-      .select(`*, product_images( id, image_url )`)
+      .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
       .eq("is_featured", `${feature}`)
       .range(from, to); // Fetches rows from 'from' to 'to'
 
@@ -494,18 +688,30 @@ export async function fetchAllProducts(
       throw error;
     }
 
-    return data;
+    // Calculate stock_quantity from product_attributes if they exist
+    const enrichedData = data?.map((product: any) => {
+      product.stock_quantity = calculateProductStock(product);
+      return product;
+    }) || [];
+
+    return enrichedData;
   } else {
     const { data, error } = await supabase
       .from("products")
-      .select(`*, product_images( id, image_url )`)
+      .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
       throw error;
     }
 
-    return data;
+    // Calculate stock_quantity from product_attributes if they exist
+    const enrichedData = data?.map((product: any) => {
+      product.stock_quantity = calculateProductStock(product);
+      return product;
+    }) || [];
+
+    return enrichedData;
   }
 }
 // FIND PRODUCTS BASED ON CATEGORY

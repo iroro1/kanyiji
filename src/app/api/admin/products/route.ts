@@ -53,7 +53,7 @@ async function checkAdminAccess() {
 
 // Helper function to update category product counts
 async function updateCategoryProductCount(
-  adminSupabase: ReturnType<typeof createClient>,
+  adminSupabase: any,
   categoryIds: string[]
 ) {
   if (!categoryIds || categoryIds.length === 0) return;
@@ -75,8 +75,9 @@ async function updateCategoryProductCount(
 
       // Count products with matching category_id (client-side filtering if needed)
       let matchingCount = 0;
-      if (data) {
-        matchingCount = data.filter((p: any) => p.category_id === categoryId).length;
+      const productsData: any[] = (data as any[]) || [];
+      if (productsData.length > 0) {
+        matchingCount = productsData.filter((p: any) => p.category_id === categoryId).length;
       } else {
         // If data is null, try the count query directly
         const { count: directCount, error: countError } = await adminSupabase
@@ -90,8 +91,8 @@ async function updateCategoryProductCount(
         } else {
           console.error(`Error getting direct count for category ${categoryId}:`, countError);
           // Log sample products to debug
-          if (data && data.length > 0) {
-            console.log("Sample products category_ids:", data.slice(0, 5).map((p: any) => ({
+          if (productsData && productsData.length > 0) {
+            console.log("Sample products category_ids:", productsData.slice(0, 5).map((p: any) => ({
               id: p.id,
               category_id: p.category_id,
               status: p.status,
@@ -101,9 +102,10 @@ async function updateCategoryProductCount(
       }
 
       // Update the category's product_count
+      const updatePayload: any = { product_count: matchingCount, updated_at: new Date().toISOString() };
       const { error: updateError } = await adminSupabase
         .from("categories")
-        .update({ product_count: matchingCount, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq("id", categoryId);
 
       if (updateError) {

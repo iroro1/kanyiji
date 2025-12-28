@@ -8,6 +8,34 @@ import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
+import { checkRateLimit, recordAttempt, formatTimeUntilReset } from "@/utils/rateLimit";
+
+// Server-side rate limit check
+async function checkServerRateLimit(email: string, actionType: "signup" | "resend") {
+  try {
+    const response = await fetch("/api/auth/rate-limit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: email,
+        actionType,
+        maxAttempts: 3,
+        windowDuration: "1 hour",
+      }),
+    });
+
+    if (!response.ok) {
+      // If API fails, fall back to client-side check
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Server rate limit check failed:", error);
+    return null; // Fall back to client-side
+  }
+}
 
 const signupSchema = z
   .object({
@@ -49,6 +77,28 @@ export default function SignupForm({
   });
 
   const onSubmit = async (data: SignupFormData) => {
+    // Check server-side rate limit first (more reliable)
+    const serverRateLimit = await checkServerRateLimit(data.email, "signup");
+    
+    if (serverRateLimit?.is_limited) {
+      const timeUntilReset = serverRateLimit.time_until_reset_ms || 0;
+      toast.error(
+        `Too many signup attempts. Please try again in ${formatTimeUntilReset(timeUntilReset)}.`
+      );
+      return;
+    }
+
+    // Fallback to client-side rate limit check
+    const rateLimitKey = `signup:${data.email.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 attempts per hour
+
+    if (rateLimitCheck.isLimited) {
+      toast.error(
+        `Too many signup attempts. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+      );
+      return;
+    }
+
     setIsLoading(true);
     try {
       const userData = {
@@ -59,16 +109,41 @@ export default function SignupForm({
         role: "customer" as const, // Default role for new users
       };
 
+      // Record the attempt
+      recordAttempt(rateLimitKey, 3, 60 * 60 * 1000);
+
       const result = await registerUser(userData);
       if (result.success) {
         // If verification is required, the AuthContext will handle the redirect
-        // If no verification is required, close the modal
+        // If no verification is required, refresh data and close the modal
         if (!result.requiresVerification) {
+          // Force a page reload to fetch new user data
+          // This ensures all user data is properly loaded
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
           onSuccess?.();
         }
+      } else {
+        // If signup failed, show error message
+        const errorMessage = result.error || "Registration failed. Please try again.";
+        
+        // If signup failed due to rate limit, show helpful message
+        if (errorMessage.toLowerCase().includes("rate limit")) {
+          toast.error(
+            `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+          );
+        } else {
+          toast.error(errorMessage);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signup error:", error);
+      if (error?.message?.toLowerCase().includes("rate limit")) {
+        toast.error(
+          `Email rate limit exceeded. Please try again in ${formatTimeUntilReset(rateLimitCheck.timeUntilReset)}.`
+        );
+      }
     } finally {
       setIsLoading(false);
     }
