@@ -170,7 +170,9 @@ export default function HelpPage() {
             </div>
             <div className="flex items-center justify-center space-x-3">
               <Phone className="w-5 h-5 text-primary-600" />
-              <span className="text-gray-700">+234 801 234 5678</span>
+              <a href="tel:+2348177928061" className="text-gray-700 hover:text-primary-600 transition-colors">
+                +234 817 792 8061
+              </a>
             </div>
           </div>
         </div>
