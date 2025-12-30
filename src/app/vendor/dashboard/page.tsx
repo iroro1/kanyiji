@@ -993,7 +993,7 @@ export default function VendorDashboard() {
                                 {order.customer?.full_name || "N/A"}
                               </div>
                               {order.customer?.email && (
-                                <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500">
                                   {order.customer.email}
                                 </div>
                               )}
@@ -1037,23 +1037,23 @@ export default function VendorDashboard() {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
-                                <select
-                                  value={order.status}
-                                  onChange={(e) =>
-                                    handleUpdateOrderStatus(
-                                      order.id,
-                                      e.target.value as Order["status"]
-                                    )
-                                  }
-                                  disabled={isUpdatingOrder}
-                                  className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
-                                >
-                                  <option value="pending">Pending</option>
-                                  <option value="processing">Processing</option>
-                                  <option value="shipped">Shipped</option>
-                                  <option value="delivered">Delivered</option>
-                                  <option value="cancelled">Cancelled</option>
-                                </select>
+                              <select
+                                value={order.status}
+                                onChange={(e) =>
+                                  handleUpdateOrderStatus(
+                                    order.id,
+                                    e.target.value as Order["status"]
+                                  )
+                                }
+                                disabled={isUpdatingOrder}
+                                className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
                               </div>
                             </td>
                           </tr>

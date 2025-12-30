@@ -73,10 +73,10 @@ export async function GET(req: NextRequest) {
     let vendor = null;
     if (userId) {
       const { data: vendorData, error: vendorError } = await adminSupabase
-        .from("vendors")
-        .select("id, user_id")
+      .from("vendors")
+      .select("id, user_id")
         .eq("user_id", userId)
-        .single();
+      .single();
 
       if (vendorError || !vendorData) {
         console.log("Vendor not found for user:", userId);
