@@ -299,19 +299,19 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-600 mt-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Profile</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
             Manage your account and preferences
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <nav className="space-y-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -319,13 +319,13 @@ export default function ProfilePage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                      className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-left transition-colors text-sm sm:text-base ${
                         activeTab === tab.id
                           ? "bg-primary-50 text-primary-700 border border-primary-200"
                           : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                       <span className="font-medium">{tab.label}</span>
                     </button>
                   );
@@ -337,25 +337,25 @@ export default function ProfilePage() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             {activeTab === "profile" && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                     Personal Information
                   </h2>
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+                      className="flex items-center justify-center sm:justify-start gap-2 text-primary-600 hover:text-primary-700 font-medium text-sm sm:text-base w-full sm:w-auto"
                     >
                       <Edit className="w-4 h-4" />
                       Edit Profile
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                       <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+                        className="flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
                       >
                         {isSaving ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -366,7 +366,7 @@ export default function ProfilePage() {
                       </button>
                       <button
                         onClick={handleCancel}
-                        className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                        className="flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
                       >
                         <X className="w-4 h-4" />
                         Cancel
@@ -375,7 +375,7 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       First Name
@@ -387,10 +387,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("firstName", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.firstName}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.firstName || "—"}</p>
                     )}
                   </div>
 
@@ -405,10 +405,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("lastName", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.lastName}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.lastName || "—"}</p>
                     )}
                   </div>
 
@@ -423,12 +423,12 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("email", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{userData.email}</p>
+                        <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <p className="text-sm sm:text-base text-gray-900 break-words">{userData.email || "—"}</p>
                       </div>
                     )}
                   </div>
@@ -444,17 +444,17 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("phone", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{userData.phone}</p>
+                        <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <p className="text-sm sm:text-base text-gray-900 break-words">{userData.phone || "—"}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Address
                     </label>
@@ -465,12 +465,12 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("address", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{userData.address}</p>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm sm:text-base text-gray-900 break-words">{userData.address || "—"}</p>
                       </div>
                     )}
                   </div>
@@ -486,10 +486,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("city", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.city}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.city || "—"}</p>
                     )}
                   </div>
 
@@ -504,10 +504,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("state", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.state}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.state || "—"}</p>
                     )}
                   </div>
 
@@ -522,10 +522,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("zipCode", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.zipCode}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.zipCode || "—"}</p>
                     )}
                   </div>
 
@@ -540,10 +540,10 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           handleInputChange("country", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     ) : (
-                      <p className="text-gray-900">{userData.country}</p>
+                      <p className="text-sm sm:text-base text-gray-900 break-words">{userData.country || "—"}</p>
                     )}
                   </div>
                 </div>
@@ -551,24 +551,24 @@ export default function ProfilePage() {
             )}
 
             {activeTab === "settings" && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
                   Account Settings
                 </h2>
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Security Section */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                       Security
                     </h3>
-                    <div className="space-y-4">
-                      <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-1">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
                               Password
                             </h4>
-                            <p className="text-gray-600 text-sm">
+                            <p className="text-gray-600 text-xs sm:text-sm">
                               Change your account password
                             </p>
                           </div>
@@ -578,7 +578,7 @@ export default function ProfilePage() {
                                 setShowPasswordModal(true);
                               }
                             }}
-                            className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                            className={`px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium whitespace-nowrap ${
                               isGoogleUser
                                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                 : "bg-primary-600 text-white hover:bg-primary-700"
@@ -601,42 +601,42 @@ export default function ProfilePage() {
 
                   {/* Preferences Section */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                       Preferences
                     </h3>
-                    <div className="space-y-4">
-                      <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-1">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
                               Notifications
                             </h4>
-                            <p className="text-gray-600 text-sm">
+                            <p className="text-gray-600 text-xs sm:text-sm">
                               Manage your email and push notifications
                             </p>
                           </div>
                           <button
                             onClick={() => setShowNotificationsModal(true)}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                           >
                             Manage Notifications
                           </button>
                         </div>
                       </div>
 
-                      <div className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-1">
+                      <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
                               Privacy
                             </h4>
-                            <p className="text-gray-600 text-sm">
+                            <p className="text-gray-600 text-xs sm:text-sm">
                               Control your privacy settings and data sharing
                             </p>
                           </div>
                           <button
                             onClick={() => setShowPrivacyModal(true)}
-                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                           >
                             Privacy Settings
                           </button>
@@ -647,23 +647,23 @@ export default function ProfilePage() {
 
                   {/* Danger Zone */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
                       Danger Zone
                     </h3>
-                    <div className="p-4 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-red-900 mb-1">
+                    <div className="p-3 sm:p-4 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-sm sm:text-base text-red-900 mb-1">
                             Delete Account
                           </h4>
-                          <p className="text-red-600 text-sm">
+                          <p className="text-red-600 text-xs sm:text-sm">
                             Permanently delete your account and all data. This
                             action cannot be undone.
                           </p>
                         </div>
                         <button
                           onClick={() => setShowDeleteModal(true)}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                         >
                           Delete Account
                         </button>
