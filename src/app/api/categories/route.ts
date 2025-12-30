@@ -88,8 +88,74 @@ export async function GET(req: NextRequest) {
         );
       }
 
+      // Calculate actual product count for this category dynamically
+      const { data: allProducts, error: productsError } = await supabase
+        .from("products")
+        .select("id, category_id, category, sub_category, status");
+
+      let productCount = 0;
+      if (!productsError && allProducts) {
+        // Normalize category names for matching
+        const normalizeCategoryName = (name: string) => {
+          return name
+            .toLowerCase()
+            .trim()
+            .replace(/[&]/g, "and")
+            .replace(/[^a-z0-9\s]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        };
+
+        const normalizedCategoryName = normalizeCategoryName(category.name);
+        const normalizedCategorySlug = normalizeCategoryName(category.slug);
+
+        // Filter products by status and match to category
+        const matchingProducts = allProducts.filter((p: any) => {
+          const status = p.status?.toLowerCase();
+          if (status && status !== "active" && status !== "approved" && status !== "published") {
+            return false;
+          }
+
+          // Match by category_id
+          if (p.category_id === category.id) return true;
+
+          // Match by category name
+          if (p.category) {
+            const normalizedProductCategory = normalizeCategoryName(p.category);
+            if (
+              normalizedProductCategory === normalizedCategoryName ||
+              normalizedProductCategory === normalizedCategorySlug ||
+              normalizedProductCategory.includes(normalizedCategoryName) ||
+              normalizedCategoryName.includes(normalizedProductCategory)
+            ) {
+              return true;
+            }
+          }
+
+          // Match by sub_category
+          if (p.sub_category) {
+            const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
+            if (
+              normalizedProductSubCategory === normalizedCategoryName ||
+              normalizedProductSubCategory === normalizedCategorySlug ||
+              normalizedProductSubCategory.includes(normalizedCategoryName) ||
+              normalizedCategoryName.includes(normalizedProductSubCategory)
+            ) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        productCount = matchingProducts.length;
+      }
+
       return NextResponse.json({
-        category: category,
+        category: {
+          ...category,
+          product_count: productCount,
+        },
       });
     }
 
@@ -113,6 +179,87 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    // Calculate actual product counts for each category dynamically
+    // This ensures accuracy since products can match by category_id, category, or sub_category
+    if (categories && categories.length > 0) {
+      // Fetch all products to count (we'll filter client-side)
+      const { data: allProducts, error: productsError } = await supabase
+        .from("products")
+        .select("id, category_id, category, sub_category, status");
+
+      if (!productsError && allProducts) {
+        // Normalize category names for matching
+        const normalizeCategoryName = (name: string) => {
+          return name
+            .toLowerCase()
+            .trim()
+            .replace(/[&]/g, "and")
+            .replace(/[^a-z0-9\s]/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        };
+
+        // Filter products by status (only active/approved/published)
+        const activeProducts = allProducts.filter((p: any) => {
+          const status = p.status?.toLowerCase();
+          return (
+            !status ||
+            status === "active" ||
+            status === "approved" ||
+            status === "published"
+          );
+        });
+
+        // Calculate product count for each category
+        const categoriesWithCounts = categories.map((cat: any) => {
+          const normalizedCategoryName = normalizeCategoryName(cat.name);
+          const normalizedCategorySlug = normalizeCategoryName(cat.slug);
+
+          const productCount = activeProducts.filter((p: any) => {
+            // Match by category_id
+            if (p.category_id === cat.id) return true;
+
+            // Match by category name
+            if (p.category) {
+              const normalizedProductCategory = normalizeCategoryName(p.category);
+              if (
+                normalizedProductCategory === normalizedCategoryName ||
+                normalizedProductCategory === normalizedCategorySlug ||
+                normalizedProductCategory.includes(normalizedCategoryName) ||
+                normalizedCategoryName.includes(normalizedProductCategory)
+              ) {
+                return true;
+              }
+            }
+
+            // Match by sub_category
+            if (p.sub_category) {
+              const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
+              if (
+                normalizedProductSubCategory === normalizedCategoryName ||
+                normalizedProductSubCategory === normalizedCategorySlug ||
+                normalizedProductSubCategory.includes(normalizedCategoryName) ||
+                normalizedCategoryName.includes(normalizedProductSubCategory)
+              ) {
+                return true;
+              }
+            }
+
+            return false;
+          }).length;
+
+          return {
+            ...cat,
+            product_count: productCount,
+          };
+        });
+
+        return NextResponse.json({
+          categories: categoriesWithCounts,
+        });
+      }
     }
 
     return NextResponse.json({

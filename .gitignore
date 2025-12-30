@@ -19,6 +19,7 @@ yarn.lock
 .DS_Store
 *.pem
 docs/
+BUGS.md
 
 # Debug
 npm-debug.log*

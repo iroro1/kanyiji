@@ -714,7 +714,7 @@ export default function Navbar() {
 
   const navigation = [
     { name: "Categories", href: "/categories" },
-    { name: "Products", href: "/products" },
+    { name: "Products", href: "/products", hasDropdown: true },
     { name: "About", href: "/about" },
   ];
 
@@ -919,6 +919,13 @@ export default function Navbar() {
             name: user?.name,
           }}
           onLogout={handleLogout}
+          onWishlistClick={handleWishlistClick}
+          onCartClick={handleCartClick}
+          isAuthenticated={isAuthenticated}
+          unreadNotificationCount={unreadNotificationCount}
+          onUnreadCountChange={setUnreadNotificationCount}
+          cartNumber={state.items.length}
+          wishlistCount={wishlistCount}
         />
       </div>
 
@@ -962,6 +969,13 @@ const MobileMenu = ({
   onBecomeVendor,
   user,
   onLogout,
+  onWishlistClick,
+  onCartClick,
+  isAuthenticated,
+  unreadNotificationCount,
+  onUnreadCountChange,
+  cartNumber,
+  wishlistCount,
 }: {
   isOpen: boolean;
   navigation: Array<{ name: string; href: string; hasDropdown?: boolean }>;
@@ -976,15 +990,109 @@ const MobileMenu = ({
     name?: string;
   };
   onLogout?: () => void;
+  onWishlistClick?: () => void;
+  onCartClick?: () => void;
+  isAuthenticated?: boolean;
+  unreadNotificationCount?: number;
+  onUnreadCountChange?: (count: number) => void;
+  cartNumber?: number;
+  wishlistCount?: number;
 }) =>
   isOpen && (
     <div className="md:hidden bg-white border-t border-gray-100 shadow-lg animate-in slide-in-from-top-2 duration-300 max-h-[calc(100vh-80px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
       <div className="px-4 py-6 space-y-4">
-        <NavigationLinks
-          navigation={navigation}
-          isMobile={true}
-          onLinkClick={onLinkClick}
-        />
+        {/* Search Bar - Mobile */}
+        <div className="mb-4">
+          <SearchBar isMobile={true} onSearch={onSearch} />
+        </div>
+
+        {/* Action Icons - Mobile */}
+        <div className="flex items-center justify-around py-3 border-y border-gray-100 mb-4">
+          {isAuthenticated && (
+            <UserNotificationDropdown
+              unreadCount={unreadNotificationCount || 0}
+              onUnreadCountChange={onUnreadCountChange}
+            />
+          )}
+          <button
+            onClick={() => {
+              onWishlistClick?.();
+              onLinkClick();
+            }}
+            className="flex flex-col items-center space-y-1 p-2 text-gray-600 hover:text-primary-600 transition-colors relative"
+          >
+            <Heart className="w-5 h-5" />
+            <span className="text-xs">Wishlist</span>
+            {wishlistCount && wishlistCount > 0 && (
+              <span className="absolute top-0 right-0 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium">
+                {wishlistCount > 99 ? '99+' : wishlistCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              onCartClick?.();
+              onLinkClick();
+            }}
+            className="flex flex-col items-center space-y-1 p-2 text-gray-600 hover:text-primary-600 transition-colors relative"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-xs">Cart</span>
+            {cartNumber && cartNumber > 0 && (
+              <span className="absolute top-0 right-0 bg-primary-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium">
+                {cartNumber > 99 ? '99+' : cartNumber}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Navigation Links with Dropdowns */}
+        <div className="space-y-2">
+          {navigation.map((item) => (
+            <div key={item.name}>
+              <Link
+                href={item.href}
+                className="block px-3 py-3 rounded-lg text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 transition-all duration-200"
+                onClick={onLinkClick}
+              >
+                {item.name}
+              </Link>
+              {/* Mobile Dropdown for Products */}
+              {item.hasDropdown && item.name === "Products" && (
+                <div className="ml-4 space-y-1 mt-1">
+                  <Link
+                    href="/products"
+                    className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                    onClick={onLinkClick}
+                  >
+                    All Products
+                  </Link>
+                  <Link
+                    href="/products/featured"
+                    className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                    onClick={onLinkClick}
+                  >
+                    Featured Products
+                  </Link>
+                  <Link
+                    href="/products/trending"
+                    className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                    onClick={onLinkClick}
+                  >
+                    Trending Products
+                  </Link>
+                  <Link
+                    href="/products/new"
+                    className="block px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-primary-600 hover:bg-gray-50 transition-colors"
+                    onClick={onLinkClick}
+                  >
+                    New Products
+                  </Link>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* User Profile Section */}
         {user.isAuthenticated ? (
@@ -1154,6 +1262,71 @@ const MobileMenu = ({
                   </div>
                 </Link>
               )}
+
+              {/* Vendor Dashboard Link */}
+              {user.isVendor && (
+                <Link
+                  href="/vendor/dashboard"
+                  className="flex items-center px-3 py-3 text-sm text-green-700 hover:bg-green-50 rounded-lg transition-colors group"
+                  onClick={onLinkClick}
+                >
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 transition-colors">
+                    <svg
+                      className="w-4 h-4 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-700">
+                      Vendor Dashboard
+                    </p>
+                    <p className="text-xs text-green-600">
+                      Manage your store
+                    </p>
+                  </div>
+                </Link>
+              )}
+
+              <Link
+                href="/settings"
+                className="flex items-center px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                onClick={onLinkClick}
+              >
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-primary-100 transition-colors">
+                  <svg
+                    className="w-4 h-4 text-gray-600 group-hover:text-primary-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium">Settings</p>
+                  <p className="text-xs text-gray-500">Manage preferences</p>
+                </div>
+              </Link>
 
               <Link
                 href="/help"

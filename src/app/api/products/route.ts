@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
         updated_at,
         vendor_id,
         category_id,
+        category,
+        sub_category,
         product_attributes( id, size, color, quantity )
       `)
       // Temporarily remove status filter to see all products - will check statuses in logs
@@ -52,12 +54,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter by category if provided
-    // Try category_id first, then fallback to category name/slug matching
+    // We'll filter client-side to check both category_id and category name
     let useCategoryFilter = false;
     if (categoryId) {
-      // First try filtering by category_id (UUID)
-      query = query.eq("category_id", categoryId);
       useCategoryFilter = true;
+      // Don't filter in the query - we'll filter client-side to handle both category_id and category name
+      // This ensures we get all products and can match by either field
     }
 
     const { data: products, error: productsError } = await query;
@@ -136,6 +138,8 @@ export async function GET(request: NextRequest) {
             created_at,
             updated_at,
             vendor_id,
+            category,
+            sub_category,
             product_attributes( id, size, color, quantity )
           `)
           .eq("status", "active")
@@ -203,7 +207,10 @@ export async function GET(request: NextRequest) {
           id: p.id, 
           name: p.name, 
           status: p.status,
-          vendor_id: p.vendor_id 
+          vendor_id: p.vendor_id,
+          category: p.category,
+          sub_category: p.sub_category,
+          category_id: p.category_id,
         })),
       });
 
@@ -224,12 +231,94 @@ export async function GET(request: NextRequest) {
               .single();
             
             if (categoryData) {
-              // Try matching by category name or slug
-              finalProducts = publicProducts.filter((p: any) => 
-                p.category === categoryData.name || 
-                p.category === categoryData.slug ||
-                p.category_id === categoryId
-              );
+              // Normalize category names for better matching (remove special chars, normalize spaces)
+              const normalizeCategoryName = (name: string) => {
+                return name
+                  .toLowerCase()
+                  .trim()
+                  .replace(/[&]/g, "and") // Replace & with "and"
+                  .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+                  .replace(/\s+/g, " ") // Normalize whitespace
+                  .trim();
+              };
+              
+              const normalizedCategoryName = normalizeCategoryName(categoryData.name);
+              const normalizedCategorySlug = normalizeCategoryName(categoryData.slug);
+              
+              // Try matching by category name or slug (for products that only have category name, not category_id)
+              // Use flexible matching to handle variations like "Fashion & Textiles" vs "Fashion and Textiles"
+              // Also check sub_category field
+              finalProducts = publicProducts.filter((p: any) => {
+                // First check category_id match
+                if (p.category_id === categoryId) return true;
+                
+                // Then check category name match with normalization
+                if (p.category) {
+                  const normalizedProductCategory = normalizeCategoryName(p.category);
+                  if (
+                    normalizedProductCategory === normalizedCategoryName ||
+                    normalizedProductCategory === normalizedCategorySlug ||
+                    normalizedProductCategory.includes(normalizedCategoryName) ||
+                    normalizedCategoryName.includes(normalizedProductCategory)
+                  ) {
+                    return true;
+                  }
+                }
+                
+                // Also check sub_category field
+                if (p.sub_category) {
+                  const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
+                  if (
+                    normalizedProductSubCategory === normalizedCategoryName ||
+                    normalizedProductSubCategory === normalizedCategorySlug ||
+                    normalizedProductSubCategory.includes(normalizedCategoryName) ||
+                    normalizedCategoryName.includes(normalizedProductSubCategory)
+                  ) {
+                    return true;
+                  }
+                }
+                
+                return false;
+              });
+              
+              console.log("Products API: Category name fallback filter:", {
+                categoryId,
+                categoryName: categoryData.name,
+                categorySlug: categoryData.slug,
+                normalizedCategoryName,
+                normalizedCategorySlug,
+                totalProducts: publicProducts.length,
+                filteredProducts: finalProducts.length,
+                allProductsWithCategories: publicProducts.map((p: any) => ({
+                  id: p.id,
+                  name: p.name,
+                  category: p.category,
+                  sub_category: p.sub_category,
+                  normalizedCategory: p.category ? normalizeCategoryName(p.category) : null,
+                  normalizedSubCategory: p.sub_category ? normalizeCategoryName(p.sub_category) : null,
+                  category_id: p.category_id,
+                  status: p.status,
+                  matches: p.category_id === categoryId || 
+                    (p.category && (
+                      normalizeCategoryName(p.category) === normalizedCategoryName ||
+                      normalizeCategoryName(p.category) === normalizedCategorySlug ||
+                      normalizeCategoryName(p.category).includes(normalizedCategoryName) ||
+                      normalizedCategoryName.includes(normalizeCategoryName(p.category))
+                    )) ||
+                    (p.sub_category && (
+                      normalizeCategoryName(p.sub_category) === normalizedCategoryName ||
+                      normalizeCategoryName(p.sub_category) === normalizedCategorySlug ||
+                      normalizeCategoryName(p.sub_category).includes(normalizedCategoryName) ||
+                      normalizedCategoryName.includes(normalizeCategoryName(p.sub_category))
+                    )),
+                })),
+                sampleMatches: finalProducts.slice(0, 5).map((p: any) => ({
+                  id: p.id,
+                  name: p.name,
+                  category: p.category,
+                  category_id: p.category_id,
+                })),
+              });
             }
           } catch (err) {
             console.error("Error fetching category for fallback:", err);
@@ -302,6 +391,8 @@ export async function GET(request: NextRequest) {
           updated_at,
           vendor_id,
           category_id,
+          category,
+          sub_category,
           product_attributes( id, size, color, quantity )
         `)
         .order("created_at", { ascending: false })
@@ -333,7 +424,71 @@ export async function GET(request: NextRequest) {
       // Filter by category_id on client side if we have products
       let filteredProducts = publicProducts || [];
       if (categoryId && publicProducts) {
+        // First try filtering by category_id
         filteredProducts = publicProducts.filter((p: any) => p.category_id === categoryId);
+        
+        // If no results, try to find category by ID and match by name (for products with category name only)
+        if (filteredProducts.length === 0) {
+          try {
+            const { data: categoryData } = await supabase
+              .from("categories")
+              .select("id, name, slug")
+              .eq("id", categoryId)
+              .single();
+            
+            if (categoryData) {
+              // Normalize category names for better matching
+              const normalizeCategoryName = (name: string) => {
+                return name
+                  .toLowerCase()
+                  .trim()
+                  .replace(/[&]/g, "and")
+                  .replace(/[^a-z0-9\s]/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+              };
+              
+              const normalizedCategoryName = normalizeCategoryName(categoryData.name);
+              const normalizedCategorySlug = normalizeCategoryName(categoryData.slug);
+              
+              // Filter by category name or slug as fallback with flexible matching
+              // Also check sub_category field
+              filteredProducts = publicProducts.filter((p: any) => {
+                if (p.category_id === categoryId) return true;
+                
+                if (p.category) {
+                  const normalizedProductCategory = normalizeCategoryName(p.category);
+                  if (
+                    normalizedProductCategory === normalizedCategoryName ||
+                    normalizedProductCategory === normalizedCategorySlug ||
+                    normalizedProductCategory.includes(normalizedCategoryName) ||
+                    normalizedCategoryName.includes(normalizedProductCategory)
+                  ) {
+                    return true;
+                  }
+                }
+                
+                // Also check sub_category field
+                if (p.sub_category) {
+                  const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
+                  if (
+                    normalizedProductSubCategory === normalizedCategoryName ||
+                    normalizedProductSubCategory === normalizedCategorySlug ||
+                    normalizedProductSubCategory.includes(normalizedCategoryName) ||
+                    normalizedCategoryName.includes(normalizedProductSubCategory)
+                  ) {
+                    return true;
+                  }
+                }
+                
+                return false;
+              });
+            }
+          } catch (err) {
+            console.error("Error fetching category for client-side filter:", err);
+          }
+        }
+        
         console.log("Client-side filtered products:", {
           totalProducts: allProducts.length,
           publicProducts: publicProducts.length,
@@ -342,6 +497,8 @@ export async function GET(request: NextRequest) {
           productCategoryIds: publicProducts.map((p: any) => ({
             id: p.id,
             name: p.name,
+            category: p.category,
+            sub_category: p.sub_category,
             category_id: p.category_id,
             status: p.status,
           })),
@@ -370,12 +527,17 @@ export async function GET(request: NextRequest) {
       }
 
       // Filter products - only include active/approved/published products for public view
-      const publicFilteredProducts = filteredProducts.filter((p: any) => 
-        p.status === "active" || 
-        p.status === "approved" || 
-        p.status === "published" ||
-        !p.status // Include products with no status set
-      );
+      // But when filtering by category, be more lenient to show products
+      const publicFilteredProducts = filteredProducts.filter((p: any) => {
+        const status = p.status?.toLowerCase();
+        // Include products with no status, or common active statuses
+        return (
+          !status || 
+          status === "active" || 
+          status === "approved" || 
+          status === "published"
+        );
+      });
 
       const enrichedProducts = publicFilteredProducts.map((product: any) => {
         const calculatedStock = calculateProductStock(product);
