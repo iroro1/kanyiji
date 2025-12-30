@@ -37,21 +37,24 @@ const supportChannels = [
     title: "Live Chat",
     description: "Chat with our support team in real-time",
     available: "Available 24/7",
-    action: "Start Chat"
+    action: "Start Chat",
+    href: "#"
   },
   {
     icon: <Phone className="w-6 h-6" />,
     title: "Phone Support",
     description: "Call us directly for immediate assistance",
     available: "Mon-Fri: 9AM-6PM",
-    action: "Call Now"
+    action: "Call Now",
+    href: "tel:+2348177928061"
   },
   {
     icon: <Mail className="w-6 h-6" />,
     title: "Email Support",
     description: "Send us a detailed message",
     available: "Response within 24h",
-    action: "Send Email"
+    action: "Send Email",
+    href: "mailto:support@kanyiji.ng"
   }
 ];
 
@@ -117,9 +120,12 @@ export default function HelpPage() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{channel.title}</h3>
                 <p className="text-gray-600 mb-3">{channel.description}</p>
                 <p className="text-sm text-primary-600 mb-4">{channel.available}</p>
-                <button className="btn-primary w-full">
+                <a 
+                  href={channel.href} 
+                  className="btn-primary w-full inline-block text-center"
+                >
                   {channel.action}
-                </button>
+                </a>
               </div>
             ))}
           </div>
