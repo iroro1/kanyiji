@@ -171,6 +171,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // Fix Bug #1: Reset loading state when window is closed or loses focus
+  // This prevents the continuous spinning spinner when the web window is exited
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Reset loading state when window is about to close
+      setIsLoading(false);
+    };
+
+    const handleVisibilityChange = () => {
+      // Reset loading state when page becomes hidden (tab switch, window close, etc.)
+      if (document.visibilityState === 'hidden') {
+        setIsLoading(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      // Reset loading state when window loses focus
+      setIsLoading(false);
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       setIsLoading(true);
