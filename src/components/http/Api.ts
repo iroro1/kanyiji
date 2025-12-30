@@ -473,26 +473,99 @@ export async function addNewProduct({
   user,
   slug,
 }: any) {
+  // Look up category_id from category name if category is provided
+  let categoryId = null;
+  if (newProduct.category) {
+    try {
+      // Normalize category name for better matching
+      const normalizeCategoryName = (name: string) => {
+        return name
+          .toLowerCase()
+          .trim()
+          .replace(/[&]/g, "and") // Replace & with "and"
+          .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+          .replace(/\s+/g, " ") // Normalize whitespace
+          .trim();
+      };
+      
+      const normalizedProductCategory = normalizeCategoryName(newProduct.category);
+      
+      // First try to find category by name in database with flexible matching
+      const { data: allCategories, error: categoriesError } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("is_active", true);
+      
+      if (!categoriesError && allCategories) {
+        // Find category with normalized name matching
+        const matchedCategory = allCategories.find((cat) => {
+          const normalizedCatName = normalizeCategoryName(cat.name);
+          return (
+            normalizedCatName === normalizedProductCategory ||
+            normalizedCatName.includes(normalizedProductCategory) ||
+            normalizedProductCategory.includes(normalizedCatName)
+          );
+        });
+        
+        if (matchedCategory) {
+          categoryId = matchedCategory.id;
+        }
+      }
+      
+      // Fallback: try to match with hardcoded categories
+      if (!categoryId) {
+        const { CATEGORIES } = await import("@/data/categories");
+        const matchedCategory = CATEGORIES.find((cat) => {
+          const normalizedCatName = normalizeCategoryName(cat.name);
+          return (
+            normalizedCatName === normalizedProductCategory ||
+            normalizedCatName.includes(normalizedProductCategory) ||
+            normalizedProductCategory.includes(normalizedCatName)
+          );
+        });
+        if (matchedCategory) {
+          categoryId = matchedCategory.id;
+        }
+      }
+      
+      console.log("Category lookup result:", {
+        productCategory: newProduct.category,
+        normalizedProductCategory,
+        categoryId,
+      });
+    } catch (err) {
+      console.error("Error looking up category_id:", err);
+      // Continue without category_id if lookup fails
+    }
+  }
+
   // 1. Insert the main product
+  const productPayload: any = {
+    vendor_id: vendor?.id,
+    name: newProduct.name,
+    category: newProduct.category, // Keep category name for backward compatibility
+    slug: slug,
+    price: newProduct.price,
+    original_price: newProduct.original_price,
+    stock_quantity: newProduct.quantity,
+    description: newProduct.description,
+    status: newProduct.status,
+    weight: newProduct.weight,
+    sub_category: newProduct.type,
+    sku: newProduct.sku,
+    is_featured: newProduct.isFeatured,
+    material: newProduct.material,
+    type: newProduct.type,
+  };
+
+  // Add category_id if we found it
+  if (categoryId) {
+    productPayload.category_id = categoryId;
+  }
+
   const { data: productData, error: productError } = await supabase
     .from("products")
-    .insert({
-      vendor_id: vendor?.id,
-      name: newProduct.name,
-      category: newProduct.category,
-      slug: slug,
-      price: newProduct.price,
-      original_price: newProduct.original_price,
-      stock_quantity: newProduct.quantity,
-      description: newProduct.description,
-      status: newProduct.status,
-      weight: newProduct.weight,
-      sub_category: newProduct.type,
-      sku: newProduct.sku,
-      is_featured: newProduct.isFeatured,
-      material: newProduct.material,
-      type: newProduct.type,
-    })
+    .insert(productPayload)
     .select()
     .single();
 

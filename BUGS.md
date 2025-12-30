@@ -21,12 +21,23 @@ This ensures the loading spinner doesn't get stuck when the user exits the windo
 
 ---
 
-## 2. Products Not Showing in Correct Categories
+## 2. Products Not Showing in Correct Categories ✅ FIXED
 
 **Issue:** Products are not displaying in their appropriate categories. For example, the Fashion and Textile category shows zero products when there are 2 products from D'moore already assigned to that category.
 
-**Status:** Open  
+**Status:** Fixed  
 **Priority:** High
+
+**Fix Applied:**
+
+- Updated `addNewProduct` function in `Api.ts` to look up and save `category_id` (UUID) when products are created, in addition to the category name
+- Updated products API route (`/api/products/route.ts`) to filter by both `category_id` and category name as a fallback
+- This ensures products are properly matched to categories whether they have `category_id` (new products) or only category name (existing products)
+
+**Files Modified:**
+
+- `src/components/http/Api.ts` - Added category_id lookup when creating products
+- `src/app/api/products/route.ts` - Added fallback filtering by category name
 
 ---
 
