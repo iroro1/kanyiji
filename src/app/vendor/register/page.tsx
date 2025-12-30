@@ -21,7 +21,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useRegisterVendor } from "@/components/http/QueryHttp";
 
 export default function VendorRegistrationPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   // const [vendorRegistrationError, setvendorRegistrationError] =
   //   useState<boolean>(false);
   // const [vendorSuccessState, setVendorSuccessState] = useState<boolean>(false);
@@ -65,6 +65,10 @@ export default function VendorRegistrationPage() {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+    // Clear general error when user starts interacting
+    if (errors.general) {
+      setErrors((prev) => ({ ...prev, general: "" }));
     }
   };
 
@@ -120,6 +124,14 @@ export default function VendorRegistrationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Check if user is authenticated before submitting
+    if (!user || !user.id) {
+      setErrors({
+        general: "You must be signed in to register as a vendor. Please sign in first.",
+      });
+      return;
+    }
+
     // 1. First, validate the final step to make sure the terms are checked
     if (!validateStep(4)) {
       return; // Stop submission if validation fails
@@ -149,6 +161,57 @@ export default function VendorRegistrationPage() {
       return `File size must not exceed ${maxSizeMB}MB`;
     }
     return null;
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return <LoadingSpinner />;
+  }
+
+  // Check if user is authenticated - show message if not
+  if (!user || !user.id) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Link
+              href="/"
+              className="inline-flex items-center text-gray-600 hover:text-primary-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Link>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8 text-center">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="w-8 h-8 text-yellow-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Sign In Required
+            </h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              You need to be signed in to register as a vendor. Please sign in to your account first, then you can complete your vendor registration.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/auth/login"
+                className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg transition-colors"
+              >
+                Create Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isError) {
@@ -227,6 +290,23 @@ export default function VendorRegistrationPage() {
 
         {/* Form Content */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 lg:p-8">
+          {/* General Error Message */}
+          {errors.general && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">{errors.general}</p>
+            </div>
+          )}
+          
+          {/* API Error Message */}
+          {isError && error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">
+                {typeof error === 'string' 
+                  ? error 
+                  : error?.message || "An error occurred. Please try again."}
+              </p>
+            </div>
+          )}
           {/* {step === 1 && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
