@@ -121,11 +121,15 @@ export default function NewProductsPage() {
                     <span className="text-lg font-bold text-gray-900">
                       ₦{product.price.toLocaleString()}
                     </span>
-                    {product.original_price > product.price && (
-                      <span className="text-sm text-gray-500 line-through">
-                        ₦{product.original_price.toLocaleString()}
-                      </span>
-                    )}
+                    {product.original_price &&
+                      typeof product.original_price === "number" &&
+                      product.price &&
+                      typeof product.price === "number" &&
+                      product.original_price > product.price && (
+                        <span className="text-sm text-gray-500 line-through">
+                          ₦{product.original_price.toLocaleString()}
+                        </span>
+                      )}
                   </div>
                 </div>
 

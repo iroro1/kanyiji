@@ -96,12 +96,15 @@ export default function ProfilePage() {
   // Initialize vendor form data when vendor is loaded
   useEffect(() => {
     if (vendor) {
+      // Also get user email as fallback for business_email
+      const userEmail = currentUser?.email || user?.email || "";
+      
       setVendorFormData({
         business_name: vendor.business_name || "",
         business_type: vendor.business_type || "",
         business_description: vendor.business_description || "",
-        business_email: vendor.business_email || "",
-        phone: vendor.phone || "",
+        business_email: vendor.business_email || userEmail || "",
+        phone: vendor.phone || currentUser?.phone || "",
         business_registration_number: vendor.business_registration_number || "",
         tax_id: vendor.tax_id || "",
         address: vendor.address || "",
@@ -112,6 +115,11 @@ export default function ProfilePage() {
         website_url: vendor.website_url || "",
         social_media: vendor.social_media || {},
       });
+      
+      // Set logo preview if vendor has logo
+      if (vendor.logo_url) {
+        setLogoPreview(vendor.logo_url);
+      }
       // Set logo preview
       if (vendor.logo_url) {
         setLogoPreview(vendor.logo_url);
@@ -706,32 +714,48 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {activeTab === "vendor" && vendor && (
+            {activeTab === "vendor" && (
               <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    Vendor Information
-                  </h2>
-                  <button
-                    onClick={handleSaveVendor}
-                    disabled={isSavingVendor}
-                    className="flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
-                  >
-                    {isSavingVendor ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    {isSavingVendor ? "Saving..." : "Save Changes"}
-                  </button>
-                </div>
-
                 {vendorLoading ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-8 sm:py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading vendor information...</p>
+                    <p className="text-sm sm:text-base text-gray-600">Loading vendor information...</p>
+                  </div>
+                ) : !vendor ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+                      No Vendor Account
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 max-w-md mx-auto">
+                      You don't have a vendor account yet. Register to start selling on Kanyiji.
+                    </p>
+                    <Link
+                      href="/vendor/register"
+                      className="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-lg transition-colors text-sm sm:text-base"
+                    >
+                      Become a Vendor
+                    </Link>
                   </div>
                 ) : (
+                  <>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                        Vendor Information
+                      </h2>
+                      <button
+                        onClick={handleSaveVendor}
+                        disabled={isSavingVendor}
+                        className="flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base w-full sm:w-auto"
+                      >
+                        {isSavingVendor ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        {isSavingVendor ? "Saving..." : "Save Changes"}
+                      </button>
+                    </div>
                   <div className="space-y-6">
                     {/* Logo Upload */}
                     <div>
@@ -1015,6 +1039,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
+                  </>
                 )}
               </div>
             )}
