@@ -210,7 +210,9 @@ export default function FeaturedProducts() {
                   />
 
                   {/* Discount Badge */}
-                  {product.original_price && product.original_price > product.price && (
+                  {product.original_price && typeof product.original_price === 'number' && 
+                   product.price && typeof product.price === 'number' &&
+                   product.original_price > product.price && (
                     <div className="absolute top-2 left-2 bg-error text-white text-xs px-2 py-1 rounded-full">
                       {Math.round(
                         ((product.original_price - product.price) /
@@ -278,7 +280,9 @@ export default function FeaturedProducts() {
                       <span className="text-base sm:text-lg font-bold text-gray-900">
                         {formatPrice(product.price)}
                       </span>
-                      {product.original_price && product.original_price > product.price && (
+                      {product.original_price && typeof product.original_price === 'number' && 
+                       product.price && typeof product.price === 'number' &&
+                       product.original_price > product.price && (
                         <span className="text-xs sm:text-sm text-gray-500 line-through">
                           {formatPrice(product.original_price)}
                         </span>

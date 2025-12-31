@@ -371,15 +371,21 @@ export default function ProductDetailPage({
                   <span className="text-3xl font-bold text-gray-900">
                     ₦{productWithStock.price.toLocaleString()}
                   </span>
-                  {productWithStock.original_price > productWithStock.price && (
-                    <span className="text-lg text-gray-500 line-through">
-                      ₦{productWithStock.original_price.toLocaleString()}
-                    </span>
-                  )}
-                  {productWithStock.original_price > productWithStock.price && (
-                    <span className="bg-red-100 text-red-800 text-sm font-semibold px-2 py-1 rounded-full">
-                      {Math.floor(productWithStock.discount_percent)}% OFF
-                    </span>
+                  {productWithStock.original_price && typeof productWithStock.original_price === 'number' && 
+                   productWithStock.price && typeof productWithStock.price === 'number' &&
+                   productWithStock.original_price > productWithStock.price && (
+                    <>
+                      <span className="text-lg text-gray-500 line-through">
+                        ₦{productWithStock.original_price.toLocaleString()}
+                      </span>
+                      <span className="bg-red-100 text-red-800 text-sm font-semibold px-2 py-1 rounded-full">
+                        {Math.round(
+                          ((productWithStock.original_price - productWithStock.price) /
+                            productWithStock.original_price) *
+                            100
+                        )}% OFF
+                      </span>
+                    </>
                   )}
                 </div>
               </div>

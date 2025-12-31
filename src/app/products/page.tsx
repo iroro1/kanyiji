@@ -143,9 +143,11 @@ export default function ProductsPage() {
                     userId={user ? user.id : ""}
                   /> */}
 
-                {product.discount_percent && product.discount_percent > 0 ? (
+                {product.original_price && typeof product.original_price === 'number' && 
+                 product.price && typeof product.price === 'number' &&
+                 product.original_price > product.price ? (
                   <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-2xl">
-                    {`-${Math.floor(product.discount_percent)}%`}
+                    {`-${Math.round(((product.original_price - product.price) / product.original_price) * 100)}%`}
                   </div>
                 ) : null}
 
@@ -188,7 +190,9 @@ export default function ProductsPage() {
                       ₦{product.price.toLocaleString()}
                     </span>
 
-                    {product.original_price && product.original_price > product.price && (
+                    {product.original_price && typeof product.original_price === 'number' && 
+                     product.price && typeof product.price === 'number' &&
+                     product.original_price > product.price && (
                       <span className="text-sm line-through text-gray-500">
                         ₦{product.original_price.toLocaleString()}
                       </span>
