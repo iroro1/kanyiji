@@ -181,6 +181,7 @@ export default function WishlistPage() {
                             id: String(item.id),
                             price: Number(item.price),
                             stock_quantity: item.stock_quantity || 0,
+                            weight: item.weight || undefined, // Include weight if available
                             vendor_id: item.vendor_id,
                             title: "",
                             product_images: item.product_images[0].image_url

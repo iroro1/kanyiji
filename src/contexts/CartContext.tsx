@@ -21,6 +21,7 @@ type Product = {
   title?: string;
   vendor_id?: string;
   stock_quantity?: number;
+  weight?: number; // Product weight in kg
   product_images: {
     id: string;
     image_url: string;
