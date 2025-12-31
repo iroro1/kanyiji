@@ -43,6 +43,7 @@ export default function ProductsPage() {
         id: String(product.id),
         price: Number(product.price),
         stock_quantity: product.stock_quantity || 0,
+        weight: product.weight || undefined, // Include weight if available
         vendor_id: product.vendor_id,
       },
     });

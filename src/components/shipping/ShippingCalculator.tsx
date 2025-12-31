@@ -105,11 +105,17 @@ export default function ShippingCalculator({ onRateSelect, selectedRate }: Shipp
     setCalculatedFee(null);
 
     try {
-      // Calculate total weight (add 1kg extra for packaging)
-      const packagesWeight = packages.reduce((sum, pkg) => sum + (pkg.weight * pkg.quantity), 0);
-      const totalWeight = packagesWeight + 1; // Add 1kg extra for packaging
+      // Calculate total weight - add 1kg to every item weight from the database (Bug #10)
+      const totalWeight = packages.reduce((sum, pkg) => {
+        if (pkg.weight <= 0) {
+          return sum;
+        }
+        // Add 1kg to each item's weight, then multiply by quantity
+        const weightWithExtra = (pkg.weight + 1) * pkg.quantity;
+        return sum + weightWithExtra;
+      }, 0);
       
-      if (packagesWeight <= 0) {
+      if (totalWeight <= 0) {
         setError("Please enter a valid weight (greater than 0)");
         setLoading(false);
         return;

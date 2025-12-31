@@ -48,10 +48,17 @@ export default function CheckoutPage() {
   const items = state.items;
   
   // Calculate shipping fee based on destination and total weight
-  // Default weight: 1kg per item + 1kg extra for packaging
+  // Add 1kg to every item weight from the database (Bug #10)
   const totalWeight = useMemo(() => {
-    const itemsWeight = items.reduce((sum, item) => sum + (item.quantity * 1), 0); // 1kg per item default
-    return itemsWeight + 1; // Add 1kg extra for packaging
+    const total = items.reduce((sum, item) => {
+      // Use actual product weight from database if available, otherwise default to 1kg per item
+      const itemWeight = (item.weight && item.weight > 0) ? item.weight : 1;
+      // Add 1kg to each item's weight, then multiply by quantity
+      const weightWithExtra = (itemWeight + 1) * item.quantity;
+      return sum + weightWithExtra;
+    }, 0);
+    
+    return total;
   }, [items]);
 
   const shippingFee = useMemo(() => {
@@ -66,6 +73,7 @@ export default function CheckoutPage() {
       city: shippingData.city,
     };
 
+    // Calculate shipping fee using totalWeight which includes the extra 1kg per item
     const result = calculateShippingFee(totalWeight, location);
     return result ? result.price : null; // Return null if calculation fails
   }, [shippingData.state, shippingData.city, shippingData.country, totalWeight]);

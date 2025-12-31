@@ -561,6 +561,7 @@ export default function ProductDetailPage({
                         id: String(productWithStock.id),
                         price: Number(productWithStock.price),
                         stock_quantity: selectedVariantStock || 0,
+                        weight: productWithStock.weight || undefined, // Include weight if available
                         vendor_id: productWithStock.vendor_id,
                         product_images: productWithStock.product_images || [],
                         selectedVariant: selectedVariant ? {

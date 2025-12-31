@@ -52,14 +52,16 @@ export async function getAllProducts(searchQuery: string) {
     const { data, error } = await supabase
       .from("products")
       .select(`*, product_images( id, image_url )`)
-      .ilike("name", `%${searchQuery}%`);
+      .ilike("name", `%${searchQuery}%`)
+      .or("status.eq.active,status.eq.approved,status.eq.published");
 
     if (error) throw error;
     return data;
   } else {
     const { data, error } = await supabase
       .from("products")
-      .select(`*, product_images( id, image_url )`);
+      .select(`*, product_images( id, image_url )`)
+      .or("status.eq.active,status.eq.approved,status.eq.published");
 
     if (error) throw error;
     return data;
@@ -684,6 +686,7 @@ export async function fetchAllProducts(
       .from("products")
       .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
       .ilike("name", `%${searchQuery}%`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
     // .range(pageParam * PAGE_SIZE, pageParam * PAGE_SIZE + PAGE_SIZE);
 
@@ -703,6 +706,7 @@ export async function fetchAllProducts(
       .from("products")
       .select("*")
       .ilike("category", `%${category}%`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
@@ -716,6 +720,7 @@ export async function fetchAllProducts(
       .select("*")
       .gte("price", minPrice)
       .lte("price", maxPrice)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
@@ -731,6 +736,7 @@ export async function fetchAllProducts(
     const { data, error } = await supabase
       .from("products")
       .select(`*, product_images( id, image_url )`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .order(key, { ascending })
       .range(from, to); // Fetches rows from 'from' to 'to'
 
@@ -743,6 +749,7 @@ export async function fetchAllProducts(
       .from("products")
       .select("*")
       .eq("is_on_sale", `${sale}`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
@@ -755,6 +762,7 @@ export async function fetchAllProducts(
       .from("products")
       .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
       .eq("is_featured", `${feature}`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
@@ -772,6 +780,7 @@ export async function fetchAllProducts(
     const { data, error } = await supabase
       .from("products")
       .select(`*, product_images( id, image_url ), product_attributes( id, size, color, quantity )`)
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .range(from, to); // Fetches rows from 'from' to 'to'
 
     if (error) {
@@ -792,7 +801,8 @@ export async function fetchProductsByCategory(category: string) {
   const { data, error } = await supabase
     .from("products")
     .select(`*, product_images( id, image_url )`)
-    .eq("category", category);
+    .eq("category", category)
+    .or("status.eq.active,status.eq.approved,status.eq.published");
   if (error) throw error;
   return data;
 }
@@ -802,6 +812,7 @@ export async function fetchNewAndLatestProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(`*, product_images( id, image_url )`)
+    .or("status.eq.active,status.eq.approved,status.eq.published")
     .order("created_at", { ascending: false })
     .limit(10);
 

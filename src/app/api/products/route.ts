@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         original_price,
         sku,
         stock_quantity,
+        weight,
         status,
         created_at,
         updated_at,
