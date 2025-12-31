@@ -9,6 +9,7 @@ interface Vendor {
   name: string;
   business_name: string;
   description: string;
+  logo_url?: string;
   image_url: string;
   location: string;
   rating: number;
@@ -54,10 +55,11 @@ export default function FeaturedVendors() {
             name: vendor.business_name || "Vendor", // Use business name as fallback
             business_name: vendor.business_name,
             description: vendor.business_description || "",
-            image_url: vendor.image_url || null, // Don't use placeholder URL, will show icon instead
-            location: "Nigeria", // TODO: Add location field to vendors table
-            rating: 4.5, // TODO: Add rating field to vendors table or calculate from reviews
-            review_count: 0, // TODO: Add review_count field or calculate from reviews table
+            logo_url: vendor.logo_url || null, // Prioritize logo_url
+            image_url: vendor.logo_url || vendor.image_url || null, // Use logo_url first, then image_url
+            location: vendor.location || vendor.address || "Nigeria", // Use location from vendor data
+            rating: vendor.rating ? parseFloat(vendor.rating) : 0, // Use actual rating from database
+            review_count: vendor.total_reviews || 0, // Use actual review count from database
             product_count: vendor.product_count || 0,
             specialty: vendor.business_type || "General",
           }));
@@ -155,10 +157,10 @@ export default function FeaturedVendors() {
             >
               <div className="card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer">
                 <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg bg-gray-100">
-                  {vendor.image_url ? (
+                  {vendor.logo_url || vendor.image_url ? (
                     <>
                       <img
-                        src={vendor.image_url}
+                        src={vendor.logo_url || vendor.image_url || ''}
                         alt={vendor.business_name}
                         className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -171,12 +173,14 @@ export default function FeaturedVendors() {
                   )}
 
                   {/* Rating Badge */}
-                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
-                    <Star className="w-3 h-3 text-warning fill-current" />
-                    <span className="text-xs font-semibold text-gray-900">
-                      {vendor.rating}
-                    </span>
-                  </div>
+                  {vendor.rating > 0 && (
+                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
+                      <Star className="w-3 h-3 text-warning fill-current" />
+                      <span className="text-xs font-semibold text-gray-900">
+                        {vendor.rating.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 sm:space-y-3">

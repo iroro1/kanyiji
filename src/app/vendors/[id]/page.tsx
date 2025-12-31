@@ -11,10 +11,13 @@ interface Vendor {
   business_name: string;
   business_description: string;
   business_type: string;
+  logo_url?: string | null;
   image_url: string | null;
   product_count: number;
   status: string;
   created_at: string;
+  rating?: number;
+  total_reviews?: number;
   // Additional fields that might exist
   owner_name?: string;
   email?: string;
@@ -69,6 +72,14 @@ export default function VendorDetailPage() {
         }
 
         const data = await response.json();
+        console.log("Vendor Detail Page: API Response:", {
+          vendor: data.vendor,
+          logo_url: data.vendor?.logo_url,
+          logo_url_type: typeof data.vendor?.logo_url,
+          logo_url_length: data.vendor?.logo_url?.length,
+          image_url: data.vendor?.image_url,
+          allVendorKeys: Object.keys(data.vendor || {}),
+        });
         setVendor(data.vendor);
         setProducts(data.products || []);
       } catch (err: any) {
@@ -153,21 +164,54 @@ export default function VendorDetailPage() {
           <div className="flex flex-col md:flex-row gap-6">
             {/* Vendor Logo/Image */}
             <div className="flex-shrink-0">
-              {vendor.image_url ? (
-                <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-lg overflow-hidden bg-gray-100">
-                  <Image
-                    src={vendor.image_url}
-                    alt={vendor.business_name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 128px, 160px"
-                  />
-                </div>
-              ) : (
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <Building2 className="w-16 h-16 text-gray-400" />
-                </div>
-              )}
+              {(() => {
+                const logoUrl = vendor.logo_url || vendor.image_url;
+                console.log("Vendor Detail Page: Rendering logo:", {
+                  hasLogoUrl: !!vendor.logo_url,
+                  hasImageUrl: !!vendor.image_url,
+                  logoUrl,
+                  vendorId: vendor.id,
+                  businessName: vendor.business_name,
+                });
+                
+                return logoUrl ? (
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                    <img
+                      src={logoUrl}
+                      alt={vendor.business_name}
+                      className="max-w-full max-h-full object-contain"
+                      onLoad={() => {
+                        console.log("Vendor logo loaded successfully:", logoUrl);
+                      }}
+                      onError={(e) => {
+                        console.error("Vendor logo image failed to load:", {
+                          logo_url: vendor.logo_url,
+                          image_url: vendor.image_url,
+                          attemptedUrl: logoUrl,
+                          src: (e.target as HTMLImageElement).src,
+                        });
+                        // Fallback to placeholder if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `
+                            <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                              <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                              </svg>
+                            </div>
+                          `;
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border border-gray-200">
+                    <Building2 className="w-16 h-16 text-gray-400" />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Vendor Info */}
@@ -185,8 +229,12 @@ export default function VendorDetailPage() {
               <div className="flex items-center gap-6 mt-4 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="font-medium">4.5</span>
-                  <span>(0 reviews)</span>
+                  <span className="font-medium">
+                    {vendor.rating && vendor.rating > 0 ? vendor.rating.toFixed(1) : "0.0"}
+                  </span>
+                  <span>
+                    ({vendor.total_reviews || 0} {vendor.total_reviews === 1 ? 'review' : 'reviews'})
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-gray-400" />
