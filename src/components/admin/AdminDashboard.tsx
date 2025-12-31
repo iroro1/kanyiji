@@ -20,6 +20,10 @@ import {
   Upload,
   Bell,
   FileText,
+  Wallet,
+  DollarSign,
+  ArrowRight,
+  History,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -122,6 +126,7 @@ export default function AdminDashboard() {
     | "kyc"
     | "analytics"
     | "users"
+    | "payouts"
     | "settings"
   >("overview");
 
@@ -160,6 +165,17 @@ export default function AdminDashboard() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [usersPage, setUsersPage] = useState(1);
+
+  // Payouts state
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [payoutsError, setPayoutsError] = useState<string | null>(null);
+  const [payoutsPage, setPayoutsPage] = useState(1);
+  const [payoutsTotal, setPayoutsTotal] = useState(0);
+  const [payoutsStatusFilter, setPayoutsStatusFilter] = useState<string>("");
+  const [processingPayout, setProcessingPayout] = useState<string | null>(null);
+  const [payoutActionModal, setPayoutActionModal] = useState<{ payout: any; action: string } | null>(null);
+  const [payoutFailureReason, setPayoutFailureReason] = useState("");
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersRoleFilter, setUsersRoleFilter] = useState<string>("");
 
@@ -349,7 +365,68 @@ export default function AdminDashboard() {
     if (activeTab === "users") {
       loadUsers();
     }
-  }, [activeTab, usersPage, usersRoleFilter]);
+
+    if (activeTab === "payouts") {
+      loadPayouts();
+    }
+  }, [activeTab, usersPage, usersRoleFilter, payoutsPage, payoutsStatusFilter]);
+
+  const loadPayouts = async () => {
+    try {
+      setPayoutsLoading(true);
+      setPayoutsError(null);
+      const statusFilter = payoutsStatusFilter || undefined;
+      const response = await fetch(
+        `/api/admin/payouts?page=${payoutsPage}&limit=20${statusFilter ? `&status=${statusFilter}` : ""}`,
+        {
+          credentials: "include",
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setPayouts(data.payouts || []);
+        setPayoutsTotal(data.total || 0);
+      } else {
+        setPayoutsError("Failed to load payouts");
+        toast.error("Failed to load payouts");
+      }
+    } catch (error: any) {
+      setPayoutsError(error.message || "Failed to load payouts");
+      toast.error("Failed to load payouts");
+    } finally {
+      setPayoutsLoading(false);
+    }
+  };
+
+  const handleProcessPayout = async (payoutId: string, status: string, failureReason?: string) => {
+    try {
+      setProcessingPayout(payoutId);
+      const response = await fetch("/api/admin/payouts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          payoutId,
+          status,
+          failureReason,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`Payout ${status} successfully`);
+        setPayoutActionModal(null);
+        setPayoutFailureReason("");
+        loadPayouts();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to process payout");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to process payout");
+    } finally {
+      setProcessingPayout(null);
+    }
+  };
 
   // Fetch notifications
   useEffect(() => {
@@ -2683,6 +2760,399 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* Payouts Tab */}
+        {activeTab === "payouts" && (
+          <div className="space-y-4 sm:space-y-6">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+                Payout Management
+              </h2>
+              <p className="text-sm sm:text-base text-gray-600">
+                Review and process vendor payout requests
+              </p>
+            </div>
+
+            {/* Filter */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <select
+                value={payoutsStatusFilter}
+                onChange={(e) => {
+                  setPayoutsStatusFilter(e.target.value);
+                  setPayoutsPage(1);
+                }}
+                className="w-full sm:w-auto min-w-[200px] px-4 py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+
+            {payoutsLoading ? (
+              <LoadingSpinner />
+            ) : payoutsError ? (
+              <ErrorMessage message={payoutsError} />
+            ) : (
+              <>
+                {/* Payouts Table */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Reference
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Vendor
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                            Method
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">
+                            Date
+                          </th>
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {payouts.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 lg:px-6 py-12 text-center text-gray-500">
+                              No payouts found
+                            </td>
+                          </tr>
+                        ) : (
+                          payouts.map((payout: any) => (
+                            <tr key={payout.id} className="hover:bg-gray-50">
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                                {payout.reference}
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {payout.vendors?.business_name || "N/A"}
+                                </div>
+                                {payout.vendors?.profiles?.email && (
+                                  <div className="text-xs text-gray-500">
+                                    {payout.vendors.profiles.email}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                {formatCurrency(payout.amount)}
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    payout.status === "completed"
+                                      ? "bg-green-100 text-green-800"
+                                      : payout.status === "processing"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : payout.status === "failed"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                                </span>
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize hidden lg:table-cell">
+                                {payout.payment_method?.replace("_", " ") || "N/A"}
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600 hidden xl:table-cell">
+                                {formatDate(payout.created_at)}
+                              </td>
+                              <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex space-x-2">
+                                  {payout.status === "pending" && (
+                                    <>
+                                      <button
+                                        onClick={() => setPayoutActionModal({ payout, action: "processing" })}
+                                        disabled={processingPayout === payout.id}
+                                        className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                                        title="Mark as Processing"
+                                      >
+                                        <Clock className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => setPayoutActionModal({ payout, action: "completed" })}
+                                        disabled={processingPayout === payout.id}
+                                        className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                                        title="Mark as Completed"
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => setPayoutActionModal({ payout, action: "failed" })}
+                                        disabled={processingPayout === payout.id}
+                                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                        title="Mark as Failed"
+                                      >
+                                        <XCircle className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                  {payout.status === "processing" && (
+                                    <>
+                                      <button
+                                        onClick={() => setPayoutActionModal({ payout, action: "completed" })}
+                                        disabled={processingPayout === payout.id}
+                                        className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                                        title="Mark as Completed"
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => setPayoutActionModal({ payout, action: "failed" })}
+                                        disabled={processingPayout === payout.id}
+                                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                        title="Mark as Failed"
+                                      >
+                                        <XCircle className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      // Show payout details modal
+                                      setPayoutActionModal({ payout, action: "view" });
+                                    }}
+                                    className="text-gray-600 hover:text-gray-900"
+                                    title="View Details"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {payoutsTotal > 20 && (
+                    <div className="bg-gray-50 px-4 py-3 flex flex-col sm:flex-row items-center justify-between border-t border-gray-200">
+                      <div className="text-sm text-gray-700 mb-2 sm:mb-0">
+                        Showing {((payoutsPage - 1) * 20) + 1} to {Math.min(payoutsPage * 20, payoutsTotal)} of {payoutsTotal} payouts
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
+                          disabled={payoutsPage === 1}
+                          className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setPayoutsPage((p) => p + 1)}
+                          disabled={payoutsPage >= Math.ceil(payoutsTotal / 20)}
+                          className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Payout Action Modal */}
+            {payoutActionModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {payoutActionModal.action === "view"
+                        ? "Payout Details"
+                        : payoutActionModal.action === "completed"
+                        ? "Complete Payout"
+                        : payoutActionModal.action === "failed"
+                        ? "Mark as Failed"
+                        : "Process Payout"}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setPayoutActionModal(null);
+                        setPayoutFailureReason("");
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {payoutActionModal.action === "view" ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
+                        <p className="text-sm text-gray-900 font-mono">{payoutActionModal.payout.reference}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                        <p className="text-sm text-gray-900">
+                          {payoutActionModal.payout.vendors?.business_name || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <p className="text-sm text-gray-900 font-semibold">
+                          {formatCurrency(payoutActionModal.payout.amount)}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            payoutActionModal.payout.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : payoutActionModal.payout.status === "processing"
+                              ? "bg-blue-100 text-blue-800"
+                              : payoutActionModal.payout.status === "failed"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {payoutActionModal.payout.status.charAt(0).toUpperCase() +
+                            payoutActionModal.payout.status.slice(1)}
+                        </span>
+                      </div>
+                      {payoutActionModal.payout.payment_details &&
+                        typeof payoutActionModal.payout.payment_details === "object" && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Payment Details
+                            </label>
+                            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                              {Object.entries(payoutActionModal.payout.payment_details).map(([key, value]) => (
+                                <div key={key} className="flex justify-between mb-1">
+                                  <span className="text-gray-600 capitalize">{key.replace(/_/g, " ")}:</span>
+                                  <span className="text-gray-900 font-medium">{String(value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      {payoutActionModal.payout.failure_reason && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Failure Reason</label>
+                          <p className="text-sm text-red-600">{payoutActionModal.payout.failure_reason}</p>
+                        </div>
+                      )}
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          onClick={() => {
+                            setPayoutActionModal(null);
+                            setPayoutFailureReason("");
+                          }}
+                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        await handleProcessPayout(
+                          payoutActionModal.payout.id,
+                          payoutActionModal.action === "processing"
+                            ? "processing"
+                            : payoutActionModal.action === "completed"
+                            ? "completed"
+                            : "failed",
+                          payoutActionModal.action === "failed" ? payoutFailureReason : undefined
+                        );
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <p className="text-sm text-gray-600 mb-4">
+                          {payoutActionModal.action === "completed"
+                            ? "Are you sure you want to mark this payout as completed? This will update the vendor's earnings."
+                            : payoutActionModal.action === "failed"
+                            ? "Please provide a reason for marking this payout as failed."
+                            : "Are you sure you want to mark this payout as processing?"}
+                        </p>
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                          <div className="text-sm">
+                            <span className="text-gray-600">Amount: </span>
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(payoutActionModal.payout.amount)}
+                            </span>
+                          </div>
+                          <div className="text-sm mt-1">
+                            <span className="text-gray-600">Vendor: </span>
+                            <span className="font-semibold text-gray-900">
+                              {payoutActionModal.payout.vendors?.business_name || "N/A"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {payoutActionModal.action === "failed" && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Failure Reason *
+                          </label>
+                          <textarea
+                            required
+                            value={payoutFailureReason}
+                            onChange={(e) => setPayoutFailureReason(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            placeholder="Enter reason for failure..."
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          type="submit"
+                          disabled={processingPayout === payoutActionModal.payout.id}
+                          className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {processingPayout === payoutActionModal.payout.id ? (
+                            <span className="flex items-center justify-center">
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Processing...
+                            </span>
+                          ) : (
+                            "Confirm"
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayoutActionModal(null);
+                            setPayoutFailureReason("");
+                          }}
+                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}
