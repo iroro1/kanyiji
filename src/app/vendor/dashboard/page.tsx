@@ -20,6 +20,11 @@ import {
   FileText,
   Download,
   Loader2,
+  Wallet,
+  CreditCard,
+  ArrowUpRight,
+  History,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -139,6 +144,25 @@ export default function VendorDashboard() {
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<{ url: string; name: string; docKey: string } | null>(null);
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  
+  // Payout state
+  const [payoutData, setPayoutData] = useState<any>(null);
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [showAddBankAccount, setShowAddBankAccount] = useState(false);
+  const [showRequestPayout, setShowRequestPayout] = useState(false);
+  const [editingBankAccount, setEditingBankAccount] = useState<any>(null);
+  const [bankAccountForm, setBankAccountForm] = useState({
+    account_name: "",
+    account_number: "",
+    bank_name: "",
+    bank_code: "",
+    account_type: "savings",
+    is_primary: false,
+  });
+  const [payoutRequestForm, setPayoutRequestForm] = useState({
+    amount: "",
+    bankAccountId: "",
+  });
 
   console.log(selectedProduct);
   const ProductToBeEdited = vendor?.products.find(
@@ -507,8 +531,36 @@ export default function VendorDashboard() {
   }
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "products" | "orders" | "analytics" | "settings"
+    "overview" | "products" | "orders" | "analytics" | "payouts" | "settings"
   >("overview");
+
+  // Fetch payout data when payouts tab is active
+  useEffect(() => {
+    if (activeTab !== "payouts") return;
+    
+    setPayoutLoading(true);
+    const fetchPayoutData = async () => {
+      try {
+        const response = await fetch("/api/vendor/payouts", {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPayoutData(data);
+        } else {
+          notify("Failed to load payout data", "error");
+        }
+      } catch (error) {
+        console.error("Error fetching payout data:", error);
+        notify("Error loading payout data", "error");
+      } finally {
+        setPayoutLoading(false);
+      }
+    };
+
+    fetchPayoutData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Calculate stats from real data
   const stats: VendorStats = {
@@ -677,6 +729,7 @@ export default function VendorDashboard() {
               { id: "products", label: "Products", icon: Package },
               { id: "orders", label: "Orders", icon: ShoppingBag },
               { id: "analytics", label: "Analytics", icon: TrendingUp },
+              { id: "payouts", label: "Payouts", icon: Wallet },
               { id: "settings", label: "Settings", icon: Settings },
             ].map((tab) => (
               <button
@@ -1116,6 +1169,653 @@ export default function VendorDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === "payouts" && (
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                Payouts & Earnings
+              </h2>
+
+              {payoutLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                </div>
+              ) : payoutData ? (
+                <div className="space-y-6">
+                  {/* Account Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Available Balance</span>
+                        <Wallet className="w-5 h-5 text-green-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ₦{payoutData.accountSummary?.availableBalance?.toLocaleString() || "0.00"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Ready to withdraw</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Pending Earnings</span>
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ₦{payoutData.accountSummary?.pendingEarnings?.toLocaleString() || "0.00"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Awaiting clearance</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Total Earnings</span>
+                        <DollarSign className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ₦{payoutData.accountSummary?.totalEarnings?.toLocaleString() || "0.00"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">All time</p>
+                    </div>
+
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Total Paid</span>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ₦{payoutData.accountSummary?.paidEarnings?.toLocaleString() || "0.00"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Withdrawn</p>
+                    </div>
+                  </div>
+
+                  {/* Request Payout Button */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          Request Payout
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Withdraw your available balance to your bank account
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowRequestPayout(true)}
+                        disabled={!payoutData?.accountSummary?.availableBalance || (payoutData?.accountSummary?.availableBalance || 0) <= 0}
+                        className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-colors"
+                      >
+                        <ArrowUpRight className="w-5 h-5" />
+                        Request Payout
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bank Accounts Section */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Bank Accounts
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setEditingBankAccount(null);
+                          setBankAccountForm({
+                            account_name: "",
+                            account_number: "",
+                            bank_name: "",
+                            bank_code: "",
+                            account_type: "savings",
+                            is_primary: false,
+                          });
+                          setShowAddBankAccount(true);
+                        }}
+                        className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Bank Account
+                      </button>
+                    </div>
+
+                    {payoutData.bankAccounts && payoutData.bankAccounts.length > 0 ? (
+                      <div className="space-y-4">
+                        {payoutData.bankAccounts.map((account: any) => (
+                          <div
+                            key={account.id}
+                            className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CreditCard className="w-5 h-5 text-gray-400" />
+                                <h4 className="font-medium text-gray-900">
+                                  {account.account_name}
+                                </h4>
+                                {account.is_primary && (
+                                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                    Primary
+                                  </span>
+                                )}
+                                {account.is_verified && (
+                                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                    Verified
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Account Number:</span>
+                                  <p className="font-mono font-medium">{account.account_number}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Bank:</span>
+                                  <p className="font-medium">{account.bank_name}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Type:</span>
+                                  <p className="font-medium capitalize">{account.account_type}</p>
+                                </div>
+                                {account.bank_code && (
+                                  <div>
+                                    <span className="text-gray-500">Bank Code:</span>
+                                    <p className="font-medium">{account.bank_code}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <button
+                                onClick={() => {
+                                  setEditingBankAccount(account);
+                                  setBankAccountForm({
+                                    account_name: account.account_name,
+                                    account_number: account.account_number,
+                                    bank_name: account.bank_name,
+                                    bank_code: account.bank_code || "",
+                                    account_type: account.account_type,
+                                    is_primary: account.is_primary,
+                                  });
+                                  setShowAddBankAccount(true);
+                                }}
+                                className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (confirm("Are you sure you want to delete this bank account?")) {
+                                    try {
+                                      const response = await fetch(
+                                        `/api/vendor/bank-accounts?id=${account.id}`,
+                                        {
+                                          method: "DELETE",
+                                          credentials: "include",
+                                        }
+                                      );
+                                      if (response.ok) {
+                                        notify("Bank account deleted successfully", "success");
+                                        // Refresh payout data
+                                        const payoutResponse = await fetch("/api/vendor/payouts", {
+                                          credentials: "include",
+                                        });
+                                        if (payoutResponse.ok) {
+                                          const data = await payoutResponse.json();
+                                          setPayoutData(data);
+                                        }
+                                      } else {
+                                        notify("Failed to delete bank account", "error");
+                                      }
+                                    } catch (error) {
+                                      console.error("Error deleting bank account:", error);
+                                      notify("Error deleting bank account", "error");
+                                    }
+                                  }
+                                }}
+                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 mb-4">No bank accounts added yet</p>
+                        <button
+                          onClick={() => {
+                            setEditingBankAccount(null);
+                            setBankAccountForm({
+                              account_name: "",
+                              account_number: "",
+                              bank_name: "",
+                              bank_code: "",
+                              account_type: "savings",
+                              is_primary: false,
+                            });
+                            setShowAddBankAccount(true);
+                          }}
+                          className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Add Your First Bank Account
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payout History */}
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Payout History
+                      </h3>
+                      <History className="w-5 h-5 text-gray-400" />
+                    </div>
+
+                    {payoutData.payouts && payoutData.payouts.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Reference
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Amount
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Status
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Method
+                              </th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Date
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {payoutData.payouts.map((payout: any) => (
+                              <tr key={payout.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm font-mono">
+                                  {payout.reference}
+                                </td>
+                                <td className="px-4 py-3 text-sm font-semibold">
+                                  ₦{parseFloat(payout.amount || 0).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`px-2 py-1 text-xs font-medium rounded ${
+                                      payout.status === "completed"
+                                        ? "bg-green-100 text-green-800"
+                                        : payout.status === "processing"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : payout.status === "failed"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}
+                                  >
+                                    {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                                  {payout.payment_method?.replace("_", " ") || "N/A"}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {new Date(payout.created_at).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No payout history yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <EmptyState
+                  title="Unable to load payout data"
+                  message="Please try refreshing the page"
+                />
+              )}
+
+              {/* Add/Edit Bank Account Modal */}
+              {showAddBankAccount && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {editingBankAccount ? "Edit Bank Account" : "Add Bank Account"}
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setShowAddBankAccount(false);
+                          setEditingBankAccount(null);
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                          const url = "/api/vendor/bank-accounts";
+                          const method = editingBankAccount ? "PATCH" : "POST";
+                          const body = editingBankAccount
+                            ? { id: editingBankAccount.id, ...bankAccountForm }
+                            : bankAccountForm;
+
+                          const response = await fetch(url, {
+                            method,
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify(body),
+                          });
+
+                          if (response.ok) {
+                            notify(
+                              editingBankAccount
+                                ? "Bank account updated successfully"
+                                : "Bank account added successfully",
+                              "success"
+                            );
+                            setShowAddBankAccount(false);
+                            setEditingBankAccount(null);
+                            // Refresh payout data
+                            const payoutResponse = await fetch("/api/vendor/payouts", {
+                              credentials: "include",
+                            });
+                            if (payoutResponse.ok) {
+                              const data = await payoutResponse.json();
+                              setPayoutData(data);
+                            }
+                          } else {
+                            const error = await response.json();
+                            notify(error.error || "Failed to save bank account", "error");
+                          }
+                        } catch (error) {
+                          console.error("Error saving bank account:", error);
+                          notify("Error saving bank account", "error");
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Account Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={bankAccountForm.account_name}
+                          onChange={(e) =>
+                            setBankAccountForm({ ...bankAccountForm, account_name: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Account Number *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={bankAccountForm.account_number}
+                          onChange={(e) =>
+                            setBankAccountForm({
+                              ...bankAccountForm,
+                              account_number: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Bank Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={bankAccountForm.bank_name}
+                          onChange={(e) =>
+                            setBankAccountForm({ ...bankAccountForm, bank_name: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Bank Code
+                        </label>
+                        <input
+                          type="text"
+                          value={bankAccountForm.bank_code}
+                          onChange={(e) =>
+                            setBankAccountForm({ ...bankAccountForm, bank_code: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Account Type *
+                        </label>
+                        <select
+                          required
+                          value={bankAccountForm.account_type}
+                          onChange={(e) =>
+                            setBankAccountForm({ ...bankAccountForm, account_type: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="savings">Savings</option>
+                          <option value="current">Current</option>
+                          <option value="business">Business</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="is_primary"
+                          checked={bankAccountForm.is_primary}
+                          onChange={(e) =>
+                            setBankAccountForm({ ...bankAccountForm, is_primary: e.target.checked })
+                          }
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                        />
+                        <label htmlFor="is_primary" className="ml-2 text-sm text-gray-700">
+                          Set as primary account
+                        </label>
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          {editingBankAccount ? "Update" : "Add"} Bank Account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddBankAccount(false);
+                            setEditingBankAccount(null);
+                          }}
+                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Request Payout Modal */}
+              {showRequestPayout && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Request Payout</h3>
+                      <button
+                        onClick={() => {
+                          setShowRequestPayout(false);
+                          setPayoutRequestForm({ amount: "", bankAccountId: "" });
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!payoutRequestForm.amount || parseFloat(payoutRequestForm.amount) <= 0) {
+                          notify("Please enter a valid amount", "error");
+                          return;
+                        }
+
+                        if (
+                          parseFloat(payoutRequestForm.amount) >
+                          (payoutData?.accountSummary?.availableBalance || 0)
+                        ) {
+                          notify("Amount exceeds available balance", "error");
+                          return;
+                        }
+
+                        try {
+                          const response = await fetch("/api/vendor/payouts", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                              amount: parseFloat(payoutRequestForm.amount),
+                              bankAccountId: payoutRequestForm.bankAccountId || null,
+                            }),
+                          });
+
+                          if (response.ok) {
+                            notify("Payout request submitted successfully", "success");
+                            setShowRequestPayout(false);
+                            setPayoutRequestForm({ amount: "", bankAccountId: "" });
+                            // Refresh payout data
+                            const payoutResponse = await fetch("/api/vendor/payouts", {
+                              credentials: "include",
+                            });
+                            if (payoutResponse.ok) {
+                              const data = await payoutResponse.json();
+                              setPayoutData(data);
+                            }
+                          } else {
+                            const error = await response.json();
+                            notify(error.error || "Failed to submit payout request", "error");
+                          }
+                        } catch (error) {
+                          console.error("Error requesting payout:", error);
+                          notify("Error submitting payout request", "error");
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Available Balance
+                        </label>
+                        <input
+                          type="text"
+                          value={`₦${payoutData?.accountSummary?.availableBalance?.toLocaleString() || "0.00"}`}
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Amount to Withdraw *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          max={payoutData?.accountSummary?.availableBalance || 0}
+                          step="0.01"
+                          value={payoutRequestForm.amount}
+                          onChange={(e) =>
+                            setPayoutRequestForm({ ...payoutRequestForm, amount: e.target.value })
+                          }
+                          placeholder="Enter amount"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+
+                      {payoutData?.bankAccounts && payoutData.bankAccounts.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Bank Account (Optional)
+                          </label>
+                          <select
+                            value={payoutRequestForm.bankAccountId}
+                            onChange={(e) =>
+                              setPayoutRequestForm({
+                                ...payoutRequestForm,
+                                bankAccountId: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          >
+                            <option value="">Select bank account (optional)</option>
+                            {payoutData.bankAccounts.map((account: any) => (
+                              <option key={account.id} value={account.id}>
+                                {account.account_name} - {account.account_number} ({account.bank_name})
+                                {account.is_primary && " (Primary)"}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Submit Request
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowRequestPayout(false);
+                            setPayoutRequestForm({ amount: "", bankAccountId: "" });
+                          }}
+                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
