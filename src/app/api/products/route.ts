@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
         category_id,
         category,
         sub_category,
+        rating,
+        review_count,
         product_attributes( id, size, color, quantity )
       `)
       // Temporarily remove status filter to see all products - will check statuses in logs
@@ -195,9 +197,16 @@ export async function GET(request: NextRequest) {
 
     // If we successfully got products, filter by status
     if (!productsError && products && products.length > 0) {
-      // TEMPORARILY: Show all products regardless of status for debugging
-      // TODO: Re-enable status filtering once we know what statuses products have
-      const publicProducts = products; // Show all products for now
+      // Filter products by status (only active/approved/published)
+      const publicProducts = products.filter((p: any) => {
+        const status = p.status?.toLowerCase();
+        return (
+          !status || 
+          status === "active" || 
+          status === "approved" || 
+          status === "published"
+        );
+      });
       
       console.log("Products API: Status filtering result:", {
         totalFetched: products.length,

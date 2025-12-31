@@ -28,8 +28,8 @@ export default function AuthModal({
 
   const handleClose = () => {
     // Don't allow closing if login is in progress
-    // Don't allow closing immediately after login failure (user should see error)
-    if (!isLoginInProgress && !loginFailed) {
+    // Allow closing even if login failed (user can manually close)
+    if (!isLoginInProgress) {
       onClose();
     }
   };
@@ -46,13 +46,9 @@ export default function AuthModal({
     setIsLoginInProgress(false);
     
     if (!success) {
-      // Login failed - keep modal open and prevent closing for a moment
-      // This ensures user sees the error message
+      // Login failed - keep modal open so user can see error and try again
+      // Modal stays open until user manually closes or successfully logs in
       setLoginFailed(true);
-      // Allow closing after 1 second (user can manually close if they want)
-      setTimeout(() => {
-        setLoginFailed(false);
-      }, 1000);
     } else {
       // Login successful - modal will close via onSuccess callback
       setLoginFailed(false);
@@ -78,8 +74,9 @@ export default function AuthModal({
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={() => {
-          // Don't close on backdrop click if login failed or in progress
-          if (!isLoginInProgress && !loginFailed) {
+          // Don't close on backdrop click if login is in progress
+          // Allow closing even if login failed (user can manually close)
+          if (!isLoginInProgress) {
             handleClose();
           }
         }}
@@ -94,11 +91,11 @@ export default function AuthModal({
           {/* Close Button */}
           <button
             onClick={handleClose}
-            disabled={isLoginInProgress || loginFailed}
+            disabled={isLoginInProgress}
             className={`absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors ${
-              (isLoginInProgress || loginFailed) ? "opacity-50 cursor-not-allowed" : ""
+              isLoginInProgress ? "opacity-50 cursor-not-allowed" : ""
             }`}
-            title={loginFailed ? "Please try again or wait a moment" : ""}
+            title={isLoginInProgress ? "Please wait..." : ""}
           >
             <X className="w-5 h-5" />
           </button>

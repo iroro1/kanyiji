@@ -124,10 +124,13 @@ export async function GET(request: NextRequest) {
       business_name: vendor.business_name,
       business_description: vendor.business_description || "",
       business_type: vendor.business_type || "",
-      // Try different possible column names for logo/image
-      image_url: vendor.business_logo || vendor.business_banner || vendor.logo || vendor.image_url || vendor.avatar || null,
+      // Prioritize logo_url, then fallback to other possible column names for logo/image
+      logo_url: vendor.logo_url || null,
+      image_url: vendor.logo_url || vendor.business_logo || vendor.business_banner || vendor.logo || vendor.image_url || vendor.avatar || null,
       product_count: vendorProductCounts[vendor.id] || 0,
       status: vendor.status,
+      rating: vendor.rating ? parseFloat(vendor.rating) : 0,
+      total_reviews: vendor.total_reviews || 0,
     }));
 
     return NextResponse.json({

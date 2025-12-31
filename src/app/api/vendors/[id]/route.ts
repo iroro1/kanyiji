@@ -8,6 +8,7 @@ function normalizeToSlug(name: string): string {
     .toLowerCase()
     .trim()
     .replace(/[&]/g, "and")
+    .replace(/['']/g, "") // Remove apostrophes and smart quotes
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
@@ -55,22 +56,41 @@ export async function GET(
     // Check if identifier is a UUID or a slug/name
     if (isUUID(identifier)) {
       // Fetch vendor by ID - only approved vendors for public view
+      // Explicitly select logo_url to ensure it's included
       const result = await supabase
         .from("vendors")
-        .select("*")
+        .select("*, logo_url")
         .eq("id", identifier)
         .eq("status", "approved")
         .single();
       vendor = result.data;
       vendorError = result.error;
+      
+      // Debug: Log raw vendor data from database
+      console.log("Vendor API: Raw vendor data from DB (UUID lookup):", {
+        vendorId: identifier,
+        hasVendor: !!vendor,
+        logo_url: vendor?.logo_url,
+        logo_url_type: typeof vendor?.logo_url,
+        allKeys: vendor ? Object.keys(vendor) : [],
+      });
     } else {
       // Fetch vendor by business name (normalized to slug format)
-      const normalizedSlug = normalizeToSlug(identifier);
+      // Decode URL-encoded characters first (e.g., %27 for apostrophe)
+      const decodedIdentifier = decodeURIComponent(identifier);
+      const normalizedSlug = normalizeToSlug(decodedIdentifier);
+      
+      console.log("Vendor API: Slug lookup:", {
+        originalIdentifier: identifier,
+        decodedIdentifier,
+        normalizedSlug,
+      });
       
       // Fetch all approved vendors and filter by normalized business name
+      // Explicitly select logo_url to ensure it's included
       const { data: allVendors, error: fetchError } = await supabase
         .from("vendors")
-        .select("*")
+        .select("*, logo_url")
         .eq("status", "approved");
 
       if (fetchError) {
@@ -79,11 +99,36 @@ export async function GET(
         // Find vendor by matching normalized business name
         vendor = allVendors.find((v) => {
           const vendorSlug = normalizeToSlug(v.business_name || "");
-          return vendorSlug === normalizedSlug;
+          const matches = vendorSlug === normalizedSlug;
+          if (matches) {
+            console.log("Vendor API: Found vendor match:", {
+              businessName: v.business_name,
+              vendorSlug,
+              normalizedSlug,
+              logo_url: v.logo_url,
+            });
+          }
+          return matches;
         });
 
         if (!vendor) {
+          console.log("Vendor API: No vendor found. Available vendors:", 
+            allVendors.map((v: any) => ({
+              business_name: v.business_name,
+              slug: normalizeToSlug(v.business_name || ""),
+            }))
+          );
           vendorError = { code: "PGRST116", message: "Vendor not found" };
+        } else {
+          // Debug: Log raw vendor data from database
+          console.log("Vendor API: Raw vendor data from DB (slug lookup):", {
+            identifier,
+            normalizedSlug,
+            hasVendor: !!vendor,
+            logo_url: vendor?.logo_url,
+            allKeys: vendor ? Object.keys(vendor) : [],
+            vendorData: vendor,
+          });
         }
       }
     }
@@ -112,12 +157,12 @@ export async function GET(
 
     const vendorId = vendor.id;
 
-    // Fetch active products for this vendor with product_attributes
+    // Fetch active/approved/published products for this vendor with product_attributes
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select("*, product_attributes( id, size, color, quantity )")
       .eq("vendor_id", vendorId)
-      .eq("status", "active")
+      .or("status.eq.active,status.eq.approved,status.eq.published")
       .order("created_at", { ascending: false });
 
     if (productsError) {
@@ -166,22 +211,40 @@ export async function GET(
     });
 
     // Map vendor data - handle columns that may not exist
+    // logo_url is the database column where the logo is stored
+    // Pass it through directly without filtering
     const enrichedVendor = {
       id: vendor.id,
       business_name: vendor.business_name,
       business_description: vendor.business_description || "",
       business_type: vendor.business_type || "",
-      // Try different possible column names for logo/image
-      image_url: vendor.business_logo || vendor.business_banner || vendor.logo || vendor.image_url || vendor.avatar || null,
+      // logo_url is the database column - pass it through directly
+      logo_url: vendor.logo_url || null,
+      // image_url should use logo_url first, then fallback to other fields
+      image_url: vendor.logo_url || vendor.business_logo || vendor.business_banner || vendor.logo || vendor.image_url || vendor.avatar || null,
       product_count: enrichedProducts.length,
       status: vendor.status,
       created_at: vendor.created_at,
+      rating: vendor.rating ? parseFloat(vendor.rating) : 0,
+      total_reviews: vendor.total_reviews || 0,
       // Include any other fields that might exist
       owner_name: vendor.owner_name || vendor.full_name || null,
       email: vendor.email || null,
       phone: vendor.phone || null,
       location: vendor.location || vendor.address || null,
     };
+
+    // Debug logging for logo_url
+    console.log("Vendor API: Logo URL debug:", {
+      vendorId: vendor.id,
+      businessName: vendor.business_name,
+      rawLogoUrl: vendor.logo_url,
+      logoUrlType: typeof vendor.logo_url,
+      logoUrlValue: vendor.logo_url,
+      enrichedLogoUrl: enrichedVendor.logo_url,
+      enrichedImageUrl: enrichedVendor.image_url,
+      allVendorKeys: Object.keys(vendor),
+    });
 
     return NextResponse.json({
       vendor: enrichedVendor,

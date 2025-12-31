@@ -747,10 +747,10 @@ export default function ProductDetailPage({
                   ) : vendor ? (
                     <div className="space-y-6">
                       <div className="flex items-center gap-4 pb-6 border-b border-gray-200">
-                        {vendor.image_url ? (
+                        {vendor.logo_url || vendor.image_url ? (
                           <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
                             <Image
-                              src={vendor.image_url}
+                              src={vendor.logo_url || vendor.image_url || ''}
                               alt={vendor.business_name}
                               fill
                               className="object-cover"

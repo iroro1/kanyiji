@@ -103,8 +103,8 @@ export default function FeaturedProducts() {
                   ? product.images[0]
                   : "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
                 vendor_name: vendorMap[product.vendor_id] || "Vendor",
-                rating: 4.5, // TODO: Add rating field to products table or calculate from reviews
-                review_count: 0, // TODO: Add review_count field or calculate from reviews table
+                rating: product.rating ? parseFloat(product.rating) : 0, // Use actual rating from database
+                review_count: product.review_count || 0, // Use actual review count from database
                 category: product.category_id 
                   ? getCategoryById(product.category_id)?.name || "General"
                   : "General",
@@ -255,17 +255,19 @@ export default function FeaturedProducts() {
                     {product.description}
                   </p>
 
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center">
-                      <Star className="w-3 h-3 sm:w-4 sm:h-4 text-warning fill-current" />
-                      <span className="text-xs sm:text-sm text-gray-600 ml-1">
-                        {product.rating}
+                  {product.rating > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center">
+                        <Star className="w-3 h-3 sm:w-4 sm:h-4 text-warning fill-current" />
+                        <span className="text-xs sm:text-sm text-gray-600 ml-1">
+                          {product.rating.toFixed(1)}
+                        </span>
+                      </div>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        ({product.review_count} {product.review_count === 1 ? 'review' : 'reviews'})
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-500">
-                      ({product.review_count})
-                    </span>
-                  </div>
+                  )}
 
                   <p className="text-xs sm:text-sm text-gray-500">
                     {product.vendor_name}

@@ -10,6 +10,9 @@ import {
   Save,
   X,
   Settings,
+  Building2,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,13 +22,23 @@ import PasswordChangeModal from "@/components/settings/PasswordChangeModal";
 import NotificationsSettings from "@/components/settings/NotificationsSettings";
 import PrivacySettings from "@/components/settings/PrivacySettings";
 import DeleteAccountModal from "@/components/settings/DeleteAccountModal";
+import { useFetchVendorDetails, useFetchCurrentUser } from "@/components/http/QueryHttp";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ProfilePage() {
   const { user, isAuthenticated } = useAuth();
+  const { data: currentUser } = useFetchCurrentUser();
+  const userId = currentUser?.id || user?.id || "";
+  const { vendor, isPending: vendorLoading } = useFetchVendorDetails(userId);
+  const { notify } = useToast();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingVendor, setIsSavingVendor] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Settings modals state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -76,6 +89,35 @@ export default function ProfilePage() {
   }, [user]);
 
   const [formData, setFormData] = useState(userData);
+  
+  // Vendor form data
+  const [vendorFormData, setVendorFormData] = useState<any>({});
+
+  // Initialize vendor form data when vendor is loaded
+  useEffect(() => {
+    if (vendor) {
+      setVendorFormData({
+        business_name: vendor.business_name || "",
+        business_type: vendor.business_type || "",
+        business_description: vendor.business_description || "",
+        business_email: vendor.business_email || "",
+        phone: vendor.phone || "",
+        business_registration_number: vendor.business_registration_number || "",
+        tax_id: vendor.tax_id || "",
+        address: vendor.address || "",
+        city: vendor.city || "",
+        state: vendor.state || "",
+        country: vendor.country || "Nigeria",
+        postal_code: vendor.postal_code || "",
+        website_url: vendor.website_url || "",
+        social_media: vendor.social_media || {},
+      });
+      // Set logo preview
+      if (vendor.logo_url) {
+        setLogoPreview(vendor.logo_url);
+      }
+    }
+  }, [vendor]);
 
   // Fetch user profile data from database
   useEffect(() => {
@@ -255,8 +297,122 @@ export default function ProfilePage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleVendorInputChange = (field: string, value: string | object) => {
+    setVendorFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !vendor) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      notify("Invalid file type. Please upload a JPEG, PNG, or WebP image.", "error");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      notify("File size too large. Maximum size is 5MB.", "error");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload file
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("vendorId", vendor.id);
+
+      const response = await fetch("/api/vendor/logo", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        notify(data.error || "Failed to upload logo", "error");
+        // Reset preview on error
+        setLogoPreview(vendor.logo_url || null);
+        return;
+      }
+
+      notify("Logo uploaded successfully!", "success");
+      
+      // Refresh vendor data after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error uploading logo:", error);
+      notify(error.message || "Failed to upload logo. Please try again.", "error");
+      // Reset preview on error
+      setLogoPreview(vendor.logo_url || null);
+    } finally {
+      setIsUploadingLogo(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
+  const handleSaveVendor = async () => {
+    if (!vendor) {
+      notify("Vendor information not loaded. Please refresh the page.", "error");
+      return;
+    }
+
+    setIsSavingVendor(true);
+    try {
+      const response = await fetch("/api/vendor/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...vendorFormData,
+          _vendorId: vendor.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.details 
+          ? `${data.error}: ${data.details}${data.suggestion ? ` ${data.suggestion}` : ""}`
+          : data.error || "Failed to update vendor";
+        notify(errorMessage, "error");
+        return;
+      }
+
+      notify("Vendor profile updated successfully!", "success");
+      
+      // Refresh page after a short delay to show success message
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error: any) {
+      console.error("Error saving vendor:", error);
+      notify(error.message || "Failed to save changes. Please try again.", "error");
+    } finally {
+      setIsSavingVendor(false);
+    }
+  };
+
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
+    ...(vendor ? [{ id: "vendor", label: "Vendor", icon: Building2 }] : []),
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -547,6 +703,319 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === "vendor" && vendor && (
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    Vendor Information
+                  </h2>
+                  <button
+                    onClick={handleSaveVendor}
+                    disabled={isSavingVendor}
+                    className="flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 sm:py-2 rounded-lg transition-colors text-sm sm:text-base"
+                  >
+                    {isSavingVendor ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    {isSavingVendor ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+
+                {vendorLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading vendor information...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Logo Upload */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                        Business Logo
+                      </h3>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="flex-shrink-0">
+                          {logoPreview ? (
+                            <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
+                              <img
+                                src={logoPreview}
+                                alt="Business logo"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                              <ImageIcon className="w-12 h-12 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Upload Logo
+                          </label>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Recommended: Square image, at least 400x400px. Max size: 5MB. Supported formats: JPEG, PNG, WebP
+                          </p>
+                          <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isUploadingLogo ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span className="text-sm">Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4" />
+                                <span className="text-sm">Choose File</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/webp"
+                              onChange={handleLogoUpload}
+                              disabled={isUploadingLogo}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Business Information */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                        Business Information
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Business Name
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.business_name || ""}
+                            onChange={(e) => handleVendorInputChange("business_name", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Business Type
+                          </label>
+                          <select
+                            value={vendorFormData.business_type || ""}
+                            onChange={(e) => handleVendorInputChange("business_type", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          >
+                            <option value="individual">Individual</option>
+                            <option value="company">Company</option>
+                            <option value="cooperative">Cooperative</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Business Email
+                          </label>
+                          <input
+                            type="email"
+                            value={vendorFormData.business_email || ""}
+                            onChange={(e) => handleVendorInputChange("business_email", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Phone Number
+                          </label>
+                          <input
+                            type="tel"
+                            value={vendorFormData.phone || ""}
+                            onChange={(e) => handleVendorInputChange("phone", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Business Registration Number
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.business_registration_number || ""}
+                            onChange={(e) => handleVendorInputChange("business_registration_number", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Tax ID
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.tax_id || ""}
+                            onChange={(e) => handleVendorInputChange("tax_id", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Business Description
+                          </label>
+                          <textarea
+                            value={vendorFormData.business_description || ""}
+                            onChange={(e) => handleVendorInputChange("business_description", e.target.value)}
+                            rows={4}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Address Information */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                        Address Information
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Address
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.address || ""}
+                            onChange={(e) => handleVendorInputChange("address", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.city || ""}
+                            onChange={(e) => handleVendorInputChange("city", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            State
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.state || ""}
+                            onChange={(e) => handleVendorInputChange("state", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Country
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.country || "Nigeria"}
+                            onChange={(e) => handleVendorInputChange("country", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Postal Code
+                          </label>
+                          <input
+                            type="text"
+                            value={vendorFormData.postal_code || ""}
+                            onChange={(e) => handleVendorInputChange("postal_code", e.target.value)}
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Website & Social Media */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                        Website & Social Media
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Website URL
+                          </label>
+                          <input
+                            type="url"
+                            value={vendorFormData.website_url || ""}
+                            onChange={(e) => handleVendorInputChange("website_url", e.target.value)}
+                            placeholder="https://yourwebsite.com"
+                            className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                        {['facebook', 'twitter', 'instagram', 'linkedin'].map((platform) => (
+                          <div key={platform}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+                              {platform}
+                            </label>
+                            <input
+                              type="url"
+                              value={vendorFormData.social_media?.[platform] || ""}
+                              onChange={(e) => handleVendorInputChange("social_media", {
+                                ...vendorFormData.social_media,
+                                [platform]: e.target.value
+                              })}
+                              placeholder={`https://${platform}.com/yourpage`}
+                              className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Status Information (Read-only) */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                        Status Information
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Status
+                          </label>
+                          <div className="mt-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              vendor.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              vendor.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              vendor.status === 'suspended' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {vendor.status ? vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1) : 'Unknown'}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Verification Status
+                          </label>
+                          <div className="mt-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              vendor.verification_status === 'verified' ? 'bg-green-100 text-green-800' :
+                              vendor.verification_status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              vendor.verification_status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {vendor.verification_status ? vendor.verification_status.charAt(0).toUpperCase() + vendor.verification_status.slice(1) : 'Unverified'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
