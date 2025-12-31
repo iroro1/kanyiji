@@ -35,10 +35,10 @@ const supportChannels = [
   {
     icon: <MessageCircle className="w-6 h-6" />,
     title: "Live Chat",
-    description: "Chat with our support team in real-time",
+    description: "Chat with our support team on WhatsApp",
     available: "Available 24/7",
     action: "Start Chat",
-    href: "#"
+    href: "https://wa.me/2348177928061"
   },
   {
     icon: <Phone className="w-6 h-6" />,

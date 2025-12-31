@@ -2,17 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { calculateProductStock } from "@/utils/stockCalculator";
 
-// Public API route to fetch a single vendor by ID
+// Helper function to normalize business name to slug format
+function normalizeToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[&]/g, "and")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
+// Helper function to check if a string is a UUID
+function isUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+// Public API route to fetch a single vendor by ID or slug
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const vendorId = params.id;
+    const identifier = params.id;
 
-    if (!vendorId) {
+    if (!identifier) {
       return NextResponse.json(
-        { error: "Vendor ID is required" },
+        { error: "Vendor identifier is required" },
         { status: 400 }
       );
     }
@@ -31,22 +49,54 @@ export async function GET(
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Fetch vendor by ID - only approved vendors for public view
-    const { data: vendor, error: vendorError } = await supabase
-      .from("vendors")
-      .select("*")
-      .eq("id", vendorId)
-      .eq("status", "approved")
-      .single();
+    let vendor;
+    let vendorError;
 
-    if (vendorError) {
+    // Check if identifier is a UUID or a slug/name
+    if (isUUID(identifier)) {
+      // Fetch vendor by ID - only approved vendors for public view
+      const result = await supabase
+        .from("vendors")
+        .select("*")
+        .eq("id", identifier)
+        .eq("status", "approved")
+        .single();
+      vendor = result.data;
+      vendorError = result.error;
+    } else {
+      // Fetch vendor by business name (normalized to slug format)
+      const normalizedSlug = normalizeToSlug(identifier);
+      
+      // Fetch all approved vendors and filter by normalized business name
+      const { data: allVendors, error: fetchError } = await supabase
+        .from("vendors")
+        .select("*")
+        .eq("status", "approved");
+
+      if (fetchError) {
+        vendorError = fetchError;
+      } else if (allVendors) {
+        // Find vendor by matching normalized business name
+        vendor = allVendors.find((v) => {
+          const vendorSlug = normalizeToSlug(v.business_name || "");
+          return vendorSlug === normalizedSlug;
+        });
+
+        if (!vendor) {
+          vendorError = { code: "PGRST116", message: "Vendor not found" };
+        }
+      }
+    }
+
+    if (vendorError || !vendor) {
       console.error("Vendors API: Error fetching vendor:", {
-        message: vendorError.message,
-        code: vendorError.code,
-        details: vendorError.details,
+        message: vendorError?.message,
+        code: vendorError?.code,
+        details: vendorError?.details,
+        identifier,
       });
 
-      if (vendorError.code === "PGRST116") {
+      if (vendorError?.code === "PGRST116" || !vendor) {
         // Not found
         return NextResponse.json(
           { error: "Vendor not found" },
@@ -55,17 +105,12 @@ export async function GET(
       }
 
       return NextResponse.json(
-        { error: "Failed to fetch vendor", details: vendorError.message },
+        { error: "Failed to fetch vendor", details: vendorError?.message },
         { status: 500 }
       );
     }
 
-    if (!vendor) {
-      return NextResponse.json(
-        { error: "Vendor not found" },
-        { status: 404 }
-      );
-    }
+    const vendorId = vendor.id;
 
     // Fetch active products for this vendor with product_attributes
     const { data: products, error: productsError } = await supabase
