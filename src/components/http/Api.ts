@@ -13,6 +13,7 @@ export type Product = {
   review_count: number;
   stock_quantity?: number;
   vendor_id?: string;
+  weight?: number;
   product_images: {
     id: string;
     image_url: string;
@@ -103,7 +104,7 @@ export async function getWishlist(userId: string): Promise<Product[]> {
       `
     id,
     created_at,
-    products (
+      products (
       id,
       name,
       price,
@@ -111,6 +112,7 @@ export async function getWishlist(userId: string): Promise<Product[]> {
       rating,
       review_count,
       vendor_id,
+      weight,
       product_images (
         id,
         image_url
@@ -152,6 +154,7 @@ export async function getWishlist(userId: string): Promise<Product[]> {
       review_count: product.review_count,
       stock_quantity: stockQuantity,
       vendor_id: product.vendor_id,
+      weight: product.weight,
       product_images: product.product_images || [],
       vendors: product.vendors, // Include vendor relationship
     } as Product];
