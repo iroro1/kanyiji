@@ -1090,6 +1090,30 @@ export default function ProfilePage() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Two-Factor Authentication - Only for Vendors */}
+                      {vendor && (
+                        <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
+                                Two-Factor Authentication (2FA)
+                              </h4>
+                              <p className="text-gray-600 text-xs sm:text-sm">
+                                Add an extra layer of security to your vendor account
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                notify("2FA setup coming soon. This feature will allow you to secure your vendor account with an authenticator app.", "info");
+                              }}
+                              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
+                            >
+                              Enable 2FA
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

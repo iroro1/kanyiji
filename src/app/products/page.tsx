@@ -16,12 +16,41 @@ import { useToast } from "@/components/ui/Toast";
 export default function ProductsPage() {
   const { dispatch } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>(null);
   const { notify } = useToast();
 
   const searchParams = useSearchParams();
   const searchQueryParam = searchParams.get("search") || "";
+  const filterParam = searchParams.get("filter") || null;
+  const sortParam = searchParams.get("sort") || null;
 
   const debounce = useDebounce(searchQueryParam || searchQuery, 500);
+
+  // Determine filter and sort values
+  const filterValue = selectedFilter || filterParam;
+  const sortValue = sortBy || sortParam;
+
+  // Map filter to API parameters
+  let feature: string | null = null;
+  let sale: string | null = null;
+  let sort: string | null = null;
+
+  if (filterValue === "featured") {
+    feature = "true";
+  } else if (filterValue === "trending") {
+    sort = "trending";
+  } else if (filterValue === "new") {
+    sort = "updated_at-false";
+  }
+
+  if (sortValue === "price-low") {
+    sort = "price-true";
+  } else if (sortValue === "price-high") {
+    sort = "price-false";
+  } else if (sortValue === "newest") {
+    sort = "updated_at-false";
+  }
 
   const {
     products,
@@ -31,7 +60,7 @@ export default function ProductsPage() {
     fetchNextPage,
     isFetchingNextPage,
     hasNextPage,
-  } = useFetchAllProducts(debounce, null, null, null, null, null);
+  } = useFetchAllProducts(debounce, null, sale, feature, sort, null);
 
   console.log(products);
 
@@ -80,11 +109,32 @@ export default function ProductsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-4">
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="w-4 h-4" />
-                <span>Filters</span>
-              </button>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedFilter || ""}
+                  onChange={(e) => setSelectedFilter(e.target.value || null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-sm"
+                >
+                  <option value="">All Products</option>
+                  <option value="featured">Featured</option>
+                  <option value="trending">Trending</option>
+                  <option value="new">New</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortBy || ""}
+                  onChange={(e) => setSortBy(e.target.value || null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-sm"
+                >
+                  <option value="">Sort By</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="newest">Newest First</option>
+                </select>
+              </div>
 
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button className="p-2 border-r border-gray-300 hover:bg-gray-50">

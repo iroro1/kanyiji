@@ -154,8 +154,8 @@ export default function CheckoutPage() {
     return (
       <CustomError
         statusCode={403}
-        title="Access Restricted"
-        message="Please sign in to your account to access this page."
+        title="Sign In Required"
+        message="Please sign in to your account to complete your purchase. Create an account if you don't have one yet."
       />
     );
   }

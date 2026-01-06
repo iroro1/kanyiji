@@ -224,6 +224,18 @@ export default function VendorAgreementPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-yellow-600 mt-1">•</span>
                   <span>
+                    <strong>Commission will be 10% of all sales.</strong>
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-yellow-600 mt-1">•</span>
+                  <span>
+                    <strong>There will be a subscription fee of N5,000 monthly per vendor.</strong>
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-yellow-600 mt-1">•</span>
+                  <span>
                     The Platform will deduct commissions, service fees, logistics
                     charges, and applicable taxes from sales before remitting
                     payments.
