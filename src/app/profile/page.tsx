@@ -306,7 +306,7 @@ export default function ProfilePage() {
   };
 
   const handleVendorInputChange = (field: string, value: string | object) => {
-    setVendorFormData((prev) => ({ ...prev, [field]: value }));
+    setVendorFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
