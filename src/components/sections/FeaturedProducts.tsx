@@ -213,7 +213,7 @@ export default function FeaturedProducts() {
                   {product.original_price && typeof product.original_price === 'number' && 
                    product.price && typeof product.price === 'number' &&
                    product.original_price > product.price && (
-                    <div className="absolute top-2 left-2 bg-error text-white text-xs px-2 py-1 rounded-full">
+                    <div className="absolute top-3 left-3 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg z-10">
                       {Math.round(
                         ((product.original_price - product.price) /
                           product.original_price) *

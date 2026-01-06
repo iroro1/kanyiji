@@ -106,7 +106,7 @@ export default function WishlistPage() {
 
                   {/* Discount Badge */}
                   {item.original_price && item.original_price > item.price && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-xs px-2.5 py-1 rounded-full font-semibold shadow-md">
+                    <div className="absolute top-3 left-3 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg z-10">
                       {Math.round(
                         ((item.original_price - item.price) /
                           item.original_price) *

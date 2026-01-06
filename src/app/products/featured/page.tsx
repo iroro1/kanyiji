@@ -91,15 +91,13 @@ export default function FeaturedProductsPage() {
                 {product.original_price && typeof product.original_price === 'number' && 
                  product.price && typeof product.price === 'number' &&
                  product.original_price > product.price && (
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                      {Math.round(
-                        ((product.original_price - product.price) /
-                          product.original_price) *
-                          100
-                      )}
-                      % OFF
-                    </span>
+                  <div className="absolute top-3 left-3 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg z-10">
+                    {Math.round(
+                      ((product.original_price - product.price) /
+                        product.original_price) *
+                        100
+                    )}
+                    % OFF
                   </div>
                 )}
               </div>
