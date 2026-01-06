@@ -494,7 +494,7 @@ export default function VendorOnboardingPage() {
                   <li>• You store your own products</li>
                   <li>
                     • After receiving an order, you pack and deliver the item to
-                    the nearest Kanyiji Drop-Off Station
+                    the nearest Kanyiji Drop-Off Station at no additional cost
                   </li>
                   <li>• Kanyiji delivers to the customer</li>
                 </ul>
@@ -507,7 +507,7 @@ export default function VendorOnboardingPage() {
                 </h4>
                 <p className="text-gray-700 ml-7">
                   Use either Kanyiji's or your own packaging (must be neat &
-                  secure)
+                  secure). P.S. Items might be repackaged to minimise shipping cost.
                 </p>
               </div>
 
@@ -533,6 +533,41 @@ export default function VendorOnboardingPage() {
                 <p className="text-sm text-gray-600 mt-1">
                   Operating Hours: Mon – Fri, 9 AM – 5 PM
                 </p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-green-600" />
+                  Delivery Options
+                </h4>
+                <div className="space-y-4 ml-7">
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h5 className="font-semibold text-gray-900 mb-2">Standard Delivery</h5>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li>• 3-7 business days</li>
+                      <li>• Available for all Nigerian destinations</li>
+                      <li>• <strong>From ₦4,000</strong></li>
+                    </ul>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h5 className="font-semibold text-gray-900 mb-2">Standard International Delivery</h5>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li>• 7-14 business days</li>
+                      <li>• Available for UK, US, Canada</li>
+                      <li>• <strong>From ₦14,500</strong></li>
+                    </ul>
+                  </div>
+                  
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h5 className="font-semibold text-gray-900 mb-2">Express International Delivery</h5>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      <li>• 5-7 business days</li>
+                      <li>• Available for UK, US, Canada</li>
+                      <li>• <strong>From ₦62,000</strong></li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -738,7 +773,7 @@ export default function VendorOnboardingPage() {
                   </li>
                   <li>
                     • <strong>360 Dashboard:</strong> Track delivery status of each
-                    order
+                    order. Tracking functionality is available in the vendor dashboard where you can view order status, tracking numbers, and delivery updates.
                   </li>
                   <li>
                     • <strong>Past Earnings:</strong> View last 3 months of payment

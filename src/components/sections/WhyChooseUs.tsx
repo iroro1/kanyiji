@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Truck, Heart, Star, Users, Globe } from "lucide-react";
+import { Shield, Truck, Heart, Star, Users, Globe, Lock, FileText, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 const features = [
@@ -102,6 +102,37 @@ export default function WhyChooseUs() {
               </div>
               <div className="text-xs sm:text-sm text-primary-100">
                 Satisfaction Rate
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy & Data Usage Section - Subtle Integration */}
+        <div className="mt-12 sm:mt-16 bg-gray-50 rounded-xl sm:rounded-2xl p-6 sm:p-8 border border-gray-200">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-primary-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-3">
+                  Your Privacy & Data
+                </h3>
+                <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 leading-relaxed">
+                  When you sign in with Google or create an account, Kanyiji collects your information to create and manage your account, 
+                  process orders, improve our services, communicate with you, and ensure security. We only collect information necessary 
+                  to provide our services and do not sell your personal information to third parties.
+                </p>
+                <Link
+                  href="/policies/privacy"
+                  className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-semibold text-sm sm:text-base transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  View Privacy Policy
+                  <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
+                </Link>
               </div>
             </div>
           </div>

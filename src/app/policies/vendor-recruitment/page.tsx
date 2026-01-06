@@ -201,8 +201,7 @@ export default function VendorRecruitmentPage() {
                 <li className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
                   <span>
-                    <strong>Must be based in Nigeria</strong> and sell authentic
-                    Nigerian products.
+                    <strong>Must be based in Nigeria</strong> and sell authentic Nigerian made products.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
