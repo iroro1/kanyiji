@@ -104,7 +104,7 @@ export default function ProfilePage() {
         business_type: vendor.business_type || "",
         business_description: vendor.business_description || "",
         business_email: vendor.business_email || userEmail || "",
-        phone: vendor.phone || currentUser?.phone || "",
+        phone: vendor.phone || "",
         business_registration_number: vendor.business_registration_number || "",
         tax_id: vendor.tax_id || "",
         address: vendor.address || "",
