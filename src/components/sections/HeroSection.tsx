@@ -171,12 +171,12 @@ export default function HeroSection() {
             transition={{ type: "spring", stiffness: 300 }}
           >
             <motion.img
-              src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1200&q=80"
-              alt="African artwork - Traditional African art and cultural designs"
+              src="https://images.unsplash.com/photo-1601925260368-ae2f83d8b8b8?w=1200&q=80"
+              alt="Colorful African artwork - Vibrant traditional art with rich colors and patterns"
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Fallback to another African artwork image
-                e.currentTarget.src = "https://images.unsplash.com/photo-1601925260368-ae2f83d8b8b8?w=1200&q=80";
+                // Fallback to another colorful African artwork
+                e.currentTarget.src = "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=1200&q=80";
               }}
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.6 }}
