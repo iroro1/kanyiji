@@ -17,8 +17,30 @@ export default function AuthCallbackPage() {
         const code = urlParams.get("code");
         const hash = window.location.hash;
 
-        // If there's a code, the server-side route should have handled it
-        // But if we're here, check for hash-based OAuth (client-side)
+        // Handle code-based OAuth callback (PKCE flow)
+        if (code) {
+          console.log("Processing OAuth code callback...");
+          // Exchange code for session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (error) {
+            console.error("Error exchanging code for session:", error);
+            toast.error("Authentication failed. Please try again.");
+            router.push("/");
+            return;
+          }
+
+          if (data.session) {
+            console.log("Session created successfully from code");
+            toast.success("Successfully signed in!");
+            // Clear code from URL
+            window.history.replaceState(null, "", window.location.pathname);
+            router.push("/");
+            return;
+          }
+        }
+
+        // Handle hash-based OAuth callback (implicit flow)
         if (hash && hash.includes("access_token")) {
           // Handle hash-based OAuth callback
           const hashParams = new URLSearchParams(hash.substring(1));
