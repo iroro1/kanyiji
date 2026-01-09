@@ -406,7 +406,10 @@ class SupabaseAuthService {
   // User login
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      console.log("🔐 Starting login for:", credentials.email);
+      
       if (!validateSupabaseConfig()) {
+        console.error("❌ Supabase configuration invalid");
         return {
           success: false,
           error:
@@ -414,12 +417,14 @@ class SupabaseAuthService {
         };
       }
 
+      console.log("📤 Calling signInWithPassword...");
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
       });
 
       if (error) {
+        console.error("❌ Supabase auth error:", error);
         return {
           success: false,
           error: error.message || "Login failed",
@@ -427,26 +432,117 @@ class SupabaseAuthService {
       }
 
       if (!data.user) {
+        console.error("❌ No user returned from authentication");
         return {
           success: false,
           error: "No user returned from authentication",
         };
       }
 
-      // Get user profile
+      console.log("✅ Auth successful, user ID:", data.user.id);
+      console.log("📥 Fetching user profile...");
+
+      // Get user profile - try with maybeSingle to handle missing profiles
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile) {
+      if (profileError) {
+        console.error("❌ Profile fetch error:", profileError);
+        // If profile doesn't exist, try to create it
+        if (profileError.code === "PGRST116" || profileError.message.includes("No rows")) {
+          console.log("⚠️ Profile not found, attempting to create...");
+          try {
+            const { error: createError } = await supabase
+              .from("profiles")
+              .insert({
+                id: data.user.id,
+                email: data.user.email!,
+                full_name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+                role: data.user.user_metadata?.role || "customer",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+
+            if (createError) {
+              console.error("❌ Failed to create profile:", createError);
+              // Still return user with basic info if profile creation fails
+              return {
+                success: true,
+                user: {
+                  id: data.user.id,
+                  email: data.user.email!,
+                  name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+                  role: data.user.user_metadata?.role || "customer",
+                  isEmailVerified: data.user.email_confirmed_at !== null,
+                  createdAt: new Date().toISOString(),
+                },
+              };
+            } else {
+              console.log("✅ Profile created successfully");
+              // Fetch the newly created profile
+              const { data: newProfile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", data.user.id)
+                .single();
+
+              if (newProfile) {
+                return {
+                  success: true,
+                  user: {
+                    id: data.user.id,
+                    email: data.user.email!,
+                    name: newProfile.full_name,
+                    role: newProfile.role,
+                    isEmailVerified: data.user.email_confirmed_at !== null,
+                    createdAt: newProfile.created_at,
+                  },
+                };
+              }
+            }
+          } catch (createErr: any) {
+            console.error("❌ Error creating profile:", createErr);
+            // Fallback: return user with basic info
+            return {
+              success: true,
+              user: {
+                id: data.user.id,
+                email: data.user.email!,
+                name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+                role: data.user.user_metadata?.role || "customer",
+                isEmailVerified: data.user.email_confirmed_at !== null,
+                createdAt: new Date().toISOString(),
+              },
+            };
+          }
+        } else {
+          return {
+            success: false,
+            error: `Profile error: ${profileError.message}`,
+          };
+        }
+      }
+
+      if (!profile) {
+        console.warn("⚠️ Profile query returned null, using user metadata");
+        // Fallback to user metadata if profile doesn't exist
         return {
-          success: false,
-          error: "User profile not found",
+          success: true,
+          user: {
+            id: data.user.id,
+            email: data.user.email!,
+            name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+            role: data.user.user_metadata?.role || "customer",
+            isEmailVerified: data.user.email_confirmed_at !== null,
+            createdAt: new Date().toISOString(),
+          },
         };
       }
 
+      console.log("✅ Login successful, profile found");
       return {
         success: true,
         user: {
@@ -459,7 +555,7 @@ class SupabaseAuthService {
         },
       };
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("❌ Login error:", error);
       return {
         success: false,
         error: error.message || "Login failed",

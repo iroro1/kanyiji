@@ -12,8 +12,45 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Wait for the URL to be processed
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Check if there's a code in the URL (OAuth callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        const hash = window.location.hash;
+
+        // If there's a code, the server-side route should have handled it
+        // But if we're here, check for hash-based OAuth (client-side)
+        if (hash && hash.includes("access_token")) {
+          // Handle hash-based OAuth callback
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+
+          if (accessToken && refreshToken) {
+            // Set the session manually
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (sessionError) {
+              console.error("Error setting session from hash:", sessionError);
+              toast.error("Authentication failed. Please try again.");
+              router.push("/");
+              return;
+            }
+
+            if (sessionData.session) {
+              toast.success("Successfully signed in!");
+              // Clear hash from URL
+              window.history.replaceState(null, "", window.location.pathname);
+              router.push("/");
+              return;
+            }
+          }
+        }
+
+        // Wait for the URL to be processed (in case server-side route is still processing)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Get the session
         const { data, error } = await supabase.auth.getSession();

@@ -18,6 +18,10 @@ export const validateSupabaseConfig = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
     if (typeof window === 'undefined') {
       console.warn("Missing required Supabase environment variables");
+    } else {
+      console.error("❌ Missing Supabase environment variables:");
+      console.error("NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? "✅ Set" : "❌ Missing");
+      console.error("NEXT_PUBLIC_SUPABASE_ANON_KEY:", supabaseAnonKey ? "✅ Set" : "❌ Missing");
     }
     return false;
   }
