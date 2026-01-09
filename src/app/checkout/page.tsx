@@ -465,7 +465,11 @@ export default function CheckoutPage() {
                     Payment Method
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 bg-primary-50 border-primary-200">
+                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                      paymentMethod === "card" 
+                        ? "bg-primary-50 border-primary-200" 
+                        : "border-gray-200"
+                    }`}>
                       <input
                         type="radio"
                         name="payment"
@@ -478,6 +482,26 @@ export default function CheckoutPage() {
                       <div className="flex items-center">
                         <CreditCard className="w-5 h-5 mr-2 text-primary-600" />
                         <span className="font-medium">Credit/Debit Card</span>
+                      </div>
+                    </label>
+                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                      paymentMethod === "bank" 
+                        ? "bg-primary-50 border-primary-200" 
+                        : "border-gray-200"
+                    }`}>
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="bank"
+                        className="mr-3"
+                        checked={paymentMethod === "bank"}
+                        onChange={() => setPaymentMethod("bank")}
+                      />
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                        <span className="font-medium">Bank Transfer</span>
                       </div>
                     </label>
                   </div>
@@ -498,6 +522,7 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                     <PaystackModalButton
+                      channels={['card']}
                       amountNaira={
                         checkoutItem.length !== 0
                           ? checkoutOrders[0].price * checkOutQuantity +
@@ -564,6 +589,86 @@ export default function CheckoutPage() {
                             )}`
                         : paymentLoading
                         ? "Verifying payment..."
+                        : `Pay ${formatPrice(state.total + shipping)}`}
+                    </PaystackModalButton>
+                  </div>
+                )}
+
+                {paymentMethod === "bank" && (
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                        </svg>
+                        <span className="font-medium text-blue-900">
+                          Bank Transfer via Paystack
+                        </span>
+                      </div>
+                      <p className="text-sm text-blue-700 mb-4">
+                        Pay directly from your bank account. You'll receive bank transfer details after clicking the payment button.
+                      </p>
+                    </div>
+                    <PaystackModalButton
+                      channels={['bank']}
+                      amountNaira={
+                        checkoutItem.length !== 0
+                          ? checkoutOrders[0].price * checkOutQuantity +
+                            shipping
+                          : state.total + shipping
+                      }
+                      email={user?.email || "customer@example.com"}
+                      metadata={{
+                        product:
+                          checkoutItem.length !== 0
+                            ? JSON.stringify(
+                                checkoutItem.map((item) => ({
+                                  address: shippingData,
+                                }))
+                              )
+                            : JSON.stringify(
+                                items?.map((item) => ({
+                                  name: item.name,
+                                  id: item.id,
+                                  vendor_id: (item as any).vendor_id,
+                                  price: item.price,
+                                  image: item.product_images?.[0]?.image_url || '',
+                                  quantity: item.quantity,
+                                  size: (item as any).selectedVariant?.size || null,
+                                  color: (item as any).selectedVariant?.color || null,
+                                  variantId: (item as any).selectedVariant?.variantId || null,
+                                  address: {
+                                    ...shippingData,
+                                    shippingFee: shipping,
+                                  },
+                                }))
+                              ),
+                        totalAmount:
+                          checkoutItem.length !== 0
+                            ? checkoutOrders[0].price * checkOutQuantity +
+                              shipping
+                            : state.total + shipping,
+                        shippingFee: shipping,
+                        shippingMethod: shippingMethod,
+                        subtotal: checkoutItem.length !== 0
+                          ? checkoutOrders[0].price * checkOutQuantity
+                          : state.total,
+                        cartCount: items.length,
+                        paymentMethod: "bank_transfer",
+                      }}
+                      className="w-full bg-yellow-500 text-text-inverse py-4 rounded-xl font-semibold text-center block hover:bg-primary-dark transition text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      onSuccess={handlePayment}
+                      onClose={handlePaymentClose}
+                    >
+                      {checkoutItem.length !== 0
+                        ? paymentLoading
+                          ? "Processing..."
+                          : `Pay ${formatPrice(
+                              checkoutOrders[0].price * checkOutQuantity +
+                                shipping
+                            )}`
+                        : paymentLoading
+                        ? "Processing..."
                         : `Pay ${formatPrice(state.total + shipping)}`}
                     </PaystackModalButton>
                   </div>

@@ -116,9 +116,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             console.log("User signed in, getting current user...");
             setIsLoading(true);
+            
+            // Wait a bit for session to be fully established
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            
             const currentUser = await supabaseAuthService.getCurrentUser();
 
             if (!currentUser) {
+              console.warn("No current user found, but session exists. Creating user from session...");
+              // Fallback: create user object from session if getCurrentUser fails
+              if (session.user) {
+                const fallbackUser = {
+                  id: session.user.id,
+                  email: session.user.email!,
+                  name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
+                  role: session.user.user_metadata?.role || "customer",
+                  isEmailVerified: session.user.email_confirmed_at !== null,
+                  createdAt: session.user.created_at,
+                };
+                console.log("Using fallback user from session:", fallbackUser);
+                if (isMounted) {
+                  setUser(fallbackUser);
+                  queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+                  setIsLoading(false);
+                }
+                return;
+              }
               throw new Error("No current user found after sign-in");
             }
             console.log("Current user:", currentUser);
@@ -130,10 +153,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } catch (error) {
             console.error("Error in SIGNED_IN handler:", error);
-            if (isMounted) {
+            // Don't set user to null if we have a session - try to use session data
+            if (session?.user && isMounted) {
+              const fallbackUser = {
+                id: session.user.id,
+                email: session.user.email!,
+                name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
+                role: session.user.user_metadata?.role || "customer",
+                isEmailVerified: session.user.email_confirmed_at !== null,
+                createdAt: session.user.created_at,
+              };
+              console.log("Using fallback user after error:", fallbackUser);
+              setUser(fallbackUser);
+            } else if (isMounted) {
               setUser(null);
-              setIsLoading(false);
             }
+            setIsLoading(false);
           }
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
@@ -219,22 +254,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log("🔐 AuthContext: Starting login for:", email);
       setIsLoading(true);
       const response = await supabaseAuthService.login({ email, password });
 
+      console.log("📥 AuthContext: Login response:", {
+        success: response.success,
+        hasUser: !!response.user,
+        error: response.error,
+      });
+
       if (response.success && response.user) {
+        console.log("✅ AuthContext: Login successful, setting user");
         setUser(response.user);
         // Invalidate React Query cache to trigger refetch of current user
         queryClient.invalidateQueries({ queryKey: ["currentUser"] });
         toast.success("Login successful!");
+        
+        // Force a session refresh to ensure everything is in sync
+        setTimeout(async () => {
+          await refreshSession();
+        }, 500);
+        
         return true;
       } else {
+        console.error("❌ AuthContext: Login failed:", response.error);
         toast.error(response.error || "Login failed");
         return false;
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error("An unexpected error occurred");
+    } catch (error: any) {
+      console.error("❌ AuthContext: Login exception:", error);
+      toast.error(error?.message || "An unexpected error occurred");
       return false;
     } finally {
       setIsLoading(false);

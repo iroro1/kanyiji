@@ -8,6 +8,7 @@ type PaystackModalProps = {
   email: string;
   metadata?: Record<string, string | number | boolean>;
   referencePrefix?: string;
+  channels?: string[]; // Payment channels: 'card', 'bank', etc.
   onSuccess?: (
     reference: string,
     metadata?: Record<string, string | number | boolean>
@@ -44,6 +45,7 @@ export default function PaystackModalButton({
   email,
   metadata,
   //   referencePrefix = "ETWEB",
+  channels = ['card', 'bank'], // Default to both card and bank
   onSuccess,
   onClose,
   className,
@@ -81,9 +83,10 @@ export default function PaystackModalButton({
       email,
       amount: amountKobo,
       ref: result?.data.reference,
-      channels: ['card'], // Restrict to card payments only
+      channels: channels, // Use provided channels or default to ['card', 'bank']
+      metadata,
       callback: function (response: { reference: string }) {
-        onSuccess?.(response.reference);
+        onSuccess?.(response.reference, metadata);
       },
       onClose: function () {
         onClose?.();
