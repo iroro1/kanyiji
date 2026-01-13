@@ -477,6 +477,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success) {
         console.log("Logout successful - clearing user and redirecting");
         setUser(null);
+        // Clear localStorage backup
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("kanyiji_auth_user");
+        }
         // Clear loading state before redirect to prevent spinner from staying
         setIsLoading(false);
         toast.success("Logged out successfully");
