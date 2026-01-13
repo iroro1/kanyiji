@@ -1,29 +1,48 @@
 import { Suspense } from "react";
-import HeroSection from "@/components/sections/HeroSection";
-import FeaturedCategories from "@/components/sections/FeaturedCategories";
-import FeaturedProducts from "@/components/sections/FeaturedProducts";
-import FeaturedVendors from "@/components/sections/FeaturedVendors";
-import WhyChooseUs from "@/components/sections/WhyChooseUs";
+import dynamic from "next/dynamic";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+
+// Lazy load heavy components
+const HeroSection = dynamic(() => import("@/components/sections/HeroSection"), {
+  loading: () => <div className="min-h-[600px] bg-gray-100 animate-pulse" />,
+});
+
+const FeaturedCategories = dynamic(() => import("@/components/sections/FeaturedCategories"), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse my-8" />,
+});
+
+const FeaturedProducts = dynamic(() => import("@/components/sections/FeaturedProducts"), {
+  loading: () => <div className="h-96 bg-gray-100 animate-pulse my-8" />,
+});
+
+const FeaturedVendors = dynamic(() => import("@/components/sections/FeaturedVendors"), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse my-8" />,
+});
+
+const WhyChooseUs = dynamic(() => import("@/components/sections/WhyChooseUs"), {
+  loading: () => <div className="h-96 bg-gray-100 animate-pulse my-8" />,
+});
 
 export default function HomePage() {
   return (
     <>
       <HeroSection />
 
-      {/* <Suspense fallback={<LoadingSpinner />}>
-      </Suspense> */}
-      <FeaturedCategories />
-      {/* 
-      <Suspense fallback={<LoadingSpinner />}>
-      </Suspense> */}
-      <FeaturedProducts />
+      <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse my-8" />}>
+        <FeaturedCategories />
+      </Suspense>
 
-      {/* <Suspense fallback={<LoadingSpinner />}>
-      </Suspense> */}
-      <FeaturedVendors />
+      <Suspense fallback={<div className="h-96 bg-gray-100 animate-pulse my-8" />}>
+        <FeaturedProducts />
+      </Suspense>
 
-      <WhyChooseUs />
+      <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse my-8" />}>
+        <FeaturedVendors />
+      </Suspense>
+
+      <Suspense fallback={<div className="h-96 bg-gray-100 animate-pulse my-8" />}>
+        <WhyChooseUs />
+      </Suspense>
     </>
   );
 }

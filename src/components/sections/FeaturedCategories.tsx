@@ -16,6 +16,7 @@ export default function FeaturedCategories() {
         // Fetch categories from database
         const response = await fetch(`/api/categories?limit=6`, {
           credentials: "include",
+          next: { revalidate: 300 }, // Revalidate every 5 minutes (categories change rarely)
         });
 
         if (response.ok) {

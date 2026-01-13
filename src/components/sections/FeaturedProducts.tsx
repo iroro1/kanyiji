@@ -31,7 +31,7 @@ export default function FeaturedProducts() {
         // This gets active products ordered by created_at (most recent first)
         const response = await fetch(`/api/products?limit=6&offset=0`, {
           credentials: "include",
-          cache: "no-store", // Ensure fresh data from products table
+          next: { revalidate: 60 }, // Revalidate every 60 seconds for better performance
         });
 
         if (response.ok) {
