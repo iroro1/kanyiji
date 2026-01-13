@@ -57,6 +57,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // First, check the current session immediately
       const checkInitialSession = async () => {
         try {
+          // Wait a bit to ensure localStorage is available
+          if (typeof window !== "undefined") {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
           const {
             data: { session },
             error: sessionError,
@@ -73,19 +78,84 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           if (session?.user && isMounted) {
             try {
+              console.log("Found existing session, restoring user...");
               const currentUser = await supabaseAuthService.getCurrentUser();
               if (isMounted) {
-                setUser(currentUser);
+                if (currentUser) {
+                  console.log("User restored from session:", currentUser.email);
+                  setUser(currentUser);
+                  // Store in localStorage as backup
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("kanyiji_auth_user", JSON.stringify(currentUser));
+                  }
+                } else {
+                  // Fallback: use session data if getCurrentUser fails
+                  console.log("Using session data as fallback");
+                  const fallbackUser = {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
+                    role: session.user.user_metadata?.role || "customer",
+                    isEmailVerified: session.user.email_confirmed_at !== null,
+                    createdAt: session.user.created_at,
+                  };
+                  setUser(fallbackUser);
+                  // Store in localStorage as backup
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
+                  }
+                }
                 setIsLoading(false);
               }
             } catch (error) {
               console.error("Error getting current user:", error);
-              if (isMounted) {
+              // Fallback: use session data
+              if (session?.user && isMounted) {
+                const fallbackUser = {
+                  id: session.user.id,
+                  email: session.user.email!,
+                  name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
+                  role: session.user.user_metadata?.role || "customer",
+                  isEmailVerified: session.user.email_confirmed_at !== null,
+                  createdAt: session.user.created_at,
+                };
+                setUser(fallbackUser);
+                // Store in localStorage as backup
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
+                }
+              } else if (isMounted) {
                 setUser(null);
+              }
+              if (isMounted) {
                 setIsLoading(false);
               }
             }
           } else {
+            console.log("No existing session found");
+            // Check localStorage backup
+            if (typeof window !== "undefined" && isMounted) {
+              try {
+                const storedUser = localStorage.getItem("kanyiji_auth_user");
+                if (storedUser) {
+                  const parsedUser = JSON.parse(storedUser);
+                  console.log("Found user in localStorage backup, verifying session...");
+                  // Verify session still exists
+                  const { data: { session: verifySession } } = await supabase.auth.getSession();
+                  if (verifySession) {
+                    console.log("Session verified, restoring from backup");
+                    setUser(parsedUser);
+                    setIsLoading(false);
+                    return;
+                  } else {
+                    // Session expired, clear backup
+                    localStorage.removeItem("kanyiji_auth_user");
+                  }
+                }
+              } catch (e) {
+                console.error("Error checking localStorage backup:", e);
+              }
+            }
             if (isMounted) {
               setUser(null);
               setIsLoading(false);
@@ -165,6 +235,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               };
               console.log("Using fallback user after error:", fallbackUser);
               setUser(fallbackUser);
+              // Store in localStorage as backup
+              if (typeof window !== "undefined") {
+                localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
+              }
             } else if (isMounted) {
               setUser(null);
             }
@@ -174,6 +248,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("User signed out");
           if (isMounted) {
             setUser(null);
+            // Clear localStorage backup
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("kanyiji_auth_user");
+            }
             // Invalidate React Query cache to clear current user data
             queryClient.invalidateQueries({ queryKey: ["currentUser"] });
             setIsLoading(false);
@@ -271,10 +349,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         queryClient.invalidateQueries({ queryKey: ["currentUser"] });
         toast.success("Login successful!");
         
-        // Force a session refresh to ensure everything is in sync
-        setTimeout(async () => {
-          await refreshSession();
-        }, 500);
+        // Verify session is persisted and store backup
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          console.log("✅ Session persisted successfully");
+          // Store user in localStorage as backup
+          if (typeof window !== "undefined") {
+            localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
+          }
+        } else {
+          console.warn("⚠️ Session not found after login, attempting to restore...");
+        }
         
         return true;
       } else {
