@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -33,8 +33,12 @@ export const metadata: Metadata = {
   keywords:
     "Nigerian marketplace, e-commerce, Made-in-Nigeria, entrepreneurs, crafts, fashion, food, Lagos, Abuja",
   authors: [{ name: "Kanyiji Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -74,7 +78,6 @@ export default function RootLayout({
         <Script
           src="https://js.paystack.co/v1/inline.js"
           strategy="lazyOnload"
-          onLoad={() => console.log("Paystack script loaded")}
         />
       </body>
     </html>
