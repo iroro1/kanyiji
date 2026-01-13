@@ -31,7 +31,7 @@ export default function FeaturedVendors() {
         // This queries the vendors table via /api/vendors endpoint
         const response = await fetch(`/api/vendors?limit=4`, {
           credentials: "include",
-          cache: "no-store", // Ensure fresh data from vendors table
+          next: { revalidate: 120 }, // Revalidate every 2 minutes for better performance
         });
 
         if (response.ok) {

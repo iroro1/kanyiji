@@ -16,12 +16,14 @@ if (typeof window === "undefined") {
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap", // Optimize font loading
 });
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-poppins",
+  display: "swap", // Optimize font loading
 });
 
 export const metadata: Metadata = {
@@ -42,42 +44,38 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
-      <body className="font-sans antialiased bg-gray-50">
-        <Script
-          id="omnisend-tracking"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.omnisend = window.omnisend || [];
-              omnisend.push(["brandID", "69208bab8ca7847caab11746"]);
-              omnisend.push(["track", "$pageViewed"]);
-              !function(){var e=document.createElement("script");
-              e.type="text/javascript",e.async=!0,
-              e.src="https://omnisnippet1.com/inshop/launcher-v2.js";
-              var t=document.getElementsByTagName("script")[0];
-              t.parentNode.insertBefore(e,t)}();
-            `,
-          }}
-        />
+      <head>
+        {/* Preconnect to external domains for faster loading */}
+        <link rel="preconnect" href="https://vunesehycewonscqnamb.supabase.co" />
+        <link rel="dns-prefetch" href="https://vunesehycewonscqnamb.supabase.co" />
+        <link rel="preconnect" href="https://js.paystack.co" />
+        <link rel="dns-prefetch" href="https://js.paystack.co" />
+      </head>
+      <body>
         <AppQueryProvider>
           <AuthProvider>
-            <ToastProvider>
-              <CartProvider>
+            <CartProvider>
+              <ToastProvider>
                 <LayoutWrapper>{children}</LayoutWrapper>
                 <Toaster
                   position="top-right"
                   toastOptions={{
-                    duration: 4000,
+                    duration: 3000,
                     style: {
                       background: "#363636",
                       color: "#fff",
                     },
                   }}
                 />
-              </CartProvider>
-            </ToastProvider>
+              </ToastProvider>
+            </CartProvider>
           </AuthProvider>
         </AppQueryProvider>
+        <Script
+          src="https://js.paystack.co/v1/inline.js"
+          strategy="lazyOnload"
+          onLoad={() => console.log("Paystack script loaded")}
+        />
       </body>
     </html>
   );

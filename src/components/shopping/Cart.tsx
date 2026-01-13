@@ -34,7 +34,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
           try {
             const response = await fetch(`/api/vendors/${vendorId}`, {
               credentials: "include",
-              cache: "no-store",
+              next: { revalidate: 300 }, // Cache vendor data for 5 minutes
             });
             if (response.ok) {
               const vendorData = await response.json();
