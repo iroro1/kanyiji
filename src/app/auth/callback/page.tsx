@@ -17,25 +17,48 @@ export default function AuthCallbackPage() {
         const code = urlParams.get("code");
         const hash = window.location.hash;
 
-        // Handle code-based OAuth callback (PKCE flow)
+        // Handle code-based OAuth callback (PKCE/implicit flow)
         if (code) {
-          console.log("Processing OAuth code callback...");
-          // Exchange code for session
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          
-          if (error) {
-            console.error("Error exchanging code for session:", error);
-            toast.error("Authentication failed. Please try again.");
-            router.push("/");
-            return;
-          }
+          console.log("Processing OAuth code callback...", { code: code.substring(0, 20) + "..." });
+          try {
+            // Exchange code for session
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error("Error exchanging code for session:", error);
+              console.error("Error details:", {
+                message: error.message,
+                status: error.status,
+                name: error.name,
+              });
+              toast.error(`Authentication failed: ${error.message || "Please try again."}`);
+              // Redirect with error for debugging
+              router.push(`/?auth_error=${encodeURIComponent(error.message || "authentication_failed")}`);
+              return;
+            }
 
-          if (data.session) {
-            console.log("Session created successfully from code");
-            toast.success("Successfully signed in!");
-            // Clear code from URL
-            window.history.replaceState(null, "", window.location.pathname);
-            router.push("/");
+            if (data.session) {
+              console.log("Session created successfully from code", {
+                userId: data.session.user.id,
+                email: data.session.user.email,
+              });
+              toast.success("Successfully signed in!");
+              // Clear code from URL
+              window.history.replaceState(null, "", window.location.pathname);
+              // Small delay to ensure session is saved
+              await new Promise((resolve) => setTimeout(resolve, 300));
+              router.push("/");
+              return;
+            } else {
+              console.error("No session returned after code exchange");
+              toast.error("Authentication failed: No session created");
+              router.push("/?auth_error=no_session");
+              return;
+            }
+          } catch (err: any) {
+            console.error("Exception during code exchange:", err);
+            toast.error(`Authentication error: ${err.message || "Unknown error"}`);
+            router.push(`/?auth_error=${encodeURIComponent(err.message || "exception")}`);
             return;
           }
         }

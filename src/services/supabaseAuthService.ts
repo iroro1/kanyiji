@@ -407,6 +407,11 @@ class SupabaseAuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
       console.log("🔐 Starting login for:", credentials.email);
+      console.log("🌐 Environment:", {
+        hasWindow: typeof window !== "undefined",
+        origin: typeof window !== "undefined" ? window.location.origin : "server",
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing",
+      });
       
       if (!validateSupabaseConfig()) {
         console.error("❌ Supabase configuration invalid");
@@ -422,6 +427,15 @@ class SupabaseAuthService {
         email: credentials.email,
         password: credentials.password,
       });
+      
+      // Log session immediately after login
+      if (data?.session) {
+        console.log("✅ Login successful, session created:", {
+          userId: data.session.user.id,
+          email: data.session.user.email,
+          expiresAt: new Date(data.session.expires_at! * 1000).toISOString(),
+        });
+      }
 
       if (error) {
         console.error("❌ Supabase auth error:", error);
