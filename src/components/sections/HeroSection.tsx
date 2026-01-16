@@ -209,7 +209,7 @@ export default function HeroSection() {
           >
           {/* Main Heading */}
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-4 sm:mb-6 leading-tight drop-shadow-lg"
+            className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight drop-shadow-lg"
             variants={itemVariants}
           >
             Discover Authentic
@@ -226,7 +226,7 @@ export default function HeroSection() {
 
           {/* Subtitle */}
           <motion.p
-            className="text-lg sm:text-xl lg:text-2xl text-gray-100 mb-4 sm:mb-6 leading-relaxed drop-shadow-md"
+            className="text-base sm:text-lg lg:text-xl text-gray-100 mb-3 sm:mb-4 leading-relaxed drop-shadow-md"
             variants={itemVariants}
           >
             Connect with African entrepreneurs, brands, and businesses. Shop unique
@@ -235,7 +235,7 @@ export default function HeroSection() {
           
           {/* App Functionality Description */}
           <motion.p
-            className="text-base sm:text-lg text-gray-200 mb-6 sm:mb-8 leading-relaxed max-w-2xl drop-shadow-sm"
+            className="text-sm sm:text-base text-gray-200 mb-4 sm:mb-6 leading-relaxed max-w-2xl drop-shadow-sm"
             variants={itemVariants}
           >
             <strong className="text-white">Kanyiji</strong> is an e-commerce marketplace connecting customers with authentic Made-in-Africa products. 
@@ -304,12 +304,12 @@ export default function HeroSection() {
 
           {/* Right Side - Banner Slider (Desktop Only) */}
           <motion.div
-            className="hidden lg:block relative h-[500px] rounded-2xl overflow-hidden shadow-2xl"
+            className="hidden lg:block relative w-full rounded-2xl overflow-hidden shadow-2xl"
             variants={imageVariants}
             initial="hidden"
             animate="visible"
           >
-            <div className="relative w-full h-full">
+            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={currentSlide}
@@ -327,24 +327,12 @@ export default function HeroSection() {
                   <div className="relative w-full h-full bg-gray-100">
                     <Image
                       src={bannerSlides[currentSlide].image}
-                      alt={bannerSlides[currentSlide].title}
+                      alt={`Banner ${bannerSlides[currentSlide].id}`}
                       fill
                       className="object-contain"
                       quality={90}
                       sizes="(max-width: 1024px) 0vw, 50vw"
                     />
-                  </div>
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
-                  
-                  {/* Slide content */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                    <h3 className="text-2xl font-bold mb-2 drop-shadow-lg">
-                      {bannerSlides[currentSlide].title}
-                    </h3>
-                    <p className="text-gray-200 text-sm drop-shadow-md">
-                      {bannerSlides[currentSlide].subtitle}
-                    </p>
                   </div>
                 </motion.div>
               </AnimatePresence>
