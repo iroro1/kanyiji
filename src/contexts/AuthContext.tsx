@@ -286,34 +286,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Fix Bug #1: Reset loading state when window is closed or loses focus
   // This prevents the continuous spinning spinner when the web window is exited
+  // Cross-platform compatible: Works on Windows, macOS, and Linux
   useEffect(() => {
+    // Only run in browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
     const handleBeforeUnload = () => {
       // Reset loading state when window is about to close
+      // Works on Windows (Edge, Chrome, Firefox) and all modern browsers
       setIsLoading(false);
     };
 
     const handleVisibilityChange = () => {
-      // Reset loading state when page becomes hidden (tab switch, window close, etc.)
-      if (document.visibilityState === 'hidden') {
+      // Reset loading state when page becomes hidden (tab switch, window close, minimize, etc.)
+      // Most reliable cross-platform event - works consistently on Windows
+      if (document.visibilityState === 'hidden' || document.hidden) {
         setIsLoading(false);
       }
     };
 
     const handleWindowBlur = () => {
       // Reset loading state when window loses focus
+      // Backup handler for Windows - may not fire in all scenarios (e.g., Alt+F4)
       setIsLoading(false);
     };
 
-    // Add event listeners
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
+    // Add event listeners with error handling for Windows compatibility
+    try {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('blur', handleWindowBlur);
+    } catch (error) {
+      console.warn('Error adding event listeners for Bug #1 fix:', error);
+    }
 
     // Cleanup
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
+      try {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('blur', handleWindowBlur);
+      } catch (error) {
+        console.warn('Error removing event listeners for Bug #1 fix:', error);
+      }
     };
   }, []);
 
