@@ -4,6 +4,19 @@ import { Users, ShoppingBag, Globe, ArrowRight, ChevronLeft, ChevronRight } from
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import Image from "next/image";
+
+// Import banner images
+import banner1 from "../../assets/banners/Banner 1.jpg";
+import banner2 from "../../assets/banners/Banner 2.jpg";
+import banner3 from "../../assets/banners/Banner 3 corrected .jpg";
+import banner4 from "../../assets/banners/Banner 4 corrected .jpg";
+import banner5 from "../../assets/banners/Banner 5 New.jpg";
+import banner6 from "../../assets/banners/Banner 6 corrected .jpg";
+import banner7 from "../../assets/banners/Banner 7.jpg";
+import banner8 from "../../assets/banners/Banner 8.jpg";
+import banner9 from "../../assets/banners/Banner 9 New.jpg";
+import banner10 from "../../assets/banners/Banner 10 corrected .jpg";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -75,21 +88,63 @@ const slideVariants = {
 const bannerSlides = [
   {
     id: 1,
-    image: "https://images.pexels.com/photos/6192182/pexels-photo-6192182.jpeg",
+    image: banner1,
     title: "Featured Collection",
     subtitle: "Discover our handpicked selection",
   },
   {
     id: 2,
-    image: "https://images.unsplash.com/photo-1601925260368-ae2f83d8b8b8?w=1200&q=80",
+    image: banner2,
     title: "New Arrivals",
     subtitle: "Latest products from African artisans",
   },
   {
     id: 3,
-    image: "https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg",
+    image: banner3,
     title: "Special Offers",
     subtitle: "Exclusive deals on authentic products",
+  },
+  {
+    id: 4,
+    image: banner4,
+    title: "Authentic African Products",
+    subtitle: "Shop unique items from verified vendors",
+  },
+  {
+    id: 5,
+    image: banner5,
+    title: "Premium Quality",
+    subtitle: "Handcrafted with care and tradition",
+  },
+  {
+    id: 6,
+    image: banner6,
+    title: "Cultural Heritage",
+    subtitle: "Celebrate Africa's rich traditions",
+  },
+  {
+    id: 7,
+    image: banner7,
+    title: "Trending Now",
+    subtitle: "Discover what's popular this season",
+  },
+  {
+    id: 8,
+    image: banner8,
+    title: "Best Sellers",
+    subtitle: "Top-rated products from our vendors",
+  },
+  {
+    id: 9,
+    image: banner9,
+    title: "Limited Edition",
+    subtitle: "Exclusive items available now",
+  },
+  {
+    id: 10,
+    image: banner10,
+    title: "Shop with Confidence",
+    subtitle: "Secure payments and reliable shipping",
   },
 ];
 
@@ -269,14 +324,16 @@ export default function HeroSection() {
                   }}
                   className="absolute inset-0"
                 >
-                  <img
-                    src={bannerSlides[currentSlide].image}
-                    alt={bannerSlides[currentSlide].title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1601925260368-ae2f83d8b8b8?w=1200&q=80";
-                    }}
-                  />
+                  <div className="relative w-full h-full bg-gray-100">
+                    <Image
+                      src={bannerSlides[currentSlide].image}
+                      alt={bannerSlides[currentSlide].title}
+                      fill
+                      className="object-contain"
+                      quality={90}
+                      sizes="(max-width: 1024px) 0vw, 50vw"
+                    />
+                  </div>
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
                   
