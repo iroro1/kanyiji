@@ -309,7 +309,7 @@ export default function HeroSection() {
             initial="hidden"
             animate="visible"
           >
-            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+            <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
                   key={currentSlide}
