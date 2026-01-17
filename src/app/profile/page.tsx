@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
-  const hasFetchedRef = useRef<string | null>(null); // Track last fetched user ID to prevent re-fetch on tab switch
+  const hasFetchedRef = useRef<string | null | 'fetching'>(null); // Track last fetched user ID or 'fetching' state to prevent re-fetch on tab switch
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
