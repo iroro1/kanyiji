@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
-  const hasFetchedRef = useRef<string | null | 'fetching'>(null); // Track last fetched user ID or 'fetching' state to prevent re-fetch on tab switch
+  const hasFetchedRef = useRef<string | null>(null); // Track last successfully fetched user ID to prevent re-fetch on tab switch
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -147,14 +147,7 @@ export default function ProfilePage() {
     }
 
     // New user or first time fetching - proceed with fetch
-    // Don't set ref yet - only set after successful fetch to allow retries on error
-    
-    // Check if fetch is already in progress (prevent duplicate fetches)
-    if (hasFetchedRef.current === 'fetching') {
-      return;
-    }
-
-    hasFetchedRef.current = 'fetching'; // Mark as fetching to prevent duplicates
+    // Don't set ref to user.id yet - only set after successful fetch
     
     let isMounted = true;
     setIsLoading(true);
