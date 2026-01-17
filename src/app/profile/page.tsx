@@ -233,13 +233,17 @@ export default function ProfilePage() {
             setUserData(profileData);
             setFormData(profileData);
             setHasLoadedProfile(true); // Mark as loaded to prevent refetching
+            // Set ref to user ID only after successful fetch
+            hasFetchedRef.current = user.id;
+            console.log("✅ Profile data loaded successfully for user:", user.id);
           }
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("❌ Error fetching profile:", error);
         if (isMounted) {
           toast.error("Failed to load profile data");
-          setHasLoadedProfile(true); // Mark as loaded even on error
+          // Reset ref on error to allow retry on next render
+          hasFetchedRef.current = null;
         }
       } finally {
         if (isMounted) {
@@ -248,6 +252,7 @@ export default function ProfilePage() {
       }
     };
 
+    console.log("🔄 Starting profile data fetch for user:", user.id, "hasFetchedRef:", hasFetchedRef.current);
     fetchProfileData();
 
     // Cleanup function to prevent state updates if component unmounts
