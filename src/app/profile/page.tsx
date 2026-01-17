@@ -130,22 +130,32 @@ export default function ProfilePage() {
   }, [vendor]);
 
   // Fetch user profile data from database - ONLY ONCE when user is available
-  // Use ref to prevent re-fetching on tab switch or re-renders
+  // Use ref to track last fetched user ID to prevent re-fetching on tab switch
   useEffect(() => {
-    // Prevent multiple fetches - only fetch once per user
-    if (hasFetchedRef.current) {
-      setIsLoading(false); // Ensure loading is false if already fetched
-      return;
-    }
-
     // Don't fetch if not authenticated or user ID not available yet
     if (!isAuthenticated || !user?.id) {
       setIsLoading(false);
       return;
     }
 
-    // Mark as fetched immediately to prevent duplicate fetches
-    hasFetchedRef.current = true;
+    // Check if we've already fetched for this user ID (prevents re-fetch on tab switch)
+    // But still allow fetch if user ID changes (e.g., different user logs in)
+    if (hasFetchedRef.current === user.id) {
+      // Already fetched for this user - don't re-fetch
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if data is already loaded (from previous fetch)
+    if (hasLoadedProfile && userData.email) {
+      // Data already loaded - just update the ref
+      hasFetchedRef.current = user.id;
+      setIsLoading(false);
+      return;
+    }
+
+    // Mark this user ID as fetched immediately to prevent duplicate fetches
+    hasFetchedRef.current = user.id;
     
     let isMounted = true;
     setIsLoading(true);
