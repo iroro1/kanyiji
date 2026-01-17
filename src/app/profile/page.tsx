@@ -162,11 +162,13 @@ export default function ProfilePage() {
           .single();
 
         if (error) {
-          console.error("Error fetching profile:", error);
+          console.error("❌ Error fetching profile:", error);
           if (isMounted) {
             toast.error("Failed to load profile data");
             setIsLoading(false);
             setHasLoadedProfile(true); // Mark as loaded even on error to prevent retry loops
+            // Don't set ref on error - but mark as loaded to prevent infinite retries
+            // User can refresh page if they want to retry
           }
           return;
         }
@@ -232,15 +234,16 @@ export default function ProfilePage() {
           }
         }
       } catch (error) {
-        console.error("❌ Error fetching profile:", error);
+        console.error("❌ Exception during profile fetch:", error);
         if (isMounted) {
           toast.error("Failed to load profile data");
-          // Reset ref on error to allow retry on next render
-          hasFetchedRef.current = null;
+          setHasLoadedProfile(true); // Mark as loaded to prevent infinite retries
+          setIsLoading(false);
+          // Don't reset ref on error - prevents infinite retry loops
         }
       } finally {
         if (isMounted) {
-          setIsLoading(false);
+          setIsLoading(false); // Ensure loading is always set to false
         }
       }
     };
