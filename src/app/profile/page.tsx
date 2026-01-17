@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Mail,
@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const hasFetchedRef = useRef(false); // Use ref to prevent re-fetching on tab switch
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -129,30 +129,28 @@ export default function ProfilePage() {
     }
   }, [vendor]);
 
-  // Fetch user profile data from database - ONLY ONCE on mount
+  // Fetch user profile data from database - ONLY ONCE when user is available
+  // Use ref to prevent re-fetching on tab switch or re-renders
   useEffect(() => {
-    // Prevent multiple initializations - only run once
-    if (hasInitialized) {
+    // Prevent multiple fetches - only fetch once per user
+    if (hasFetchedRef.current) {
+      setIsLoading(false); // Ensure loading is false if already fetched
       return;
     }
 
+    // Don't fetch if not authenticated or user ID not available yet
+    if (!isAuthenticated || !user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Mark as fetched immediately to prevent duplicate fetches
+    hasFetchedRef.current = true;
+    
     let isMounted = true;
+    setIsLoading(true);
 
     const fetchProfileData = async () => {
-      // Don't fetch if already loaded or not authenticated
-      if (hasLoadedProfile || !isAuthenticated || !user?.id) {
-        if (isMounted) {
-          setIsLoading(false);
-          setHasInitialized(true); // Mark as initialized even if not authenticated
-        }
-        return;
-      }
-
-      // Mark as initialized before fetching to prevent re-runs
-      if (isMounted) {
-        setHasInitialized(true);
-        setIsLoading(true);
-      }
 
       try {
         const { data: profile, error } = await supabase
