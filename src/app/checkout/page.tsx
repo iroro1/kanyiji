@@ -10,8 +10,9 @@ import PaystackModalButton from "@/components/http/PaystackModalButton";
 import { VerifyPayment } from "@/components/http/Api";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/contexts/AuthContext";
-import CustomError from "../error";
+import AuthModal from "@/components/auth/AuthModal";
 import { validateSignupForm } from "@/components/ui/ValidateInputs";
+import { LogIn, ShoppingBag, Shield } from "lucide-react";
 import { calculateShippingFee, type ShippingLocation, type ShippingMethod } from "@/utils/shippingCalculator";
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ export default function CheckoutPage() {
   const [checkOutQuantity, setCheckOutQuantity] = useState(1);
 
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const formatPrice = (price: number) => `₦${price.toLocaleString()}`;
 
@@ -153,13 +155,130 @@ export default function CheckoutPage() {
     notify("Payment cancelled", "info");
   };
 
+  // Auto-open login modal when user is not authenticated
+  useEffect(() => {
+    if (!user) {
+      setShowAuthModal(true);
+    }
+  }, [user]);
+
+  // Handle successful login - close modal and stay on checkout page
+  const handleLoginSuccess = () => {
+    setShowAuthModal(false);
+    // The page will automatically update when user state changes
+  };
+
   if (!user) {
     return (
-      <CustomError
-        statusCode={403}
-        title="Sign In Required"
-        message="Please sign in to your account to complete your purchase. Create an account if you don't have one yet."
-      />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
+        {/* Friendly Sign-In UI */}
+        <div className="max-w-2xl w-full">
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+            {/* Header Section */}
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                  <ShoppingBag className="w-8 h-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">Welcome to Checkout!</h1>
+                  <p className="text-primary-100 mt-1">Sign in to complete your purchase</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Section */}
+            <div className="px-8 py-8">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="flex-shrink-0 w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-primary-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                    Secure Checkout Awaits
+                  </h2>
+                  <p className="text-gray-600 leading-relaxed mb-4">
+                    To proceed with your order, please sign in to your Kanyiji account. 
+                    If you don't have an account yet, you can create one in seconds!
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-blue-800">
+                      <strong className="font-semibold">Why sign in?</strong> Your account helps us securely process your order, 
+                      track your delivery, and provide you with order history and support.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefits List */}
+              <div className="grid md:grid-cols-2 gap-4 mb-8">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-green-600 text-sm font-bold">✓</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Fast & Secure</h3>
+                    <p className="text-sm text-gray-600">Secure payment processing</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-green-600 text-sm font-bold">✓</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Order Tracking</h3>
+                    <p className="text-sm text-gray-600">Track your delivery in real-time</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-green-600 text-sm font-bold">✓</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Order History</h3>
+                    <p className="text-sm text-gray-600">View all your past orders</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-green-600 text-sm font-bold">✓</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Easy Returns</h3>
+                    <p className="text-sm text-gray-600">Simple returns and refunds</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sign In to Continue
+                </button>
+                <Link
+                  href="/products"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-4 px-6 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Continue Shopping
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Auth Modal */}
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          initialMode="login"
+          onLoginEnd={handleLoginSuccess}
+        />
+      </div>
     );
   }
 
