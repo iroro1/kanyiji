@@ -12,7 +12,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isConfigValid: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; requiresMFA?: boolean; mfaChallenge?: any; error?: string }>;
+  verifyMFA: (code: string, challengeId?: string) => Promise<boolean>;
   register: (
     userData: any
   ) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
@@ -347,7 +348,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; requiresMFA?: boolean; mfaChallenge?: any; error?: string }> => {
     try {
       console.log("🔐 AuthContext: Starting login for:", email);
       setIsLoading(true);
@@ -356,8 +357,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("📥 AuthContext: Login response:", {
         success: response.success,
         hasUser: !!response.user,
+        requiresMFA: response.requiresMFA,
         error: response.error,
       });
+
+      // Check if MFA is required
+      if (response.requiresMFA) {
+        console.log("⚠️ MFA required for login");
+        setIsLoading(false);
+        return {
+          success: false,
+          requiresMFA: true,
+          mfaChallenge: response.mfaChallenge,
+          error: response.error,
+        };
+      }
 
       if (response.success && response.user) {
         console.log("✅ AuthContext: Login successful, setting user");
@@ -378,14 +392,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.warn("⚠️ Session not found after login, attempting to restore...");
         }
         
-        return true;
+        return { success: true };
       } else {
         console.error("❌ AuthContext: Login failed:", response.error);
         toast.error(response.error || "Login failed");
-        return false;
+        return { success: false, error: response.error };
       }
     } catch (error: any) {
       console.error("❌ AuthContext: Login exception:", error);
+      toast.error(error?.message || "An unexpected error occurred");
+      return { success: false, error: error?.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyMFA = async (code: string, challengeId?: string): Promise<boolean> => {
+    try {
+      console.log("🔐 AuthContext: Verifying MFA code...");
+      setIsLoading(true);
+      const response = await supabaseAuthService.verifyMFA(code, challengeId);
+
+      if (response.success && response.user) {
+        console.log("✅ AuthContext: MFA verification successful, setting user");
+        setUser(response.user);
+        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+        toast.success("Login successful!");
+        
+        // Verify session is persisted and store backup
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          console.log("✅ Session persisted successfully after MFA");
+          if (typeof window !== "undefined") {
+            localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
+          }
+        }
+        
+        return true;
+      } else {
+        console.error("❌ AuthContext: MFA verification failed:", response.error);
+        toast.error(response.error || "Invalid verification code");
+        return false;
+      }
+    } catch (error: any) {
+      console.error("❌ AuthContext: MFA verification exception:", error);
       toast.error(error?.message || "An unexpected error occurred");
       return false;
     } finally {
@@ -551,6 +601,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     isConfigValid,
     login,
+    verifyMFA,
     register,
     logout,
     refreshUser,

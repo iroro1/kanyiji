@@ -31,9 +31,12 @@ export default function LoginForm({
   onLoginStart,
   onLoginEnd,
 }: LoginFormProps) {
-  const { login } = useAuth();
+  const { login, verifyMFA } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresMFA, setRequiresMFA] = useState(false);
+  const [mfaChallenge, setMfaChallenge] = useState<any>(null);
+  const [mfaCode, setMfaCode] = useState("");
 
   const {
     register,
@@ -49,11 +52,22 @@ export default function LoginForm({
     onLoginStart?.(); // Notify that login is starting
 
     try {
-      const success = await login(data.email, data.password);
-      console.log("Login result:", success);
-      onLoginEnd?.(success); // Notify of login result
+      const result = await login(data.email, data.password);
+      console.log("Login result:", result);
+      
+      // Check if MFA is required
+      if (result.requiresMFA) {
+        console.log("MFA required, showing verification form");
+        setRequiresMFA(true);
+        setMfaChallenge(result.mfaChallenge);
+        onLoginEnd?.(false); // Don't close modal yet
+        setIsLoading(false);
+        return;
+      }
 
-      if (success) {
+      onLoginEnd?.(result.success); // Notify of login result
+
+      if (result.success) {
         console.log("Calling onSuccess");
         onSuccess?.();
       } else {
@@ -64,6 +78,37 @@ export default function LoginForm({
       console.error("Login error:", error);
       onLoginEnd?.(false); // Notify that login failed
       // If there's an error, we don't call onSuccess, so modal stays open
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMFAVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode.trim()) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+
+    setIsLoading(true);
+    onLoginStart?.();
+
+    try {
+      const success = await verifyMFA(mfaCode, mfaChallenge?.id);
+      onLoginEnd?.(success);
+
+      if (success) {
+        console.log("MFA verification successful, calling onSuccess");
+        setRequiresMFA(false);
+        setMfaCode("");
+        setMfaChallenge(null);
+        onSuccess?.();
+      } else {
+        console.log("MFA verification failed");
+      }
+    } catch (error) {
+      console.error("MFA verification error:", error);
+      onLoginEnd?.(false);
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +132,62 @@ export default function LoginForm({
       setIsLoading(false);
     }
   };
+
+  // Show MFA verification form if MFA is required
+  if (requiresMFA) {
+    return (
+      <div className="w-full max-w-md mx-auto">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Identity</h2>
+          <p className="text-gray-600">Enter the verification code sent to your email or authenticator app</p>
+        </div>
+
+        <form onSubmit={handleMFAVerification} className="space-y-6">
+          <div>
+            <label
+              htmlFor="mfaCode"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Verification Code
+            </label>
+            <input
+              type="text"
+              id="mfaCode"
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-center text-2xl tracking-widest"
+              placeholder="000000"
+              maxLength={6}
+              autoFocus
+            />
+            <p className="mt-2 text-sm text-gray-500 text-center">
+              Check your email or authenticator app for the 6-digit code
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || !mfaCode.trim()}
+            className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
+          >
+            {isLoading ? "Verifying..." : "Verify Code"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRequiresMFA(false);
+              setMfaCode("");
+              setMfaChallenge(null);
+            }}
+            className="w-full text-sm text-gray-600 hover:text-gray-800 font-medium"
+          >
+            ← Back to login
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto">
