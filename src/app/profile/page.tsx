@@ -35,6 +35,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -132,11 +133,17 @@ export default function ProfilePage() {
     let isMounted = true;
 
     const fetchProfileData = async () => {
-      if (!isAuthenticated || !user?.id) {
+      // Prevent infinite loops - don't refetch if already loaded or not authenticated
+      if (hasLoadedProfile || !isAuthenticated || !user?.id) {
         if (isMounted) {
           setIsLoading(false);
         }
         return;
+      }
+
+      // Only set loading if we haven't loaded data yet
+      if (isMounted && !hasLoadedProfile) {
+        setIsLoading(true);
       }
 
       try {
@@ -151,6 +158,7 @@ export default function ProfilePage() {
           if (isMounted) {
             toast.error("Failed to load profile data");
             setIsLoading(false);
+            setHasLoadedProfile(true); // Mark as loaded even on error to prevent retry loops
           }
           return;
         }
@@ -209,12 +217,14 @@ export default function ProfilePage() {
           if (isMounted) {
             setUserData(profileData);
             setFormData(profileData);
+            setHasLoadedProfile(true); // Mark as loaded to prevent refetching
           }
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
         if (isMounted) {
           toast.error("Failed to load profile data");
+          setHasLoadedProfile(true); // Mark as loaded even on error
         }
       } finally {
         if (isMounted) {
@@ -229,7 +239,7 @@ export default function ProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, user?.id, user?.email, (user as any)?.user_metadata]);
+  }, [isAuthenticated, user?.id]); // Removed user?.email and user_metadata from deps to prevent infinite loops
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
