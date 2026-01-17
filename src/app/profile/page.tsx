@@ -128,21 +128,28 @@ export default function ProfilePage() {
     }
   }, [vendor]);
 
-  // Fetch user profile data from database
+  // Fetch user profile data from database - ONLY ONCE on mount
   useEffect(() => {
+    // Prevent multiple initializations - only run once
+    if (hasInitialized) {
+      return;
+    }
+
     let isMounted = true;
 
     const fetchProfileData = async () => {
-      // Prevent infinite loops - don't refetch if already loaded or not authenticated
+      // Don't fetch if already loaded or not authenticated
       if (hasLoadedProfile || !isAuthenticated || !user?.id) {
         if (isMounted) {
           setIsLoading(false);
+          setHasInitialized(true); // Mark as initialized even if not authenticated
         }
         return;
       }
 
-      // Only set loading if we haven't loaded data yet
-      if (isMounted && !hasLoadedProfile) {
+      // Mark as initialized before fetching to prevent re-runs
+      if (isMounted) {
+        setHasInitialized(true);
         setIsLoading(true);
       }
 
@@ -239,7 +246,9 @@ export default function ProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, user?.id]); // Removed user?.email and user_metadata from deps to prevent infinite loops
+    // Only run once when component mounts or when user ID actually changes (not on tab switch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only fetch once on mount, never refetch on tab switch
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
