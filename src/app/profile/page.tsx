@@ -368,6 +368,12 @@ export default function ProfilePage() {
       }
 
       setUserData(formData);
+      
+      // Update sessionStorage with new profile data
+      if (user?.id) {
+        saveProfileToSession(user.id, formData);
+      }
+      
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {
