@@ -36,6 +36,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
