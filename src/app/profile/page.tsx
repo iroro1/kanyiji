@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Mail,
@@ -35,6 +35,50 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
+  const hasFetchedRef = useRef<string | null>(null); // Track last successfully fetched user ID to prevent re-fetch on tab switch
+  const sessionStorageKey = 'kanyiji_profile_data'; // SessionStorage key for profile data
+  
+  // Helper function to get profile data from sessionStorage
+  const getProfileFromSession = (userId: string) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = sessionStorage.getItem(sessionStorageKey);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.userId === userId && data.profileData) {
+          return data.profileData;
+        }
+      }
+    } catch (error) {
+      console.error('Error reading from sessionStorage:', error);
+    }
+    return null;
+  };
+  
+  // Helper function to save profile data to sessionStorage
+  const saveProfileToSession = (userId: string, profileData: any) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(sessionStorageKey, JSON.stringify({
+        userId,
+        profileData,
+        timestamp: Date.now(),
+      }));
+    } catch (error) {
+      console.error('Error saving to sessionStorage:', error);
+    }
+  };
+  
+  // Helper function to clear profile data from sessionStorage
+  const clearProfileFromSession = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem(sessionStorageKey);
+    } catch (error) {
+      console.error('Error clearing sessionStorage:', error);
+    }
+  };
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -127,30 +171,55 @@ export default function ProfilePage() {
     }
   }, [vendor]);
 
-  // Fetch user profile data from database
+  // Fetch user profile data from database - ONLY ONCE when user is available
+  // Use sessionStorage to persist data across tab switches within the same session
   useEffect(() => {
+    // Don't fetch if not authenticated or user ID not available yet
+    if (!isAuthenticated || !user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    const userId = user.id; // Extract user ID once to prevent dependency issues
+    
+    // STRICT CHECK: If we've already fetched for this exact user ID, do nothing
+    // This check happens BEFORE any async work to prevent re-fetches on tab switch
+    if (hasFetchedRef.current === userId || hasLoadedProfile) {
+      // Already fetched for this user - absolutely no re-fetch (even on tab switch)
+      setIsLoading(false);
+      return;
+    }
+
+    // CHECK SESSIONSTORAGE FIRST - Load from session if available
+    const sessionData = getProfileFromSession(userId);
+    if (sessionData) {
+      console.log("📦 Loading profile data from sessionStorage for user:", userId);
+      setUserData(sessionData);
+      setFormData(sessionData);
+      setHasLoadedProfile(true);
+      hasFetchedRef.current = userId;
+      setIsLoading(false);
+      return; // Exit early - data loaded from sessionStorage
+    }
+
+    // NO SESSION DATA - Fetch from database
     let isMounted = true;
+    setIsLoading(true);
 
     const fetchProfileData = async () => {
-      if (!isAuthenticated || !user?.id) {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-        return;
-      }
-
       try {
         const { data: profile, error } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", user.id)
+          .eq("id", userId)
           .single();
 
         if (error) {
-          console.error("Error fetching profile:", error);
+          console.error("❌ Error fetching profile:", error);
           if (isMounted) {
             toast.error("Failed to load profile data");
             setIsLoading(false);
+            setHasLoadedProfile(true); // Mark as loaded even on error to prevent retry loops
           }
           return;
         }
@@ -177,7 +246,7 @@ export default function ProfilePage() {
                   phone: phone,
                   updated_at: new Date().toISOString(),
                 })
-                .eq("id", user.id);
+                .eq("id", userId);
 
               if (updateError) {
                 console.error(
@@ -209,12 +278,21 @@ export default function ProfilePage() {
           if (isMounted) {
             setUserData(profileData);
             setFormData(profileData);
+            setHasLoadedProfile(true);
+            hasFetchedRef.current = userId;
+            
+            // SAVE TO SESSIONSTORAGE - Persist across tab switches
+            saveProfileToSession(userId, profileData);
+            
+            console.log("✅ Profile data loaded and saved to sessionStorage for user:", userId);
           }
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("❌ Exception during profile fetch:", error);
         if (isMounted) {
           toast.error("Failed to load profile data");
+          setHasLoadedProfile(true);
+          setIsLoading(false);
         }
       } finally {
         if (isMounted) {
@@ -223,13 +301,17 @@ export default function ProfilePage() {
       }
     };
 
+    console.log("🔄 Fetching profile data from database for user:", userId);
     fetchProfileData();
 
     // Cleanup function to prevent state updates if component unmounts
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, user?.id, user?.email, (user as any)?.user_metadata]);
+    // STRICT DEPENDENCY: Only depend on user ID (string primitive) to prevent unnecessary re-runs
+    // SessionStorage persists data across tab switches - only refetch when user ID changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only re-run when user ID actually changes (not on tab switch)
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
@@ -286,6 +368,12 @@ export default function ProfilePage() {
       }
 
       setUserData(formData);
+      
+      // Update sessionStorage with new profile data
+      if (user?.id) {
+        saveProfileToSession(user.id, formData);
+      }
+      
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {

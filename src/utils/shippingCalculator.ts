@@ -14,7 +14,10 @@ export interface ShippingCalculationResult {
   pricePerKg: number;
   weight: number;
   location: string;
+  shippingMethod?: "standard" | "express";
 }
+
+export type ShippingMethod = "standard" | "express";
 
 /**
  * Shipping rates per KG for different locations
@@ -27,6 +30,7 @@ const SHIPPING_RATES: Record<string, number> = {
   
   // Nigerian States/Cities
   Lagos: 4000,
+  Ikorodu: 5000,
   Abuja: 3500,
   
   // South-South & South-West
@@ -118,6 +122,9 @@ function findShippingRate(location: ShippingLocation): number | null {
     if (normalizedCity === "lagos") {
       return SHIPPING_RATES.Lagos;
     }
+    if (normalizedCity === "ikorodu") {
+      return SHIPPING_RATES.Ikorodu;
+    }
     if (normalizedCity === "abuja") {
       return SHIPPING_RATES.Abuja;
     }
@@ -162,11 +169,13 @@ function findShippingRate(location: ShippingLocation): number | null {
  * 
  * @param weight - Weight in kilograms
  * @param location - Destination location (country, state, city)
+ * @param shippingMethod - Shipping method: "standard" (default) or "express"
  * @returns Shipping calculation result or null if location not found
  */
 export function calculateShippingFee(
   weight: number,
-  location: ShippingLocation
+  location: ShippingLocation,
+  shippingMethod: ShippingMethod = "standard"
 ): ShippingCalculationResult | null {
   if (weight <= 0) {
     return {
@@ -183,7 +192,28 @@ export function calculateShippingFee(
     return null; // Location not found
   }
   
-  const totalPrice = pricePerKg * weight;
+  // Express shipping: 62,000 for international (UK, US, Canada)
+  let finalPricePerKg = pricePerKg;
+  const isInternational = location.country && 
+    (location.country.toLowerCase() === "uk" || 
+     location.country.toLowerCase() === "united kingdom" ||
+     location.country.toLowerCase() === "us" ||
+     location.country.toLowerCase() === "usa" ||
+     location.country.toLowerCase() === "united states" ||
+     location.country.toLowerCase() === "canada");
+  
+  if (shippingMethod === "express" && isInternational) {
+    // Express international shipping: 62,000 (flat rate, not per KG)
+    return {
+      price: 62000,
+      pricePerKg: 62000, // For display purposes
+      weight,
+      location: locationString,
+      shippingMethod: "express",
+    };
+  }
+  
+  const totalPrice = finalPricePerKg * weight;
   
   // Build location string for display
   const locationParts = [
@@ -195,9 +225,10 @@ export function calculateShippingFee(
   
   return {
     price: totalPrice,
-    pricePerKg,
+    pricePerKg: finalPricePerKg,
     weight,
     location: locationString,
+    shippingMethod: shippingMethod || "standard",
   };
 }
 

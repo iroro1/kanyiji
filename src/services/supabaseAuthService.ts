@@ -15,6 +15,8 @@ export interface AuthResponse {
   error?: string;
   requiresVerification?: boolean;
   message?: string;
+  requiresMFA?: boolean;
+  mfaChallenge?: any;
 }
 
 export interface LoginCredentials {
@@ -428,6 +430,17 @@ class SupabaseAuthService {
         password: credentials.password,
       });
       
+      // Check for MFA challenge (2FA required)
+      if (data?.mfa) {
+        console.log("⚠️ MFA challenge detected:", data.mfa);
+        return {
+          success: false,
+          error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
+          requiresMFA: true,
+          mfaChallenge: data.mfa,
+        };
+      }
+
       // Log session immediately after login
       if (data?.session) {
         console.log("✅ Login successful, session created:", {
@@ -439,6 +452,19 @@ class SupabaseAuthService {
 
       if (error) {
         console.error("❌ Supabase auth error:", error);
+        
+        // Check if error is related to MFA
+        if (error.message?.toLowerCase().includes("mfa") || 
+            error.message?.toLowerCase().includes("multi-factor") ||
+            error.message?.toLowerCase().includes("2fa") ||
+            error.message?.toLowerCase().includes("two-factor")) {
+          return {
+            success: false,
+            error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
+            requiresMFA: true,
+          };
+        }
+        
         return {
           success: false,
           error: error.message || "Login failed",
