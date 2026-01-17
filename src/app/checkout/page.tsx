@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomError from "../error";
 import { validateSignupForm } from "@/components/ui/ValidateInputs";
-import { calculateShippingFee, type ShippingLocation } from "@/utils/shippingCalculator";
+import { calculateShippingFee, type ShippingLocation, type ShippingMethod } from "@/utils/shippingCalculator";
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -73,10 +73,13 @@ export default function CheckoutPage() {
       city: shippingData.city,
     };
 
+    // Convert shipping method string to ShippingMethod type
+    const method: ShippingMethod = shippingMethod === "Express Delivery" ? "express" : "standard";
+    
     // Calculate shipping fee using totalWeight which includes the extra 1kg per item
-    const result = calculateShippingFee(totalWeight, location);
+    const result = calculateShippingFee(totalWeight, location, method);
     return result ? result.price : null; // Return null if calculation fails
-  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight]);
+  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight, shippingMethod]);
 
   const shipping = shippingFee ?? 0; // Use nullish coalescing to handle null
   const handlePlaceOrder = async () => {
@@ -434,11 +437,42 @@ export default function CheckoutPage() {
                             : "Free"}
                       </div>
                     </label>
+                    
+                    {/* Express Delivery - Only for International (UK, US, Canada) */}
+                    {shippingData.country && 
+                     (shippingData.country.toLowerCase() === "uk" ||
+                      shippingData.country.toLowerCase() === "united kingdom" ||
+                      shippingData.country.toLowerCase() === "us" ||
+                      shippingData.country.toLowerCase() === "usa" ||
+                      shippingData.country.toLowerCase() === "united states" ||
+                      shippingData.country.toLowerCase() === "canada") && (
+                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="radio"
+                          name="shipping"
+                          value="express"
+                          className="mr-3"
+                          checked={shippingMethod === "Express Delivery"}
+                          onChange={() => setShippingMethod("Express Delivery")}
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">Express International Shipping</div>
+                          <div className="text-sm text-gray-600">
+                            5-7 business days • From ₦62,000
+                          </div>
+                        </div>
+                        <div className="font-semibold">
+                          {shippingMethod === "Express Delivery" ? "₦62,000" : "Select"}
+                        </div>
+                      </label>
+                    )}
+                    
                     {shippingFee !== null && shippingFee > 0 && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
                         <p className="font-medium mb-1">Shipping Details:</p>
                         <p>Weight: {totalWeight.toFixed(1)} kg</p>
-                        <p>Destination: {shippingData.city || shippingData.state || "Not specified"}</p>
+                        <p>Destination: {shippingData.city || shippingData.state || shippingData.country || "Not specified"}</p>
+                        <p>Method: {shippingMethod}</p>
                         <p className="mt-1 font-semibold">Rate: {formatPrice(shipping)}</p>
                       </div>
                     )}
