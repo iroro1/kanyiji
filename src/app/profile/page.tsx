@@ -255,9 +255,10 @@ export default function ProfilePage() {
     return () => {
       isMounted = false;
     };
-    // Only run once when component mounts or when user ID actually changes (not on tab switch)
+    // Depend on isAuthenticated and user?.id - will run when user becomes available
+    // Ref (hasFetchedRef) prevents re-fetching on tab switch by tracking last fetched user ID
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only fetch once on mount, never refetch on tab switch
+  }, [isAuthenticated, user?.id]); // Re-run when auth state or user ID changes (ref prevents tab switch refetch)
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
