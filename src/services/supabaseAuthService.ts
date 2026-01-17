@@ -740,6 +740,83 @@ class SupabaseAuthService {
     }
   }
 
+  /**
+   * Verify MFA code after login challenge
+   * @param code - The MFA verification code from email or authenticator app
+   * @param challengeId - The MFA challenge ID from the login response
+   */
+  async verifyMFA(code: string, challengeId?: string): Promise<AuthResponse> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return {
+          success: false,
+          error:
+            "Supabase configuration is missing. Please check your environment variables.",
+        };
+      }
+
+      console.log("🔐 Verifying MFA code...");
+      
+      // Use verifyFactor if challengeId is provided, otherwise use verifyOtp
+      let result;
+      if (challengeId) {
+        // MFA factor verification
+        result = await supabase.auth.verifyFactor({
+          factorId: challengeId,
+          code: code,
+        });
+      } else {
+        // Fallback to OTP verification (for email-based MFA)
+        // Note: For email MFA, Supabase sends the code via email
+        // The code should be verified using the challenge from the login response
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          // If we have a session, try to verify the OTP
+          result = await supabase.auth.verifyOtp({
+            token: code,
+            type: 'email',
+          });
+        } else {
+          return {
+            success: false,
+            error: "No active MFA challenge. Please try logging in again.",
+          };
+        }
+      }
+
+      const { data, error } = result;
+
+      if (error) {
+        console.error("❌ MFA verification error:", error);
+        return {
+          success: false,
+          error: error.message || "Invalid verification code. Please try again.",
+        };
+      }
+
+      if (data?.session && data?.user) {
+        console.log("✅ MFA verification successful");
+        const currentUser = await this.getCurrentUser();
+        
+        return {
+          success: true,
+          user: currentUser || undefined,
+        };
+      }
+
+      return {
+        success: false,
+        error: "MFA verification failed. Please try again.",
+      };
+    } catch (error: any) {
+      console.error("❌ MFA verification exception:", error);
+      return {
+        success: false,
+        error: error?.message || "An unexpected error occurred during MFA verification",
+      };
+    }
+  }
+
   // Google OAuth login
   async loginWithGoogle(): Promise<AuthResponse> {
     try {
