@@ -601,6 +601,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     isConfigValid,
     login,
+    verifyMFA,
     register,
     logout,
     refreshUser,
