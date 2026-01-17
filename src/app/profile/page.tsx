@@ -138,23 +138,16 @@ export default function ProfilePage() {
       return;
     }
 
-    // Check if we've already fetched for this user ID (prevents re-fetch on tab switch)
-    // But still allow fetch if user ID changes (e.g., different user logs in)
+    // Check if we've already fetched for this EXACT user ID (prevents re-fetch on tab switch)
+    // This is the main check - ref persists across re-renders and tab switches
     if (hasFetchedRef.current === user.id) {
-      // Already fetched for this user - don't re-fetch
+      // Already fetched for this user - don't re-fetch (even on tab switch)
       setIsLoading(false);
       return;
     }
 
-    // Check if data is already loaded (from previous fetch)
-    if (hasLoadedProfile && userData.email) {
-      // Data already loaded - just update the ref
-      hasFetchedRef.current = user.id;
-      setIsLoading(false);
-      return;
-    }
-
-    // Mark this user ID as fetched immediately to prevent duplicate fetches
+    // New user or first time fetching - proceed with fetch
+    // Mark as fetched immediately to prevent duplicate fetches if effect runs again
     hasFetchedRef.current = user.id;
     
     let isMounted = true;
