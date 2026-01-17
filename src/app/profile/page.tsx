@@ -147,11 +147,24 @@ export default function ProfilePage() {
     }
 
     // New user or first time fetching - proceed with fetch
-    // Mark as fetched immediately to prevent duplicate fetches if effect runs again
-    hasFetchedRef.current = user.id;
+    // Don't set ref yet - only set after successful fetch to allow retries on error
     
     let isMounted = true;
+    let fetchInProgress = false;
+
+    // Check if fetch is already in progress (prevent duplicate fetches)
+    if (hasFetchedRef.current === 'fetching') {
+      return;
+    }
+
+    hasFetchedRef.current = 'fetching'; // Mark as fetching to prevent duplicates
     setIsLoading(true);
+
+    const fetchProfileData = async () => {
+      if (fetchInProgress) {
+        return; // Already fetching
+      }
+      fetchInProgress = true;
 
     const fetchProfileData = async () => {
 
