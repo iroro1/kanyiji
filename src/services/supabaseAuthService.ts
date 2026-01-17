@@ -15,6 +15,8 @@ export interface AuthResponse {
   error?: string;
   requiresVerification?: boolean;
   message?: string;
+  requiresMFA?: boolean;
+  mfaChallenge?: any;
 }
 
 export interface LoginCredentials {
