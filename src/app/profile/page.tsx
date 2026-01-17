@@ -138,23 +138,22 @@ export default function ProfilePage() {
       return;
     }
 
-    // Check if we've already fetched for this EXACT user ID (prevents re-fetch on tab switch)
-    // This is the main check - ref persists across re-renders and tab switches
-    // Also check hasLoadedProfile state as additional guard
-    if (hasFetchedRef.current === user.id || hasLoadedProfile) {
-      // Already fetched for this user - don't re-fetch (even on tab switch)
+    const userId = user.id; // Extract user ID once to prevent dependency issues
+    
+    // STRICT CHECK: If we've already fetched for this exact user ID, do nothing
+    // This check happens BEFORE any async work to prevent re-fetches on tab switch
+    if (hasFetchedRef.current === userId || hasLoadedProfile) {
+      // Already fetched for this user - absolutely no re-fetch (even on tab switch)
       setIsLoading(false);
       return;
     }
 
-    // New user or first time fetching - proceed with fetch
-    // Don't set ref to user.id yet - only set after successful fetch
-    
+    // NEW USER OR FIRST TIME FETCHING - proceed with fetch
+    // Set loading state and mark as fetching in ref
     let isMounted = true;
     setIsLoading(true);
 
     const fetchProfileData = async () => {
-
       try {
         const { data: profile, error } = await supabase
           .from("profiles")
@@ -229,9 +228,9 @@ export default function ProfilePage() {
             setUserData(profileData);
             setFormData(profileData);
             setHasLoadedProfile(true); // Mark as loaded to prevent refetching
-            // Set ref to user ID only after successful fetch
-            hasFetchedRef.current = user.id;
-            console.log("✅ Profile data loaded successfully for user:", user.id);
+            // Set ref to user ID ONLY after successful fetch - prevents re-fetch on tab switch
+            hasFetchedRef.current = userId;
+            console.log("✅ Profile data loaded successfully for user:", userId);
           }
         }
       } catch (error) {
@@ -249,17 +248,20 @@ export default function ProfilePage() {
       }
     };
 
-    console.log("🔄 Starting profile data fetch for user:", user.id, "hasFetchedRef:", hasFetchedRef.current);
+    // Only log if we're actually going to fetch (not skipped by early return)
+    if (hasFetchedRef.current !== userId && !hasLoadedProfile) {
+      console.log("🔄 Starting profile data fetch for user:", userId, "hasFetchedRef:", hasFetchedRef.current);
+    }
     fetchProfileData();
 
     // Cleanup function to prevent state updates if component unmounts
     return () => {
       isMounted = false;
     };
-    // Depend on isAuthenticated and user?.id - will run when user becomes available
+    // STRICT DEPENDENCY: Only depend on user ID (string primitive) to prevent unnecessary re-runs
     // Ref (hasFetchedRef) prevents re-fetching on tab switch by tracking last fetched user ID
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.id]); // Re-run when auth state or user ID changes (ref prevents tab switch refetch)
+  }, [user?.id]); // Only re-run when user ID actually changes (not on tab switch)
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
