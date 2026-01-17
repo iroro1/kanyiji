@@ -140,7 +140,8 @@ export default function ProfilePage() {
 
     // Check if we've already fetched for this EXACT user ID (prevents re-fetch on tab switch)
     // This is the main check - ref persists across re-renders and tab switches
-    if (hasFetchedRef.current === user.id) {
+    // Also check hasLoadedProfile state as additional guard
+    if (hasFetchedRef.current === user.id || hasLoadedProfile) {
       // Already fetched for this user - don't re-fetch (even on tab switch)
       setIsLoading(false);
       return;
