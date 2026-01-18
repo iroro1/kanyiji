@@ -61,7 +61,7 @@ export default function LoginForm({
         console.log("MFA required, showing verification form");
         setRequiresMFA(true);
         setMfaChallenge(result.mfaChallenge);
-        setMfaEmail(data.email); // Store email for MFA verification
+        setMfaEmail(data.email); // Store email from form for MFA verification
         onLoginEnd?.(false); // Don't close modal yet
         setIsLoading(false);
         return;
