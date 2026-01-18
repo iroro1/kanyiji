@@ -768,44 +768,13 @@ class SupabaseAuthService {
         };
       }
       
-      // Use verifyOtp for MFA verification (works for both email and TOTP-based MFA)
-      // For email-based MFA, we need to provide the email
+      // Use verifyOtp for email-based MFA verification
+      // Note: TOTP (authenticator app) MFA requires a different flow and is not supported in this version
       const result = await supabase.auth.verifyOtp({
         email: userEmail,
         token: code,
         type: 'email', // Email-based MFA
       });
-      
-      // If email type fails, try TOTP type (for authenticator apps)
-      if (result.error && result.error.message?.includes('Invalid')) {
-        const totpResult = await supabase.auth.verifyOtp({
-          token: code,
-          type: 'totp',
-        });
-        
-        if (!totpResult.error) {
-          // TOTP verification succeeded
-          const { data, error } = totpResult;
-          
-          if (error) {
-            console.error("❌ MFA verification error:", error);
-            return {
-              success: false,
-              error: error.message || "Invalid verification code. Please try again.",
-            };
-          }
-
-          if (data?.session && data?.user) {
-            console.log("✅ MFA verification successful (TOTP)");
-            const currentUser = await this.getCurrentUser();
-            
-            return {
-              success: true,
-              user: currentUser || undefined,
-            };
-          }
-        }
-      }
 
       const { data, error } = result;
 
