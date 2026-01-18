@@ -429,15 +429,32 @@ class SupabaseAuthService {
         email: credentials.email,
         password: credentials.password,
       });
-      
-      // Check for MFA challenge (2FA required)
-      if (data?.mfa) {
-        console.log("⚠️ MFA challenge detected:", data.mfa);
+
+      if (error) {
+        console.error("❌ Supabase auth error:", error);
+        
+        // Check if error is related to MFA
+        // Supabase returns MFA challenges in the error response
+        const isMFAError = 
+          error.message?.toLowerCase().includes("mfa") || 
+          error.message?.toLowerCase().includes("multi-factor") ||
+          error.message?.toLowerCase().includes("2fa") ||
+          error.message?.toLowerCase().includes("two-factor") ||
+          error.status === 401; // MFA challenges often return 401
+        
+        if (isMFAError) {
+          console.log("⚠️ MFA challenge detected from error response");
+          return {
+            success: false,
+            error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
+            requiresMFA: true,
+            mfaChallenge: (error as any).mfa || null, // MFA challenge might be in error object
+          };
+        }
+        
         return {
           success: false,
-          error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
-          requiresMFA: true,
-          mfaChallenge: data.mfa,
+          error: error.message || "Login failed",
         };
       }
 
@@ -448,27 +465,6 @@ class SupabaseAuthService {
           email: data.session.user.email,
           expiresAt: new Date(data.session.expires_at! * 1000).toISOString(),
         });
-      }
-
-      if (error) {
-        console.error("❌ Supabase auth error:", error);
-        
-        // Check if error is related to MFA
-        if (error.message?.toLowerCase().includes("mfa") || 
-            error.message?.toLowerCase().includes("multi-factor") ||
-            error.message?.toLowerCase().includes("2fa") ||
-            error.message?.toLowerCase().includes("two-factor")) {
-          return {
-            success: false,
-            error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
-            requiresMFA: true,
-          };
-        }
-        
-        return {
-          success: false,
-          error: error.message || "Login failed",
-        };
       }
 
       if (!data.user) {
