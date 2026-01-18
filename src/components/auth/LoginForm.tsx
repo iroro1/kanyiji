@@ -37,6 +37,7 @@ export default function LoginForm({
   const [requiresMFA, setRequiresMFA] = useState(false);
   const [mfaChallenge, setMfaChallenge] = useState<any>(null);
   const [mfaCode, setMfaCode] = useState("");
+  const [mfaEmail, setMfaEmail] = useState(""); // Store email for MFA verification
 
   const {
     register,
@@ -60,6 +61,7 @@ export default function LoginForm({
         console.log("MFA required, showing verification form");
         setRequiresMFA(true);
         setMfaChallenge(result.mfaChallenge);
+        setMfaEmail(data.email); // Store email from form for MFA verification
         onLoginEnd?.(false); // Don't close modal yet
         setIsLoading(false);
         return;
@@ -94,7 +96,7 @@ export default function LoginForm({
     onLoginStart?.();
 
     try {
-      const success = await verifyMFA(mfaCode, mfaChallenge?.id);
+      const success = await verifyMFA(mfaCode, mfaChallenge?.id, mfaEmail);
       onLoginEnd?.(success);
 
       if (success) {
@@ -102,6 +104,7 @@ export default function LoginForm({
         setRequiresMFA(false);
         setMfaCode("");
         setMfaChallenge(null);
+        setMfaEmail("");
         onSuccess?.();
       } else {
         console.log("MFA verification failed");
@@ -179,6 +182,7 @@ export default function LoginForm({
               setRequiresMFA(false);
               setMfaCode("");
               setMfaChallenge(null);
+              setMfaEmail("");
             }}
             className="w-full text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
