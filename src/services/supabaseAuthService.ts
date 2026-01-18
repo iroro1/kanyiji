@@ -740,8 +740,9 @@ class SupabaseAuthService {
    * Verify MFA code after login challenge
    * @param code - The MFA verification code from email or authenticator app
    * @param challengeId - The MFA challenge ID from the login response
+   * @param email - The user's email address (required for email-based MFA)
    */
-  async verifyMFA(code: string, challengeId?: string): Promise<AuthResponse> {
+  async verifyMFA(code: string, challengeId?: string, email?: string): Promise<AuthResponse> {
     try {
       if (!validateSupabaseConfig()) {
         return {
@@ -753,11 +754,26 @@ class SupabaseAuthService {
 
       console.log("🔐 Verifying MFA code...");
       
+      // Try to get email from session if not provided
+      let userEmail = email;
+      if (!userEmail) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        userEmail = sessionData.session?.user?.email || undefined;
+      }
+      
+      if (!userEmail) {
+        return {
+          success: false,
+          error: "Email address is required for MFA verification. Please try logging in again.",
+        };
+      }
+      
       // Use verifyOtp for MFA verification (works for both email and TOTP-based MFA)
-      // For MFA, we need to verify the OTP code that was sent to the user
+      // For email-based MFA, we need to provide the email
       const result = await supabase.auth.verifyOtp({
+        email: userEmail,
         token: code,
-        type: 'email', // Email-based MFA (TOTP uses 'totp' type)
+        type: 'email', // Email-based MFA
       });
       
       // If email type fails, try TOTP type (for authenticator apps)

@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isConfigValid: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; requiresMFA?: boolean; mfaChallenge?: any; error?: string }>;
-  verifyMFA: (code: string, challengeId?: string) => Promise<boolean>;
+  verifyMFA: (code: string, challengeId?: string, email?: string) => Promise<boolean>;
   register: (
     userData: any
   ) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
@@ -407,11 +407,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const verifyMFA = async (code: string, challengeId?: string): Promise<boolean> => {
+  const verifyMFA = async (code: string, challengeId?: string, email?: string): Promise<boolean> => {
     try {
       console.log("🔐 AuthContext: Verifying MFA code...");
       setIsLoading(true);
-      const response = await supabaseAuthService.verifyMFA(code, challengeId);
+      const response = await supabaseAuthService.verifyMFA(code, challengeId, email);
 
       if (response.success && response.user) {
         console.log("✅ AuthContext: MFA verification successful, setting user");
