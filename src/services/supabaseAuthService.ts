@@ -753,30 +753,41 @@ class SupabaseAuthService {
 
       console.log("🔐 Verifying MFA code...");
       
-      // Use verifyFactor if challengeId is provided, otherwise use verifyOtp
-      let result;
-      if (challengeId) {
-        // MFA factor verification
-        result = await supabase.auth.verifyFactor({
-          factorId: challengeId,
-          code: code,
+      // Use verifyOtp for MFA verification (works for both email and TOTP-based MFA)
+      // For MFA, we need to verify the OTP code that was sent to the user
+      const result = await supabase.auth.verifyOtp({
+        token: code,
+        type: 'email', // Email-based MFA (TOTP uses 'totp' type)
+      });
+      
+      // If email type fails, try TOTP type (for authenticator apps)
+      if (result.error && result.error.message?.includes('Invalid')) {
+        const totpResult = await supabase.auth.verifyOtp({
+          token: code,
+          type: 'totp',
         });
-      } else {
-        // Fallback to OTP verification (for email-based MFA)
-        // Note: For email MFA, Supabase sends the code via email
-        // The code should be verified using the challenge from the login response
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          // If we have a session, try to verify the OTP
-          result = await supabase.auth.verifyOtp({
-            token: code,
-            type: 'email',
-          });
-        } else {
-          return {
-            success: false,
-            error: "No active MFA challenge. Please try logging in again.",
-          };
+        
+        if (!totpResult.error) {
+          // TOTP verification succeeded
+          const { data, error } = totpResult;
+          
+          if (error) {
+            console.error("❌ MFA verification error:", error);
+            return {
+              success: false,
+              error: error.message || "Invalid verification code. Please try again.",
+            };
+          }
+
+          if (data?.session && data?.user) {
+            console.log("✅ MFA verification successful (TOTP)");
+            const currentUser = await this.getCurrentUser();
+            
+            return {
+              success: true,
+              user: currentUser || undefined,
+            };
+          }
         }
       }
 
