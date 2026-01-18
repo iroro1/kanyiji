@@ -11,8 +11,6 @@ import {
   X,
   Settings,
   Building2,
-  Upload,
-  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,8 +79,6 @@ export default function ProfilePage() {
   };
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingVendor, setIsSavingVendor] = useState(false);
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Settings modals state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -159,15 +155,6 @@ export default function ProfilePage() {
         website_url: vendor.website_url || "",
         social_media: vendor.social_media || {},
       });
-      
-      // Set logo preview if vendor has logo
-      if (vendor.logo_url) {
-        setLogoPreview(vendor.logo_url);
-      }
-      // Set logo preview
-      if (vendor.logo_url) {
-        setLogoPreview(vendor.logo_url);
-      }
     }
   }, [vendor]);
 
@@ -395,71 +382,6 @@ export default function ProfilePage() {
 
   const handleVendorInputChange = (field: string, value: string | object) => {
     setVendorFormData((prev: any) => ({ ...prev, [field]: value }));
-  };
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !vendor) return;
-
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      notify("Invalid file type. Please upload a JPEG, PNG, or WebP image.", "error");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      notify("File size too large. Maximum size is 5MB.", "error");
-      return;
-    }
-
-    setIsUploadingLogo(true);
-    try {
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      // Upload file
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("vendorId", vendor.id);
-
-      const response = await fetch("/api/vendor/logo", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        notify(data.error || "Failed to upload logo", "error");
-        // Reset preview on error
-        setLogoPreview(vendor.logo_url || null);
-        return;
-      }
-
-      notify("Logo uploaded successfully!", "success");
-      
-      // Refresh vendor data after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } catch (error: any) {
-      console.error("Error uploading logo:", error);
-      notify(error.message || "Failed to upload logo. Please try again.", "error");
-      // Reset preview on error
-      setLogoPreview(vendor.logo_url || null);
-    } finally {
-      setIsUploadingLogo(false);
-      // Reset file input
-      e.target.value = "";
-    }
   };
 
   const handleSaveVendor = async () => {
@@ -845,58 +767,6 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   <div className="space-y-6">
-                    {/* Logo Upload */}
-                    <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-                        Business Logo
-                      </h3>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div className="flex-shrink-0">
-                          {logoPreview ? (
-                            <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
-                              <img
-                                src={logoPreview}
-                                alt="Business logo"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                              <ImageIcon className="w-12 h-12 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Upload Logo
-                          </label>
-                          <p className="text-xs text-gray-500 mb-3">
-                            Recommended: Square image, at least 400x400px. Max size: 5MB. Supported formats: JPEG, PNG, WebP
-                          </p>
-                          <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            {isUploadingLogo ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                <span className="text-sm">Uploading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-4 h-4" />
-                                <span className="text-sm">Choose File</span>
-                              </>
-                            )}
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/jpg,image/png,image/webp"
-                              onChange={handleLogoUpload}
-                              disabled={isUploadingLogo}
-                              className="hidden"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Business Information */}
                     <div>
                       <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
