@@ -192,6 +192,14 @@ export function calculateShippingFee(
     return null; // Location not found
   }
   
+  // Build location string for display (needed for return value)
+  const locationParts = [
+    location.city,
+    location.state,
+    location.country,
+  ].filter(Boolean);
+  const locationString = locationParts.join(", ") || "Unknown";
+  
   // Express shipping: 62,000 for international (UK, US, Canada)
   let finalPricePerKg = pricePerKg;
   const isInternational = location.country && 
@@ -214,14 +222,6 @@ export function calculateShippingFee(
   }
   
   const totalPrice = finalPricePerKg * weight;
-  
-  // Build location string for display
-  const locationParts = [
-    location.city,
-    location.state,
-    location.country,
-  ].filter(Boolean);
-  const locationString = locationParts.join(", ") || "Unknown";
   
   return {
     price: totalPrice,
