@@ -28,6 +28,7 @@ import { calculateProductStock } from "@/utils/stockCalculator";
 import { useCart } from "@/contexts/CartContext";
 import { calculateShippingFee, type ShippingLocation } from "@/utils/shippingCalculator";
 import { useMemo } from "react";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 export default function ProductDetailPage({
   params,
@@ -160,18 +161,52 @@ export default function ProductDetailPage({
   useEffect(() => {
     if (activeTab === "vendor" && productWithStock?.vendor_id && !vendor) {
       const fetchVendor = async () => {
+        if (!productWithStock.vendor_id) {
+          setVendorLoading(false);
+          return;
+        }
+
+        // Check sessionStorage first
+        const cacheKey = `vendor_${productWithStock.vendor_id}`;
+        const cached = SessionStorage.getWithExpiry<any>(cacheKey);
+        if (cached) {
+          setVendor(cached);
+          setVendorLoading(false);
+          return;
+        }
+
         setVendorLoading(true);
         try {
+          // Fetch with timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
           const response = await fetch(`/api/vendors/${productWithStock.vendor_id}`, {
             credentials: "include",
-            cache: "no-store",
+            signal: controller.signal,
           });
+
+          clearTimeout(timeoutId);
+
           if (response.ok) {
             const vendorData = await response.json();
             setVendor(vendorData.vendor);
+            // Cache in sessionStorage (5 minutes)
+            SessionStorage.set(cacheKey, vendorData.vendor, 5 * 60 * 1000);
+          } else {
+            // Try stale cache as fallback
+            const staleCache = SessionStorage.get<any>(cacheKey);
+            if (staleCache) {
+              setVendor(staleCache);
+            }
           }
         } catch (err) {
           console.error("Error fetching vendor:", err);
+          // Try stale cache as fallback
+          const staleCache = SessionStorage.get<any>(cacheKey);
+          if (staleCache) {
+            setVendor(staleCache);
+          }
         } finally {
           setVendorLoading(false);
         }
@@ -234,8 +269,9 @@ export default function ProductDetailPage({
 
   // Only show loading spinner on INITIAL load (isLoading), not on background refetches (isPending)
   // This prevents blocking when switching tabs - data updates happen silently in background
+  // Timeout after 10 seconds to prevent endless loading
   if (isLoading && !data) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner timeout={10000} />;
   }
 
   if (isError) {

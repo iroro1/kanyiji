@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Star, MapPin, Users, Building2, ArrowLeft, Phone, Mail } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 interface Vendor {
   id: string;
@@ -48,15 +49,36 @@ export default function VendorDetailPage() {
 
   useEffect(() => {
     const fetchVendor = async () => {
+      if (!vendorId) {
+        setLoading(false);
+        return;
+      }
+
+      // Check sessionStorage first
+      const cacheKey = `vendor_${vendorId}`;
+      const cached = SessionStorage.getWithExpiry<{ vendor: Vendor; products: Product[] }>(cacheKey);
+      if (cached) {
+        setVendor(cached.vendor);
+        setProducts(cached.products);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch vendor by ID from API
+        // Fetch with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
         const response = await fetch(`/api/vendors/${vendorId}`, {
           credentials: "include",
-          cache: "no-store",
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -67,28 +89,37 @@ export default function VendorDetailPage() {
           }
           setVendor(null);
           setProducts([]);
+          setLoading(false);
           return;
         }
 
         const data = await response.json();
-        console.log("Vendor Detail Page: API Response:", {
-          vendor: data.vendor,
-        });
         setVendor(data.vendor);
         setProducts(data.products || []);
+        
+        // Cache in sessionStorage
+        SessionStorage.set(cacheKey, { vendor: data.vendor, products: data.products || [] }, 5 * 60 * 1000);
+        setError(null);
       } catch (err: any) {
         console.error("Error fetching vendor:", err);
-        setError("An error occurred while loading the vendor");
-        setVendor(null);
-        setProducts([]);
+        
+        // Try stale cache as fallback
+        const staleCache = SessionStorage.get<{ vendor: Vendor; products: Product[] }>(cacheKey);
+        if (staleCache) {
+          setVendor(staleCache.vendor);
+          setProducts(staleCache.products);
+          setError(null);
+        } else {
+          setError("An error occurred while loading the vendor");
+          setVendor(null);
+          setProducts([]);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    if (vendorId) {
-      fetchVendor();
-    }
+    fetchVendor();
   }, [vendorId]);
 
   const formatPrice = (amount: number) => {

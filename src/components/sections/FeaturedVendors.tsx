@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Star, MapPin, Users, Award, Building2 } from "lucide-react";
 import Link from "next/link";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 interface Vendor {
   id: string;
@@ -23,63 +24,68 @@ export default function FeaturedVendors() {
 
   useEffect(() => {
     const fetchVendors = async () => {
+      // Check sessionStorage first
+      const cacheKey = 'featured_vendors';
+      const cached = SessionStorage.getWithExpiry<Vendor[]>(cacheKey);
+      if (cached) {
+        setVendors(cached);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
-        // Fetch vendors from database (approved vendors only)
-        // This queries the vendors table via /api/vendors endpoint
+        // Fetch with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
         const response = await fetch(`/api/vendors?limit=4`, {
           credentials: "include",
-          next: { revalidate: 120 }, // Revalidate every 2 minutes for better performance
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           const dbVendors = data.vendors || [];
           
-          console.log("FeaturedVendors: Fetched from vendors table:", {
-            totalCount: dbVendors.length,
-            apiResponse: data,
-            vendors: dbVendors.map((v: any) => ({
-              id: v.id,
-              business_name: v.business_name,
-              status: v.status,
-              product_count: v.product_count,
-            })),
-          });
-          
           // Map database vendor structure to component interface
           const mappedVendors: Vendor[] = dbVendors.map((vendor: any) => ({
             id: vendor.id,
-            name: vendor.business_name || "Vendor", // Use business name as fallback
+            name: vendor.business_name || "Vendor",
             business_name: vendor.business_name,
             description: vendor.business_description || "",
             image_url: vendor.image_url || null,
-            location: vendor.location || vendor.address || "Nigeria", // Use location from vendor data
-            rating: vendor.rating ? parseFloat(vendor.rating) : 0, // Use actual rating from database
-            review_count: vendor.total_reviews || 0, // Use actual review count from database
+            location: vendor.location || vendor.address || "Nigeria",
+            rating: vendor.rating ? parseFloat(vendor.rating) : 0,
+            review_count: vendor.total_reviews || 0,
             product_count: vendor.product_count || 0,
             specialty: vendor.business_type || "General",
           }));
           
-          console.log("FeaturedVendors: Mapped vendors for display:", {
-            count: mappedVendors.length,
-            vendors: mappedVendors.map(v => ({ id: v.id, business_name: v.business_name })),
-          });
-          
           setVendors(mappedVendors);
+          // Cache in sessionStorage (5 minutes)
+          SessionStorage.set(cacheKey, mappedVendors, 5 * 60 * 1000);
         } else {
-          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-          console.error("Failed to fetch vendors from database:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-          });
-          setVendors([]);
+          // Try stale cache as fallback
+          const staleCache = SessionStorage.get<Vendor[]>(cacheKey);
+          if (staleCache) {
+            setVendors(staleCache);
+          } else {
+            setVendors([]);
+          }
         }
       } catch (err) {
         console.error("Error fetching vendors:", err);
-        setVendors([]);
+        // Try stale cache as fallback
+        const staleCache = SessionStorage.get<Vendor[]>(cacheKey);
+        if (staleCache) {
+          setVendors(staleCache);
+        } else {
+          setVendors([]);
+        }
       } finally {
         setLoading(false);
       }

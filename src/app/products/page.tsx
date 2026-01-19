@@ -160,7 +160,8 @@ export default function ProductsPage() {
       )}
       {/* Only show loading spinner on INITIAL load when no data exists */}
       {/* This prevents blocking when switching tabs - background refetches won't trigger spinner */}
-      {isLoading && !products && <LoadingSpinner />}
+      {/* Timeout after 10 seconds to prevent endless loading */}
+      {isLoading && !products && <LoadingSpinner timeout={10000} />}
 
       {!isLoading && products?.length === 0 && (
         <EmptyState
