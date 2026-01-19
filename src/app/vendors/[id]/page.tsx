@@ -11,7 +11,6 @@ interface Vendor {
   business_name: string;
   business_description: string;
   business_type: string;
-  logo_url?: string | null;
   image_url: string | null;
   product_count: number;
   status: string;
@@ -74,11 +73,6 @@ export default function VendorDetailPage() {
         const data = await response.json();
         console.log("Vendor Detail Page: API Response:", {
           vendor: data.vendor,
-          logo_url: data.vendor?.logo_url,
-          logo_url_type: typeof data.vendor?.logo_url,
-          logo_url_length: data.vendor?.logo_url?.length,
-          image_url: data.vendor?.image_url,
-          allVendorKeys: Object.keys(data.vendor || {}),
         });
         setVendor(data.vendor);
         setProducts(data.products || []);
@@ -162,58 +156,6 @@ export default function VendorDetailPage() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Vendor Logo/Image */}
-            <div className="flex-shrink-0">
-              {(() => {
-                const logoUrl = vendor.logo_url || vendor.image_url;
-                console.log("Vendor Detail Page: Rendering logo:", {
-                  hasLogoUrl: !!vendor.logo_url,
-                  hasImageUrl: !!vendor.image_url,
-                  logoUrl,
-                  vendorId: vendor.id,
-                  businessName: vendor.business_name,
-                });
-                
-                return logoUrl ? (
-                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
-                    <img
-                      src={logoUrl}
-                      alt={vendor.business_name}
-                      className="max-w-full max-h-full object-contain"
-                      onLoad={() => {
-                        console.log("Vendor logo loaded successfully:", logoUrl);
-                      }}
-                      onError={(e) => {
-                        console.error("Vendor logo image failed to load:", {
-                          logo_url: vendor.logo_url,
-                          image_url: vendor.image_url,
-                          attemptedUrl: logoUrl,
-                          src: (e.target as HTMLImageElement).src,
-                        });
-                        // Fallback to placeholder if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML = `
-                            <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                              <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                              </svg>
-                            </div>
-                          `;
-                        }
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border border-gray-200">
-                    <Building2 className="w-16 h-16 text-gray-400" />
-                  </div>
-                );
-              })()}
-            </div>
-
             {/* Vendor Info */}
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
