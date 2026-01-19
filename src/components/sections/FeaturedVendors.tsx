@@ -9,7 +9,6 @@ interface Vendor {
   name: string;
   business_name: string;
   description: string;
-  logo_url?: string;
   image_url: string;
   location: string;
   rating: number;
@@ -55,8 +54,7 @@ export default function FeaturedVendors() {
             name: vendor.business_name || "Vendor", // Use business name as fallback
             business_name: vendor.business_name,
             description: vendor.business_description || "",
-            logo_url: vendor.logo_url || null, // Prioritize logo_url
-            image_url: vendor.logo_url || vendor.image_url || null, // Use logo_url first, then image_url
+            image_url: vendor.image_url || null,
             location: vendor.location || vendor.address || "Nigeria", // Use location from vendor data
             rating: vendor.rating ? parseFloat(vendor.rating) : 0, // Use actual rating from database
             review_count: vendor.total_reviews || 0, // Use actual review count from database
@@ -156,33 +154,6 @@ export default function FeaturedVendors() {
               className="block"
             >
               <div className="card group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer">
-                <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg bg-gray-100">
-                  {vendor.logo_url || vendor.image_url ? (
-                    <>
-                      <img
-                        src={vendor.logo_url || vendor.image_url || ''}
-                        alt={vendor.business_name}
-                        className="w-full h-32 sm:h-40 lg:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </>
-                  ) : (
-                    <div className="w-full h-32 sm:h-40 lg:h-48 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                      <Building2 className="w-16 h-16 sm:w-20 sm:h-20 text-gray-400" />
-                    </div>
-                  )}
-
-                  {/* Rating Badge */}
-                  {vendor.rating > 0 && (
-                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center space-x-1">
-                      <Star className="w-3 h-3 text-warning fill-current" />
-                      <span className="text-xs font-semibold text-gray-900">
-                        {vendor.rating.toFixed(1)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
                 <div className="space-y-2 sm:space-y-3">
                   <div>
                     <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors duration-200 text-sm sm:text-base">
