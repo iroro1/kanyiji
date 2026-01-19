@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getActiveCategories, type Category } from "@/data/categories";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 export default function FeaturedCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -10,40 +11,68 @@ export default function FeaturedCategories() {
 
   useEffect(() => {
     const fetchCategories = async () => {
+      // Check sessionStorage first
+      const cacheKey = 'featured_categories';
+      const cached = SessionStorage.getWithExpiry<Category[]>(cacheKey);
+      if (cached) {
+        setCategories(cached);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
-        // Fetch categories from database
+        // Fetch with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`/api/categories?limit=6`, {
           credentials: "include",
-          next: { revalidate: 300 }, // Revalidate every 5 minutes (categories change rarely)
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           const dbCategories = data.categories || [];
           
           if (dbCategories.length > 0) {
-            // Use categories from database
             setCategories(dbCategories);
+            // Cache in sessionStorage (10 minutes - categories change rarely)
+            SessionStorage.set(cacheKey, dbCategories, 10 * 60 * 1000);
           } else {
             // Fallback to hardcoded categories if database is empty
             const allCategories = getActiveCategories();
             const featuredCategories = allCategories.slice(0, 6);
             setCategories(featuredCategories);
+            SessionStorage.set(cacheKey, featuredCategories, 10 * 60 * 1000);
           }
         } else {
-          // Fallback to hardcoded categories if API fails
+          // Try stale cache as fallback
+          const staleCache = SessionStorage.get<Category[]>(cacheKey);
+          if (staleCache) {
+            setCategories(staleCache);
+          } else {
+            // Fallback to hardcoded categories if API fails
+            const allCategories = getActiveCategories();
+            const featuredCategories = allCategories.slice(0, 6);
+            setCategories(featuredCategories);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        // Try stale cache as fallback
+        const staleCache = SessionStorage.get<Category[]>(cacheKey);
+        if (staleCache) {
+          setCategories(staleCache);
+        } else {
+          // Fallback to hardcoded categories on error
           const allCategories = getActiveCategories();
           const featuredCategories = allCategories.slice(0, 6);
           setCategories(featuredCategories);
         }
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-        // Fallback to hardcoded categories on error
-        const allCategories = getActiveCategories();
-        const featuredCategories = allCategories.slice(0, 6);
-        setCategories(featuredCategories);
       } finally {
         setLoading(false);
       }

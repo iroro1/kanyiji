@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 import { getCategoryById } from "@/data/categories";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 interface Product {
   id: string;
@@ -24,15 +25,28 @@ export default function FeaturedProducts() {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // Check sessionStorage first
+      const cacheKey = 'featured_products';
+      const cached = SessionStorage.getWithExpiry<Product[]>(cacheKey);
+      if (cached) {
+        setProducts(cached);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
-        // Fetch recent products directly from products table via API
-        // This gets active products ordered by created_at (most recent first)
+        // Fetch with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`/api/products?limit=6&offset=0`, {
           credentials: "include",
-          next: { revalidate: 60 }, // Revalidate every 60 seconds for better performance
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
@@ -121,18 +135,26 @@ export default function FeaturedProducts() {
           });
           
           setProducts(mappedProducts);
+          // Cache in sessionStorage (5 minutes)
+          SessionStorage.set(cacheKey, mappedProducts, 5 * 60 * 1000);
         } else {
-          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-          console.error("Failed to fetch products:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-          });
-          setProducts([]);
+          // Try stale cache as fallback
+          const staleCache = SessionStorage.get<Product[]>(cacheKey);
+          if (staleCache) {
+            setProducts(staleCache);
+          } else {
+            setProducts([]);
+          }
         }
       } catch (err) {
         console.error("Error fetching products:", err);
-        setProducts([]);
+        // Try stale cache as fallback
+        const staleCache = SessionStorage.get<Product[]>(cacheKey);
+        if (staleCache) {
+          setProducts(staleCache);
+        } else {
+          setProducts([]);
+        }
       } finally {
         setLoading(false);
       }

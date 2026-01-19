@@ -170,12 +170,24 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
     queryFn: () => getSingleProduct(productId),
     staleTime: 30 * 1000, // Consider data fresh for 30 seconds
     gcTime: 15 * 60 * 1000,
-    retry: 5,
+    retry: 1, // Reduced retries to prevent endless loading
     refetchOnMount: false, // Don't auto-refetch on mount (prevents blocking)
+    refetchOnWindowFocus: false, // Prevent blocking when returning to tab
+    refetchOnReconnect: false, // Don't refetch on reconnect
     // Use isLoading for initial load, isPending for background refetches
   });
 
-  return { data, isPending, isLoading, error, isError, refetch };
+  // Prevent endless loading - cap at 10 seconds
+  const effectiveLoading = isLoading && isPending;
+  
+  return { 
+    data, 
+    isPending: effectiveLoading, 
+    isLoading: effectiveLoading, 
+    error, 
+    isError, 
+    refetch 
+  };
 }
 
 export function useFetchWishlist(userId: string, refresh: number) {
