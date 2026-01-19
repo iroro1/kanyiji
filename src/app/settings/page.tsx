@@ -255,26 +255,9 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Logo and Cover Image */}
-                  {(vendor.logo_url || vendor.cover_image_url) && (
+                  {/* Cover Image Only (Logo removed) */}
+                  {vendor.cover_image_url && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      {vendor.logo_url && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Business Logo
-                          </label>
-                          <div className="border border-gray-300 rounded-lg p-2 bg-gray-50">
-                            <img
-                              src={vendor.logo_url}
-                              alt="Business Logo"
-                              className="w-full h-32 object-contain rounded"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
                       {vendor.cover_image_url && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
