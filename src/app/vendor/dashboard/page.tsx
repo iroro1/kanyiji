@@ -624,6 +624,65 @@ export default function VendorDashboard() {
     );
   }
 
+  // Check if vendor is approved
+  if (isPending && !vendor) {
+    return <LoadingSpinner />;
+  }
+
+  if (vendor && vendor.status !== "approved") {
+    const statusMessages: Record<string, string> = {
+      pending: "Your vendor account is pending approval. Our team is reviewing your application. You'll be notified once your account is approved.",
+      suspended: "Your vendor account has been suspended. Please contact support for more information.",
+      rejected: "Your vendor application was rejected. Please contact support if you believe this is an error.",
+    };
+
+    const statusMessage = statusMessages[vendor.status] || "Your vendor account is not approved. Please contact support for assistance.";
+
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-8 text-center">
+          <div className="mb-6">
+            {vendor.status === "pending" && (
+              <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            )}
+            {vendor.status === "suspended" && (
+              <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            )}
+            {vendor.status === "rejected" && (
+              <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            )}
+            {!["pending", "suspended", "rejected"].includes(vendor.status) && (
+              <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Vendor Dashboard Access Restricted
+          </h2>
+          <p className="text-gray-600 mb-6">{statusMessage}</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/profile"
+              className="inline-flex items-center justify-center px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+            >
+              Go to Profile
+            </Link>
+            <Link
+              href="/help"
+              className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg transition-colors"
+            >
+              Contact Support
+            </Link>
+          </div>
+          {vendor.status === "pending" && (
+            <p className="mt-6 text-sm text-gray-500">
+              Status: <span className="font-semibold text-yellow-600">Pending Approval</span>
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Loading spinners disabled - show content immediately
   // if (isDeleting) {
   //   return <LoadingSpinner />;
