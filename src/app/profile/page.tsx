@@ -35,6 +35,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
   const hasFetchedRef = useRef<string | null>(null); // Track last successfully fetched user ID to prevent re-fetch on tab switch
+  const hasInitialLoadRef = useRef<boolean>(false); // Track if initial load has completed
   const sessionStorageKey = 'kanyiji_profile_data'; // SessionStorage key for profile data
   
   // Helper function to get profile data from sessionStorage
@@ -97,6 +98,7 @@ export default function ProfilePage() {
     state: "",
     zipCode: "",
     country: "Nigeria",
+    avatar_url: "",
   });
 
   // Helper function to check if user is logged in with Google OAuth
@@ -128,7 +130,10 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  const [formData, setFormData] = useState(userData);
+  const [formData, setFormData] = useState({
+    ...userData,
+    avatar_url: "",
+  });
   
   // Vendor form data
   const [vendorFormData, setVendorFormData] = useState<any>({});
@@ -164,34 +169,49 @@ export default function ProfilePage() {
     // Don't fetch if not authenticated or user ID not available yet
     if (!isAuthenticated || !user?.id) {
       setIsLoading(false);
+      hasInitialLoadRef.current = true;
       return;
     }
 
     const userId = user.id; // Extract user ID once to prevent dependency issues
+    
+    // CHECK SESSIONSTORAGE FIRST - Load from session if available
+    // This prevents showing loader when switching tabs
+    const sessionData = getProfileFromSession(userId);
+    if (sessionData) {
+      console.log("📦 Loading profile data from sessionStorage for user:", userId);
+      // Ensure avatar_url is included from session data or fallback to user metadata
+      const sessionDataWithAvatar = {
+        ...sessionData,
+        avatar_url: sessionData.avatar_url || 
+                   (user as any)?.user_metadata?.avatar_url || 
+                   (user as any)?.user_metadata?.picture || 
+                   "",
+      };
+      setUserData(sessionDataWithAvatar);
+      setFormData(sessionDataWithAvatar);
+      setHasLoadedProfile(true);
+      hasFetchedRef.current = userId;
+      setIsLoading(false);
+      hasInitialLoadRef.current = true; // Mark initial load as complete
+      return; // Exit early - data loaded from sessionStorage
+    }
     
     // STRICT CHECK: If we've already fetched for this exact user ID, do nothing
     // This check happens BEFORE any async work to prevent re-fetches on tab switch
     if (hasFetchedRef.current === userId || hasLoadedProfile) {
       // Already fetched for this user - absolutely no re-fetch (even on tab switch)
       setIsLoading(false);
+      hasInitialLoadRef.current = true; // Ensure initial load flag is set
       return;
     }
 
-    // CHECK SESSIONSTORAGE FIRST - Load from session if available
-    const sessionData = getProfileFromSession(userId);
-    if (sessionData) {
-      console.log("📦 Loading profile data from sessionStorage for user:", userId);
-      setUserData(sessionData);
-      setFormData(sessionData);
-      setHasLoadedProfile(true);
-      hasFetchedRef.current = userId;
-      setIsLoading(false);
-      return; // Exit early - data loaded from sessionStorage
-    }
-
     // NO SESSION DATA - Fetch from database
+    // Only show loader if this is the initial load
     let isMounted = true;
-    setIsLoading(true);
+    if (!hasInitialLoadRef.current) {
+      setIsLoading(true);
+    }
 
     const fetchProfileData = async () => {
       try {
@@ -207,6 +227,7 @@ export default function ProfilePage() {
             toast.error("Failed to load profile data");
             setIsLoading(false);
             setHasLoadedProfile(true); // Mark as loaded even on error to prevent retry loops
+            hasInitialLoadRef.current = true; // Mark initial load as complete even on error
           }
           return;
         }
@@ -248,6 +269,13 @@ export default function ProfilePage() {
             }
           }
 
+          // Get avatar/image from profile or user metadata
+          const avatarUrl = profile.avatar_url || 
+                           profile.image_url || 
+                           (user as any)?.user_metadata?.avatar_url || 
+                           (user as any)?.user_metadata?.picture || 
+                           "";
+
           const profileData = {
             firstName,
             lastName,
@@ -258,6 +286,7 @@ export default function ProfilePage() {
             state: profile.state || "",
             zipCode: profile.zip_code || "",
             country: profile.country || "Nigeria",
+            avatar_url: avatarUrl,
           };
 
           console.log("Processed profile data:", profileData);
@@ -267,6 +296,7 @@ export default function ProfilePage() {
             setFormData(profileData);
             setHasLoadedProfile(true);
             hasFetchedRef.current = userId;
+            hasInitialLoadRef.current = true; // Mark initial load as complete
             
             // SAVE TO SESSIONSTORAGE - Persist across tab switches
             saveProfileToSession(userId, profileData);
@@ -280,10 +310,12 @@ export default function ProfilePage() {
           toast.error("Failed to load profile data");
           setHasLoadedProfile(true);
           setIsLoading(false);
+          hasInitialLoadRef.current = true; // Mark initial load as complete even on error
         }
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          hasInitialLoadRef.current = true; // Ensure flag is set
         }
       }
     };
@@ -434,8 +466,8 @@ export default function ProfilePage() {
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state ONLY on initial load, not when switching tabs
+  if (isLoading && !hasInitialLoadRef.current) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

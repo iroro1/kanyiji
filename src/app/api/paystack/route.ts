@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     // 1️⃣ Parse request body from client
     const body = await request.json();
-    const { email, amount } = body;
+    const { email, amount, channels } = body;
 
     // 2️⃣ Send to Paystack Initialize Transaction endpoint
     const paystackRes = await fetch(
@@ -20,7 +20,8 @@ export async function POST(request: Request) {
           email,
           amount, // amount must be in kobo
           metadata: body.metadata || {},
-          channels: ['card', 'bank'], // Allow card and bank transfer payments
+          channels: channels || ['card', 'bank', 'bank_transfer'], // Include bank_transfer for Titan
+          callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment-success`,
         }),
       }
     );
@@ -28,7 +29,37 @@ export async function POST(request: Request) {
     // 3️⃣ Get Paystack response
     const data = await paystackRes.json();
 
-    // 4️⃣ Return JSON response to frontend
+    // 4️⃣ If bank transfer, fetch account details
+    if (channels?.includes('bank') && data.status && data.data?.reference) {
+      try {
+        // Fetch transaction details to get bank account information
+        const verifyRes = await fetch(
+          `https://api.paystack.co/transaction/verify/${data.data.reference}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY!}`,
+            },
+          }
+        );
+        
+        const verifyData = await verifyRes.json();
+        
+        // If transaction has bank account details, include them
+        if (verifyData.status && verifyData.data?.authorization?.bank && verifyData.data?.authorization?.account_number) {
+          data.data.bank_account = {
+            account_number: verifyData.data.authorization.account_number,
+            bank_name: verifyData.data.authorization.bank,
+            account_name: verifyData.data.authorization.account_name || email,
+          };
+        }
+      } catch (verifyError) {
+        console.error("Error fetching bank account details:", verifyError);
+        // Continue without bank details - they'll be shown in the Paystack modal
+      }
+    }
+
+    // 5️⃣ Return JSON response to frontend
     return NextResponse.json(data, { status: paystackRes.status });
   } catch (error) {
     console.error("Paystack error:", error);

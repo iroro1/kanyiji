@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { supabaseAuthService, AuthUser } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { validateSupabaseConfig, supabase } from "@/lib/supabase";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -41,7 +41,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   // Check authentication status on mount
   useEffect(() => {
@@ -208,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.log("Using fallback user from session:", fallbackUser);
                 if (isMounted) {
                   setUser(fallbackUser);
-                  queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+                  SessionStorage.remove("currentUser");
                   setIsLoading(false);
                 }
                 return;
@@ -218,8 +217,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log("Current user:", currentUser);
             if (isMounted) {
               setUser(currentUser);
-              // Invalidate React Query cache to trigger refetch of current user
-              queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+              // Clear sessionStorage cache to trigger refetch of current user
+              SessionStorage.remove("currentUser");
               setIsLoading(false);
             }
           } catch (error) {
@@ -253,8 +252,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (typeof window !== "undefined") {
               localStorage.removeItem("kanyiji_auth_user");
             }
-            // Invalidate React Query cache to clear current user data
-            queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+            // Clear sessionStorage cache to clear current user data
+            SessionStorage.remove("currentUser");
             setIsLoading(false);
           }
         } else if (event === "TOKEN_REFRESHED") {
@@ -376,8 +375,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.user) {
         console.log("✅ AuthContext: Login successful, setting user");
         setUser(response.user);
-        // Invalidate React Query cache to trigger refetch of current user
-        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+        // Clear sessionStorage cache to trigger refetch of current user
+        SessionStorage.remove("currentUser");
         toast.success("Login successful!");
         
         // Verify session is persisted and store backup
@@ -416,7 +415,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.user) {
         console.log("✅ AuthContext: MFA verification successful, setting user");
         setUser(response.user);
-        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+        SessionStorage.remove("currentUser");
         toast.success("Login successful!");
         
         // Verify session is persisted and store backup

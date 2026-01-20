@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
 interface LoadingSpinnerProps {
-  timeout?: number; // Maximum time to show spinner (default: 10 seconds)
+  timeout?: number; // Maximum time to show spinner (default: 5 seconds)
   onTimeout?: () => void; // Callback when timeout is reached
 }
 
-export default function LoadingSpinner({ timeout = 10000, onTimeout }: LoadingSpinnerProps) {
+export default function LoadingSpinner({ timeout = 5000, onTimeout }: LoadingSpinnerProps) {
   const [show, setShow] = useState(true);
 
   useEffect(() => {

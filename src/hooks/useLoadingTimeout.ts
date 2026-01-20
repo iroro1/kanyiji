@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
  */
 export function useLoadingTimeout(
   loading: boolean,
-  timeout: number = 10000, // 10 seconds default
+  timeout: number = 5000, // 5 seconds default
   onTimeout?: () => void
 ) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);

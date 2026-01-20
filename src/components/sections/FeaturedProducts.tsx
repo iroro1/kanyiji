@@ -39,7 +39,7 @@ export default function FeaturedProducts() {
         
         // Fetch with timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
         
         const response = await fetch(`/api/products?limit=6&offset=0`, {
           credentials: "include",

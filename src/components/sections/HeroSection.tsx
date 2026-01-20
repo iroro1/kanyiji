@@ -1,10 +1,11 @@
 "use client";
 
-import { Users, ShoppingBag, Globe, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import kanyijiLogo from "../../assets/Kanyiji-light.png";
 
 // Import banner images
 import banner1 from "../../assets/banners/Banner 1.jpg";
@@ -177,200 +178,131 @@ export default function HeroSection() {
     setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length);
   };
   return (
-    <section className="relative min-h-[600px] sm:min-h-[700px] lg:min-h-[85vh] flex items-center overflow-hidden">
-      {/* Background Image Banner */}
-      <div className="absolute inset-0 z-0">
-        <motion.img
-          src="https://images.pexels.com/photos/6192182/pexels-photo-6192182.jpeg"
-          alt="Colorful African artwork - Vibrant traditional art with rich colors and patterns"
-          className="w-full h-full object-cover"
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          onError={(e) => {
-            e.currentTarget.src = "https://images.unsplash.com/photo-1601925260368-ae2f83d8b8b8?w=1200&q=80";
-          }}
-        />
-        {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 via-gray-900/70 to-gray-900/60" />
-        {/* Accent gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/20 via-transparent to-transparent" />
+    <section className="relative w-full overflow-hidden">
+      {/* Top Section - Brown Banner */}
+      <div className="bg-[#8B4513] w-full py-4 sm:py-5 lg:py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center">
+            {/* Left Side - Text */}
+            <motion.div
+              className="text-white text-left"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.h1
+                className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-3 leading-tight text-left"
+                variants={itemVariants}
+              >
+                Discover Authentic{" "}
+                <motion.span
+                  className="text-yellow-400"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3, duration: 0.6 }}
+                >
+                  Made-in-Africa
+                </motion.span>{" "}
+                Products
+              </motion.h1>
+            </motion.div>
+
+            {/* Right Side - Description and Button */}
+            <motion.div
+              className="flex flex-col justify-center lg:items-end"
+              variants={itemVariants}
+            >
+              <motion.p
+                className="text-sm sm:text-base lg:text-lg text-white mb-4 leading-relaxed text-left lg:text-right"
+                variants={itemVariants}
+              >
+                Connect with African entrepreneurs, brands, and businesses. Shop unique
+                products that tell the story of Africa's rich heritage.
+              </motion.p>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href={"/products"}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base px-6 py-3 rounded-lg shadow-lg transition-all duration-300 inline-flex items-center"
+                >
+                  Start shopping
+                </Link>
+              </motion.div>
+            </motion.div>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-12 sm:py-16 lg:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-          {/* Left Side - Text Content */}
-          <motion.div
-            className="max-w-3xl"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-          {/* Main Heading */}
-          <motion.h1
-            className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight drop-shadow-lg"
-            variants={itemVariants}
-          >
-            Discover Authentic
-            <motion.span
-              className="block text-primary-300 mt-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-            >
-              Made-in-Africa
-            </motion.span>
-            Products
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            className="text-base sm:text-lg lg:text-xl text-gray-100 mb-3 sm:mb-4 leading-relaxed drop-shadow-md"
-            variants={itemVariants}
-          >
-            Connect with African entrepreneurs, brands, and businesses. Shop unique
-            products that tell the story of Africa's rich heritage.
-          </motion.p>
-          
-          {/* App Functionality Description */}
-          <motion.p
-            className="text-sm sm:text-base text-gray-200 mb-4 sm:mb-6 leading-relaxed max-w-2xl drop-shadow-sm"
-            variants={itemVariants}
-          >
-            <strong className="text-white">Kanyiji</strong> is an e-commerce marketplace connecting customers with authentic Made-in-Africa products. 
-            Browse and purchase from verified Nigerian vendors, manage orders, and enjoy secure payment processing with reliable shipping.
-          </motion.p>
-
-          {/* Stats Section - Horizontal Layout */}
-          <motion.div
-            className="grid grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8"
-            variants={itemVariants}
-          >
-            {[
-              { icon: Users, value: "100+", label: "Vendors" },
-              { icon: ShoppingBag, value: "1000+", label: "Products" },
-              { icon: Globe, value: "1", label: "Country" },
-            ].map((stat, index) => (
-              <motion.div
-                key={index}
-                className="text-center sm:text-left"
-                variants={statVariants}
-                custom={index}
-                whileHover={{ scale: 1.05, y: -5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <motion.div
-                  className="inline-flex items-center justify-center sm:justify-start w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl mb-2 sm:mb-3 border border-white/30"
-                  whileHover={{ rotate: 360, backgroundColor: "rgba(255, 255, 255, 0.3)" }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <stat.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                </motion.div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1 drop-shadow-md">{stat.value}</h3>
-                <p className="text-xs sm:text-sm text-gray-200 font-medium">{stat.label}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          {/* CTA Button */}
-          <motion.div
-            className="flex flex-col sm:flex-row gap-4"
-            variants={itemVariants}
-          >
+      {/* Bottom Section - Full Width Banner Slider */}
+      <div className="bg-gradient-to-br from-blue-50 to-white w-full relative overflow-hidden">
+        {/* Full Width Auto-sliding Banner */}
+        <motion.div
+          className="relative w-full h-[60vh] sm:h-[70vh] lg:h-[80vh]"
+          variants={imageVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <AnimatePresence initial={false} custom={direction}>
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              key={currentSlide}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+              }}
+              className="absolute inset-0"
             >
-              <Link
-                href={"/products"}
-                className="group bg-primary-500 hover:bg-primary-600 text-white font-semibold text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 rounded-xl shadow-2xl hover:shadow-primary-500/50 transition-all duration-300 hover:-translate-y-1 flex items-center justify-center backdrop-blur-sm border border-white/20"
-              >
-                Start Shopping
-                <motion.span
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </motion.span>
-              </Link>
-            </motion.div>
-          </motion.div>
-          </motion.div>
-
-          {/* Right Side - Banner Slider (Desktop Only) */}
-          <motion.div
-            className="hidden lg:block relative w-full rounded-2xl overflow-hidden shadow-2xl"
-            variants={imageVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
-              <AnimatePresence initial={false} custom={direction}>
-                <motion.div
-                  key={currentSlide}
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: "spring", stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.2 },
-                  }}
-                  className="absolute inset-0"
-                >
-                  <div className="relative w-full h-full bg-gray-100">
-                    <Image
-                      src={bannerSlides[currentSlide].image}
-                      alt={`Banner ${bannerSlides[currentSlide].id}`}
-                      fill
-                      className="object-contain"
-                      quality={90}
-                      sizes="(max-width: 1024px) 0vw, 50vw"
-                    />
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Navigation arrows */}
-              <button
-                onClick={prevSlide}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white p-2 rounded-full transition-all duration-300"
-                aria-label="Previous slide"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                onClick={nextSlide}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white p-2 rounded-full transition-all duration-300"
-                aria-label="Next slide"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-
-              {/* Dots indicator */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
-                {bannerSlides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => goToSlide(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentSlide
-                        ? "bg-white w-8"
-                        : "bg-white/50 hover:bg-white/75"
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
+              <div className="relative w-full h-full bg-gray-100">
+                <Image
+                  src={bannerSlides[currentSlide].image}
+                  alt={`Banner ${bannerSlides[currentSlide].id}`}
+                  fill
+                  className="object-contain"
+                  quality={90}
+                  sizes="100vw"
+                />
               </div>
-            </div>
-          </motion.div>
-        </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation arrows */}
+          <button
+            onClick={prevSlide}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-2 rounded-full transition-all duration-300 shadow-lg"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button
+            onClick={nextSlide}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-2 rounded-full transition-all duration-300 shadow-lg"
+            aria-label="Next slide"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+
+          {/* Dots indicator */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+            {bannerSlides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  index === currentSlide
+                    ? "bg-white w-8"
+                    : "bg-white/50 hover:bg-white/75"
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        </motion.div>
       </div>
     </section>
   );

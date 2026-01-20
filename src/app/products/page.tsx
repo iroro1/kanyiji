@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Search, Filter, Grid, List, Star, ShoppingCart } from "lucide-react";
 import Image from "next/image";
@@ -52,6 +52,8 @@ export default function ProductsPage() {
     sort = "updated_at-false";
   }
 
+  const hasInitialLoadRef = useRef<boolean>(false); // Track if initial load has completed
+  
   const {
     products,
     isError,
@@ -61,6 +63,13 @@ export default function ProductsPage() {
     isFetchingNextPage,
     hasNextPage,
   } = useFetchAllProducts(debounce, null, sale, feature, sort, null);
+
+  // Mark initial load as complete when products are loaded
+  useEffect(() => {
+    if (products && products.length > 0 && !hasInitialLoadRef.current) {
+      hasInitialLoadRef.current = true;
+    }
+  }, [products]);
 
   console.log(products);
 
@@ -160,8 +169,8 @@ export default function ProductsPage() {
       )}
       {/* Only show loading spinner on INITIAL load when no data exists */}
       {/* This prevents blocking when switching tabs - background refetches won't trigger spinner */}
-      {/* Timeout after 10 seconds to prevent endless loading */}
-      {isLoading && !products && <LoadingSpinner timeout={10000} />}
+      {/* Timeout after 5 seconds to prevent endless loading */}
+      {isLoading && !products && !hasInitialLoadRef.current && <LoadingSpinner timeout={5000} />}
 
       {!isLoading && products?.length === 0 && (
         <EmptyState
