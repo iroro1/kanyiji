@@ -44,8 +44,7 @@ export default function PaystackModalButton({
   amountNaira,
   email,
   metadata,
-  //   referencePrefix = "ETWEB",
-  channels = ['card', 'bank'], // Default to both card and bank
+  channels = ['card', 'bank', 'bank_transfer', 'ussd', 'qr'], // Default to all common channels
   onSuccess,
   onClose,
   className,
@@ -67,34 +66,46 @@ export default function PaystackModalButton({
   }, []);
 
   const handlePay = async () => {
-    if (!window.PaystackPop) return;
     const key = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxx";
     const amountKobo = Math.round((amountNaira || 0) * 100);
-    // const reference = `${referencePrefix}-${Date.now()}`;
 
-    const result = await InitializePayment({
-      email: email,
-      amount: amountKobo,
-      metadata,
-    });
+    try {
+      // Initialize payment first
+      const result = await InitializePayment({
+        email: email,
+        amount: amountKobo,
+        metadata,
+        channels: channels,
+      });
 
-    const handler = window.PaystackPop.setup({
-      key,
-      email,
-      amount: amountKobo,
-      ref: result?.data.reference,
-      channels: channels, // Use provided channels or default to ['card', 'bank']
-      metadata,
-      callback: function (response: { reference: string }) {
-        onSuccess?.(response.reference, metadata);
-      },
-      onClose: function () {
+      if (!result?.data?.reference) {
+        console.error("Failed to initialize payment");
         onClose?.();
-      },
-    });
+        return;
+      }
 
-    // console.log(reference);
-    handler.openIframe();
+      // Open Paystack modal with all enabled payment methods
+      if (!window.PaystackPop) return;
+      
+      const handler = window.PaystackPop.setup({
+        key,
+        email,
+        amount: amountKobo,
+        ref: result.data.reference,
+        channels: channels, // Use all provided channels
+        metadata,
+        callback: function (response: { reference: string }) {
+          onSuccess?.(response.reference, metadata);
+        },
+        onClose: function () {
+          onClose?.();
+        },
+      });
+      handler.openIframe();
+    } catch (error) {
+      console.error("Payment initialization error:", error);
+      onClose?.();
+    }
   };
 
   return (

@@ -168,8 +168,12 @@ export async function InitializePayment(body: {
   email: string;
   amount: number;
   metadata?: Record<string, string | number | boolean>;
+  channels?: string[];
 }) {
-  const request = await axios.post("api/paystack", body);
+  const request = await axios.post("api/paystack", {
+    ...body,
+    channels: body.channels || ['card', 'bank'],
+  });
 
   return request.data;
 }

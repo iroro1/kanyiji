@@ -108,11 +108,11 @@ export async function fetchWithCache<T>(
   fetchFn: () => Promise<T>,
   options?: {
     maxAge?: number; // Cache max age in milliseconds (default: 5 minutes)
-    timeout?: number; // Fetch timeout in milliseconds (default: 10 seconds)
+    timeout?: number; // Fetch timeout in milliseconds (default: 5 seconds)
   }
 ): Promise<T> {
   const maxAge = options?.maxAge || 5 * 60 * 1000; // 5 minutes default
-  const timeout = options?.timeout || 10000; // 10 seconds default
+  const timeout = options?.timeout || 5000; // 5 seconds default
 
   // Check cache first
   const cached = SessionStorage.getWithExpiry<T>(key);

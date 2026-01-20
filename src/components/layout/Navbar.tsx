@@ -253,7 +253,7 @@ const AuthButtons = ({
           <div className="space-y-3">
             <div className="text-center py-2">
               <p className="text-sm text-gray-600">
-                Welcome, {user.name || user.email}
+                Welcome, {user.name || user.email || "User"}
               </p>
             </div>
             <button
@@ -315,10 +315,10 @@ const AuthButtons = ({
             <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
               {user.name
                 ? user.name.charAt(0).toUpperCase()
-                : user.email?.charAt(0).toUpperCase()}
+                : user.email?.charAt(0).toUpperCase() || "U"}
             </div>
             <span className="text-sm text-gray-700 hidden sm:block">
-              {user.name || user.email}
+              {user.name || user.email || "User"}
             </span>
             <svg
               className={`w-4 h-4 text-gray-500 transition-transform ${
@@ -354,13 +354,13 @@ const AuthButtons = ({
                     <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                       {user.name
                         ? user.name.charAt(0).toUpperCase()
-                        : user.email?.charAt(0).toUpperCase()}
+                        : user.email?.charAt(0).toUpperCase() || "U"}
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {user.name || "User"}
+                        {user.name || user.email || "User"}
                       </p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
+                      <p className="text-xs text-gray-500">{user.email || ""}</p>
                     </div>
                   </div>
                 </div>
@@ -618,13 +618,18 @@ const AuthButtons = ({
 
 // Main Navbar Component
 export default function Navbar() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user: authUser } = useAuth();
 
   const { data: user } = useFetchCurrentUser();
-  const { vendor } = useFetchVendorDetails(user?.id || "");
+  
+  // Use user from hook, fallback to authUser, ensure we always have user data
+  const displayUser = user || authUser;
+  const userId = displayUser?.id || user?.id || "";
+  
+  const { vendor } = useFetchVendorDetails(userId);
   
   // Check if user is a vendor (either by role or by having a vendor record)
-  const isVendor = user?.role === "vendor" || !!vendor;
+  const isVendor = displayUser?.role === "vendor" || !!vendor;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -649,7 +654,7 @@ export default function Navbar() {
 
   // Fetch initial unread count and wishlist count when authenticated
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
+    if (isAuthenticated && userId) {
       const fetchUnreadCount = async () => {
         try {
           const response = await fetch("/api/notifications?limit=1&unread_only=true", {
@@ -669,7 +674,7 @@ export default function Navbar() {
           const { count, error } = await supabase
             .from("wishlist_items")
             .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id);
+            .eq("user_id", userId);
           
           if (!error && count !== null) {
             setWishlistCount(count || 0);
@@ -696,7 +701,7 @@ export default function Navbar() {
       setUnreadNotificationCount(0);
       setWishlistCount(0);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, userId]);
 
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
@@ -830,8 +835,8 @@ export default function Navbar() {
                 user={{
                   isAuthenticated,
                   isVendor: isVendor,
-                  email: user?.email,
-                  name: user?.name,
+                  email: displayUser?.email,
+                  name: (displayUser as any)?.name,
                 }}
                 onLogout={handleLogout}
               />
@@ -915,8 +920,8 @@ export default function Navbar() {
           user={{
             isAuthenticated,
             isVendor: isVendor,
-            email: user?.email,
-            name: user?.name,
+            email: displayUser?.email,
+            name: (displayUser as any)?.name,
           }}
           onLogout={handleLogout}
           onWishlistClick={handleWishlistClick}
@@ -1102,14 +1107,14 @@ const MobileMenu = ({
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold text-lg">
-                    {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
+                    {(displayUser as any)?.name?.charAt(0) || displayUser?.email?.charAt(0) || "U"}
                   </span>
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">
-                    {user.name || "User"}
+                    {(displayUser as any)?.name || "User"}
                   </h3>
-                  <p className="text-gray-600 text-sm">{user.email}</p>
+                  <p className="text-gray-600 text-sm">{displayUser?.email || ""}</p>
                 </div>
               </div>
             </div>
