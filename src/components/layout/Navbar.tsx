@@ -1107,14 +1107,14 @@ const MobileMenu = ({
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold text-lg">
-                    {(displayUser as any)?.name?.charAt(0) || displayUser?.email?.charAt(0) || "U"}
+                    {user.name?.charAt(0) || user.email?.charAt(0) || "U"}
                   </span>
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">
-                    {(displayUser as any)?.name || "User"}
+                    {user.name || user.email || "User"}
                   </h3>
-                  <p className="text-gray-600 text-sm">{displayUser?.email || ""}</p>
+                  <p className="text-gray-600 text-sm">{user.email || ""}</p>
                 </div>
               </div>
             </div>
