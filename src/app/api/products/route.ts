@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("category_id");
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const search = searchParams.get("search");
+    const featured = searchParams.get("featured");
+    const sale = searchParams.get("sale");
+    const sortParam = searchParams.get("sort");
 
     // Build query - fetch from products table
-    // Try to fetch products with status = "active" first, fallback to any status if needed
     let query = supabase
       .from("products")
       .select(`
@@ -30,6 +33,8 @@ export async function GET(request: NextRequest) {
         stock_quantity,
         weight,
         status,
+        is_featured,
+        is_on_sale,
         created_at,
         updated_at,
         vendor_id,
@@ -40,10 +45,61 @@ export async function GET(request: NextRequest) {
         review_count,
         product_attributes( id, size, color, quantity )
       `)
-      // Temporarily remove status filter to see all products - will check statuses in logs
-      // .or("status.eq.active,status.eq.approved") // Include both active and approved products
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .or("status.eq.active,status.eq.approved,status.eq.published");
+
+    // Apply search filter
+    if (search) {
+      query = query.ilike("name", `%${search}%`);
+    }
+
+    // Apply featured filter
+    if (featured === "true") {
+      query = query.eq("is_featured", true);
+    }
+
+    // Apply sale filter
+    if (sale === "true") {
+      query = query.eq("is_on_sale", true);
+    }
+
+    // Apply sorting - CRITICAL: must be done before range() and after all filters
+    // Supabase requires order() to be called before range() for proper sorting
+    if (sortParam === "trending") {
+      // Sort by rating and review count for trending
+      query = query.order("rating", { ascending: false });
+    } else if (sortParam === "price-asc") {
+      // Sort price ascending (low to high)
+      query = query.order("price", { ascending: true, nullsFirst: false });
+    } else if (sortParam === "price-desc") {
+      // Sort price descending (high to low) - FIXED: ensure descending order
+      query = query.order("price", { ascending: false, nullsFirst: false });
+    } else if (sortParam === "newest") {
+      query = query.order("updated_at", { ascending: false });
+    } else {
+      // Default sort by created_at (newest first)
+      query = query.order("created_at", { ascending: false });
+    }
+    
+    console.log("Products API: Sort applied:", {
+      sortParam,
+      sortType: sortParam === "price-desc" ? "descending (high to low)" : 
+                sortParam === "price-asc" ? "ascending (low to high)" : 
+                sortParam === "trending" ? "trending (rating)" :
+                sortParam === "newest" ? "newest (updated_at)" :
+                "default (created_at)"
+    });
+
+    // Apply pagination after sorting
+    query = query.range(offset, offset + limit - 1);
+    
+    console.log("Products API: Applied filters and sorting:", {
+      search,
+      featured,
+      sale,
+      sortParam,
+      limit,
+      offset,
+    });
       
     // Filter products by status after fetching (to see what statuses exist)
     // We'll filter out inactive/pending products in the response
@@ -145,9 +201,22 @@ export async function GET(request: NextRequest) {
             sub_category,
             product_attributes( id, size, color, quantity )
           `)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .range(offset, offset + limit - 1);
+          .eq("status", "active");
+        
+        // Apply the same sorting logic as main query
+        if (sortParam === "trending") {
+          retryQuery = retryQuery.order("rating", { ascending: false });
+        } else if (sortParam === "price-asc") {
+          retryQuery = retryQuery.order("price", { ascending: true, nullsFirst: false });
+        } else if (sortParam === "price-desc") {
+          retryQuery = retryQuery.order("price", { ascending: false, nullsFirst: false });
+        } else if (sortParam === "newest") {
+          retryQuery = retryQuery.order("updated_at", { ascending: false });
+        } else {
+          retryQuery = retryQuery.order("created_at", { ascending: false });
+        }
+        
+        retryQuery = retryQuery.range(offset, offset + limit - 1);
         
         if (categoryId) {
           retryQuery = retryQuery.eq("category_id", categoryId);
@@ -404,9 +473,22 @@ export async function GET(request: NextRequest) {
           category,
           sub_category,
           product_attributes( id, size, color, quantity )
-        `)
-        .order("created_at", { ascending: false })
-        .range(offset, offset + limit - 1);
+        `);
+      
+      // Apply the same sorting logic as main query
+      if (sortParam === "trending") {
+        allProductsQuery = allProductsQuery.order("rating", { ascending: false });
+      } else if (sortParam === "price-asc") {
+        allProductsQuery = allProductsQuery.order("price", { ascending: true, nullsFirst: false });
+      } else if (sortParam === "price-desc") {
+        allProductsQuery = allProductsQuery.order("price", { ascending: false, nullsFirst: false });
+      } else if (sortParam === "newest") {
+        allProductsQuery = allProductsQuery.order("updated_at", { ascending: false });
+      } else {
+        allProductsQuery = allProductsQuery.order("created_at", { ascending: false });
+      }
+      
+      allProductsQuery = allProductsQuery.range(offset, offset + limit - 1);
       
       const { data: allProducts, error: allProductsError } = await allProductsQuery;
       
