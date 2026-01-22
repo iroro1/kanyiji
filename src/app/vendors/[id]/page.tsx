@@ -6,6 +6,7 @@ import { Star, MapPin, Users, Building2, ArrowLeft, Phone, Mail } from "lucide-r
 import Link from "next/link";
 import Image from "next/image";
 import { SessionStorage } from "@/utils/sessionStorage";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 interface Vendor {
   id: string;
@@ -131,18 +132,12 @@ export default function VendorDetailPage() {
     }).format(amount);
   };
 
-  // Loading spinner disabled - show content immediately
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen bg-white flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-  //         <p className="text-gray-600">Loading vendor details...</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  // Show loading spinner while fetching
+  if (loading) {
+    return <LoadingSpinner timeout={5000} />;
+  }
 
+  // Show error/empty state only after loading is complete
   if (error || !vendor) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-4">

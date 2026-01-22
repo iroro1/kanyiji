@@ -18,6 +18,7 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const { notify } = useToast();
 
   const searchParams = useSearchParams();
@@ -36,14 +37,22 @@ export default function ProductsPage() {
   let sale: string | null = null;
   let sort: string | null = null;
 
+  // Apply filter dropdown selections
   if (filterValue === "featured") {
     feature = "true";
   } else if (filterValue === "trending") {
-    sort = "trending";
+    // Only set trending sort if no explicit sort is selected
+    if (!sortValue) {
+      sort = "trending";
+    }
   } else if (filterValue === "new") {
-    sort = "updated_at-false";
+    // Only set new sort if no explicit sort is selected
+    if (!sortValue) {
+      sort = "updated_at-false";
+    }
   }
 
+  // Apply sort dropdown selections (takes precedence over filter sorts)
   if (sortValue === "price-low") {
     sort = "price-true";
   } else if (sortValue === "price-high") {
@@ -51,6 +60,14 @@ export default function ProductsPage() {
   } else if (sortValue === "newest") {
     sort = "updated_at-false";
   }
+  
+  console.log("Products Page - Filter/Sort mapping:", {
+    filterValue,
+    sortValue,
+    feature,
+    sale,
+    sort,
+  });
 
   const hasInitialLoadRef = useRef<boolean>(false); // Track if initial load has completed
   
@@ -146,10 +163,20 @@ export default function ProductsPage() {
               </div>
 
               <div className="flex items-center border border-gray-300 rounded-lg">
-                <button className="p-2 border-r border-gray-300 hover:bg-gray-50">
+                <button 
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 border-r border-gray-300 hover:bg-gray-50 transition-colors ${
+                    viewMode === "grid" ? "bg-primary-50 text-primary-600" : ""
+                  }`}
+                >
                   <Grid className="w-4 h-4" />
                 </button>
-                <button className="p-2 hover:bg-gray-50">
+                <button 
+                  onClick={() => setViewMode("list")}
+                  className={`p-2 hover:bg-gray-50 transition-colors ${
+                    viewMode === "list" ? "bg-primary-50 text-primary-600" : ""
+                  }`}
+                >
                   <List className="w-4 h-4" />
                 </button>
               </div>
@@ -179,98 +206,149 @@ export default function ProductsPage() {
         />
       )}
 
-      {/* Products Grid */}
+      {/* Products Grid/List */}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {/* Product Card 1 */}
+        <div className={viewMode === "grid" 
+          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          : "flex flex-col gap-6"
+        }>
+          {/* Product Cards */}
           {products?.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 block cursor-pointer"
+              className={`bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-xl transition-all duration-300 block cursor-pointer overflow-hidden group ${
+                viewMode === "list" ? "flex flex-row h-[150px]" : "hover:-translate-y-1"
+              }`}
             >
-              <div className="relative">
-                <Image
-                  src={product.product_images?.[0]?.image_url || ""}
-                  alt={product?.name}
-                  width={600}
-                  height={500}
-                  className="w-full h-48 object-cover rounded-t-xl"
-                />
-                {/* <WishlistButton
-                    productId={product?.id}
-                    userId={user ? user.id : ""}
-                  /> */}
+              <div className={`relative ${viewMode === "list" ? "w-[200px] flex-shrink-0" : ""}`}>
+                <div className={`relative ${viewMode === "list" ? "h-full" : "h-48"}`}>
+                  <Image
+                    src={product.images?.[0] || product.product_images?.[0]?.image_url || "/placeholder-image.jpg"}
+                    alt={product?.name || "Product"}
+                    width={600}
+                    height={500}
+                    className={`w-full ${viewMode === "list" ? "h-full" : "h-48"} object-cover transition-transform duration-300 group-hover:scale-105 ${
+                      viewMode === "list" ? "rounded-l-xl" : "rounded-t-xl"
+                    }`}
+                  />
+                  {/* Gradient overlay for better badge visibility */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
 
                 {product.original_price && typeof product.original_price === 'number' && 
                  product.price && typeof product.price === 'number' &&
                  product.original_price > product.price ? (
-                  <div className="absolute top-3 left-3 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg z-10">
+                  <div className="absolute top-4 left-4 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg z-10">
                     {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
                   </div>
                 ) : null}
 
                 {product.is_featured ? (
-                  <div className="absolute top-3 right-3 bg-primary-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                  <div className="absolute top-4 right-4 bg-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md z-10">
                     Featured
                   </div>
-                ) : (
-                  ""
-                )}
+                ) : null}
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                    {product.name}
-                </h3>
-
-                <p className="text-sm text-gray-600 mb-3">{product.title}</p>
-                <div className="flex items-center mb-3">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(product.rating || 0)
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-500 ml-2">
-                    {product.review_count > 0 
-                      ? `${product.review_count} review${product.review_count !== 1 ? "s" : ""}`
-                      : "0 reviews"}
-                  </span>
-                </div>
-                <div className="flex flex-wrap pb-5 items-center  justify-between">
-                  <div>
-                    <span className="text-lg pr-2 font-bold text-gray-900">
-                      ₦{product.price.toLocaleString()}
-                    </span>
-
-                    {product.original_price && typeof product.original_price === 'number' && 
-                     product.price && typeof product.price === 'number' &&
-                     product.original_price > product.price && (
-                      <span className="text-sm line-through text-gray-500">
-                        ₦{product.original_price.toLocaleString()}
-                      </span>
+              
+              <div className={`${viewMode === "list" ? "flex-1 flex flex-row items-center justify-between p-3" : "p-4"}`}>
+                <div className={`${viewMode === "list" ? "flex-1 mr-4" : ""}`}>
+                  <div className={`${viewMode === "list" ? "flex items-start justify-between mb-2" : ""}`}>
+                    <h3 className={`font-semibold text-gray-900 group-hover:text-primary-600 transition-colors ${
+                      viewMode === "list" ? "text-base mb-1" : "mb-2"
+                    }`}>
+                      {product.name}
+                    </h3>
+                    
+                    {viewMode === "list" && (
+                      <div className="flex items-baseline gap-2 ml-4">
+                        <span className="font-bold text-gray-900 text-lg">
+                          ₦{product.price.toLocaleString()}
+                        </span>
+                        {product.original_price && typeof product.original_price === 'number' && 
+                         product.price && typeof product.price === 'number' &&
+                         product.original_price > product.price && (
+                          <span className="text-xs line-through text-gray-400">
+                            ₦{product.original_price.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
+
+                  {product.description && viewMode !== "list" && (
+                    <p className="text-sm text-gray-600 mb-3 leading-relaxed line-clamp-2">
+                      {product.description}
+                    </p>
+                  )}
+                  
+                  <div className={`flex items-center ${viewMode === "list" ? "mb-0" : "mb-3"}`}>
+                    <div className="flex items-center gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`${viewMode === "list" ? "w-3 h-3" : "w-4 h-4"} ${
+                            i < Math.floor(product.rating || 0)
+                              ? "text-yellow-400 fill-current"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className={`text-gray-500 ml-2 ${viewMode === "list" ? "text-xs" : "text-sm"}`}>
+                      {product.review_count > 0 
+                        ? `${product.review_count} review${product.review_count !== 1 ? "s" : ""}`
+                        : "0 reviews"}
+                    </span>
+                  </div>
+                  
+                  {viewMode !== "list" && (
+                    <div className="flex items-center justify-between pb-5">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-gray-900">
+                          ₦{product.price.toLocaleString()}
+                        </span>
+
+                        {product.original_price && typeof product.original_price === 'number' && 
+                         product.price && typeof product.price === 'number' &&
+                         product.original_price > product.price && (
+                          <span className="text-sm line-through text-gray-400">
+                            ₦{product.original_price.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {viewMode === "list" && (
+                    <button
+                      className="flex items-center justify-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-1.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium mt-2"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        AddToCart(product);
+                      }}
+                    >
+                      <ShoppingCart className="w-3 h-3" />
+                      <span>Add to Cart</span>
+                    </button>
+                  )}
                 </div>
 
-                <button
-                  className="flex align-center justify-center  w-full m-auto items-center text-center gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    AddToCart(product);
-                  }}
-                >
-                  <ShoppingCart className="w-4 h-4 text-center" />
-                  <span className="text-sm text-center">Add to Cart</span>
-                </button>
+                {viewMode !== "list" && (
+                  <button
+                    className="flex items-center justify-center w-full gap-2 bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      AddToCart(product);
+                    }}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span className="text-sm">Add to Cart</span>
+                  </button>
+                )}
               </div>
             </Link>
           ))}

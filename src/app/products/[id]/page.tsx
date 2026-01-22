@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Star,
   Heart,
@@ -43,6 +43,16 @@ export default function ProductDetailPage({
   const { data, isPending, isLoading, isError, refetch } =
     useFetchSingleProduct(params?.id, retry);
   const { dispatch } = useCart();
+  
+  // CRITICAL: Track if we've ever had data to prevent loader from showing
+  const hasEverHadDataRef = useRef<boolean>(false);
+  
+  // Update ref when we get data
+  useEffect(() => {
+    if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+      hasEverHadDataRef.current = true;
+    }
+  }, [data]);
 
   // Silent background refetch when page becomes visible - doesn't block UI
   useEffect(() => {
@@ -299,11 +309,40 @@ export default function ProductDetailPage({
     ];
   }, [productWithStock]);
 
-  // Only show loading spinner on INITIAL load (isLoading), not on background refetches (isPending)
+  // Only show loading spinner on INITIAL load when we have NO data
   // This prevents blocking when switching tabs - data updates happen silently in background
-  // Timeout after 5 seconds to prevent endless loading
-  if (isLoading && !data) {
-    return <LoadingSpinner timeout={5000} />;
+  // CRITICAL: Never show loader if we have data (even if isLoading is true from a re-render)
+  // data can be either an array [product] or a single product object
+  const hasAnyData = Boolean(
+    (Array.isArray(data) && data.length > 0) ||
+    (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) ||
+    productWithStock
+  );
+  
+  // CRITICAL: Only show loader on TRUE initial load - when we have NO data and NO cache
+  // This is the strictest check to prevent loader from showing unnecessarily
+  // Never show loader if we have ANY indication of data OR have ever had data
+  // Also check cache directly as a final safeguard
+  const cacheKey = params?.id ? `singleProduct_${params.id}` : null;
+  const cachedData = cacheKey ? SessionStorage.getWithExpiry<any>(cacheKey) : null;
+  const hasCachedData = Boolean(cachedData);
+  
+  const shouldShowLoader = isLoading && 
+                          !data && 
+                          !productWithStock && 
+                          !hasAnyData &&
+                          !hasEverHadDataRef.current && // Never show if we've ever had data
+                          !hasCachedData; // Never show if we have cached data
+
+  // Only show loader on true initial load with no data and no cache
+  // This should be extremely rare - only on first visit with no cache
+  // The loader will only show when there's truly nothing to display
+  if (shouldShowLoader) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <LoadingSpinner timeout={5000} />
+      </div>
+    );
   }
 
   if (isError) {
