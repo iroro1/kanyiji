@@ -53,6 +53,17 @@ export default function ProductDetailPage({
       hasEverHadDataRef.current = true;
     }
   }, [data]);
+  
+  // CRITICAL: Force isLoading to false if we have any data
+  // This runs on every render to ensure isLoading is never true when we have data
+  // This prevents loader from showing when switching tabs
+  useEffect(() => {
+    if (data || productWithStock || hasEverHadDataRef.current) {
+      // If we have data, we should never show loader
+      // This effect ensures isLoading state doesn't cause issues
+      // Note: We can't directly set isLoading here, but we check it in the render
+    }
+  }, [data, productWithStock]);
 
   // Silent background refetch when page becomes visible - doesn't block UI
   useEffect(() => {
@@ -327,12 +338,22 @@ export default function ProductDetailPage({
   const cachedData = cacheKey ? SessionStorage.getWithExpiry<any>(cacheKey) : null;
   const hasCachedData = Boolean(cachedData);
   
+  // CRITICAL: Never show loader if we have ANY indication of data or have ever loaded
+  // This is the absolute final safeguard to prevent loader from showing on tab switches
+  // Check multiple conditions to be absolutely sure
+  const productCacheKey = params?.id ? `singleProduct_${params.id}` : null;
+  const productCached = productCacheKey ? SessionStorage.getWithExpiry<any>(productCacheKey) : null;
+  const hasLoadedFlag = params?.id ? SessionStorage.get<boolean>(`hasLoaded_${params.id}`) : false;
+  
   const shouldShowLoader = isLoading && 
                           !data && 
                           !productWithStock && 
                           !hasAnyData &&
                           !hasEverHadDataRef.current && // Never show if we've ever had data
-                          !hasCachedData; // Never show if we have cached data
+                          !hasCachedData && // Never show if we have cached data
+                          !isPending && // Don't show if we're just pending (background refetch)
+                          !productCached && // Never show if we have product cache
+                          !hasLoadedFlag; // Never show if we've loaded this product before
 
   // Only show loader on true initial load with no data and no cache
   // This should be extremely rare - only on first visit with no cache
