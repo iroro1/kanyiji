@@ -317,7 +317,14 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
     if (cached) {
       return { data: cached, isPending: false, isLoading: false, hasEverLoaded: true };
     }
-    // Only show loader if we truly have no cache
+    // Also check if we've ever loaded this product before (using a persistent flag)
+    // Check sessionStorage for a flag indicating we've loaded this product
+    const hasLoadedFlag = SessionStorage.get<boolean>(`hasLoaded_${productId}`);
+    if (hasLoadedFlag) {
+      // We've loaded this product before - don't show loader
+      return { data: null, isPending: false, isLoading: false, hasEverLoaded: true };
+    }
+    // Only show loader if we truly have no cache and haven't loaded before
     return { data: null, isPending: true, isLoading: true, hasEverLoaded: false };
   };
 
@@ -346,23 +353,22 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
     const cacheKey = `singleProduct_${productId}`;
     const cached = SessionStorage.getWithExpiry<any>(cacheKey);
     
-    // If we have cached data, set it immediately and disable loading
+    // CRITICAL: If we have cached data OR data in state, disable loading IMMEDIATELY
     // This happens BEFORE the first paint, preventing loader from showing
-    if (cached) {
+    if (cached || data || hasEverLoadedRef.current) {
       // Ensure cached data is in array format
-      const cacheData = Array.isArray(cached) ? cached : [cached];
-      setData(cacheData);
+      if (cached && !data) {
+        const cacheData = Array.isArray(cached) ? cached : [cached];
+        setData(cacheData);
+      }
+      // CRITICAL: Always set loading to false if we have any data indication
+      // Set persistent flag that we've loaded this product (survives remounts)
+      SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000); // 24 hours
       setIsPending(false);
       setIsLoading(false); // CRITICAL: Set to false immediately
       shouldShowLoaderRef.current = false; // Never show loader again
       hasFetchedRef.current = productId;
       hasInitialLoadRef.current = true;
-      hasEverLoadedRef.current = true;
-    } else if (data) {
-      // If we already have data in state, ensure loading is false
-      setIsPending(false);
-      setIsLoading(false);
-      shouldShowLoaderRef.current = false;
       hasEverLoadedRef.current = true;
     }
   }, [productId, data]); // Run when productId or data changes
@@ -381,14 +387,20 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
     // useLayoutEffect should have already handled this, but double-check here
     const cached = SessionStorage.getWithExpiry<any>(cacheKey);
     
-    // If we have cached data OR data in state, use it IMMEDIATELY and set loading to false
-    if (cached || data || hasEverLoadedRef.current) {
-      // We have data (from cache, state, or previous load) - ensure loading states are false
+    // CRITICAL: If we have ANY indication of data, NEVER set loading to true
+    // This prevents loader from showing when switching tabs
+    if (cached || data || hasEverLoadedRef.current || hasFetchedRef.current === productId) {
+      // We have data (from cache, state, previous load, or have fetched before) - ensure loading states are false
       if (cached && !data) {
-        setData(cached); // Set cached data if not already in state
+        // Ensure cached data is in array format
+        const cacheData = Array.isArray(cached) ? cached : [cached];
+        setData(cacheData); // Set cached data if not already in state
       }
+      // CRITICAL: Always set loading to false IMMEDIATELY when we have data
+      // Set persistent flag that we've loaded this product
+      SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000); // 24 hours
       setIsPending(false);
-      setIsLoading(false); // CRITICAL: Always set to false when we have data
+      setIsLoading(false);
       shouldShowLoaderRef.current = false;
       hasFetchedRef.current = productId;
       hasInitialLoadRef.current = true;
@@ -415,13 +427,25 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
     }
 
     // No cached data - this is the initial load
+    // CRITICAL: Only fetch if we haven't fetched this product before
+    // If we've already fetched, don't fetch again (prevents loader on tab switches)
+    if (hasFetchedRef.current === productId && !retry) {
+      // We've already fetched this product - just ensure loading is false
+      setIsPending(false);
+      setIsLoading(false);
+      return;
+    }
+    
     // Always fetch, but only show loader if we haven't loaded data before
     const fetchProduct = async () => {
       setIsPending(true);
-      // Only set isLoading to true if we should show the loader
+      // CRITICAL: Only set isLoading to true if we should show the loader AND haven't fetched before
       // This prevents loader from showing on tab switches after initial load
-      if (shouldShowLoaderRef.current) {
+      if (shouldShowLoaderRef.current && hasFetchedRef.current !== productId) {
         setIsLoading(true);
+      } else {
+        // If we've fetched before, never show loader
+        setIsLoading(false);
       }
       setIsError(false);
       setError(null);
@@ -433,6 +457,9 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
         setData(result || []);
         if (result && result.length > 0) {
           SessionStorage.set(cacheKey, result, cacheDuration);
+          // CRITICAL: Set a persistent flag that we've loaded this product
+          // This survives component remounts and prevents loader from showing again
+          SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000); // 24 hours
           hasEverLoadedRef.current = true; // Mark that we've successfully loaded data
           shouldShowLoaderRef.current = false; // Never show loader again
         }
@@ -446,20 +473,34 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
           // Ensure stale cache is in array format
           const cacheData = Array.isArray(staleCache) ? staleCache : [staleCache];
           setData(cacheData);
+          // Set persistent flag that we've loaded this product
+          SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000); // 24 hours
           hasInitialLoadRef.current = true;
           hasEverLoadedRef.current = true; // Mark that we've loaded data (even if stale)
           shouldShowLoaderRef.current = false; // Never show loader again
         }
       } finally {
         setIsPending(false);
-        setIsLoading(false); // Always set to false after fetch completes
+        // CRITICAL: Always set isLoading to false after fetch
+        // Also check if we have data - if yes, definitely set to false
+        if (data || hasEverLoadedRef.current) {
+          setIsLoading(false);
+        } else {
+          setIsLoading(false); // Always set to false after fetch completes
+        }
       }
     };
 
-    // Always fetch if we don't have cached data
-    // The condition ensures we fetch on initial load or when retry is true
-    fetchProduct();
-  }, [productId, retry]);
+    // Only fetch if we haven't already fetched this product (prevents refetch on tab switch)
+    // Or if retry is explicitly true
+    if (hasFetchedRef.current !== productId || retry) {
+      fetchProduct();
+    } else {
+      // We've already fetched - just ensure loading states are false
+      setIsPending(false);
+      setIsLoading(false);
+    }
+  }, [productId, retry, data]);
 
   const refetch = useCallback(async () => {
     if (!productId) return;
