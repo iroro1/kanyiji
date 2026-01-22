@@ -14,11 +14,15 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const { isConfigValid, isLoading } = useAuth();
   const isAdminRoute = pathname.startsWith("/admin");
-  const isPublicRoute = !pathname.startsWith("/admin") && 
+  // Auth callback is a special case - it needs to render immediately to process the callback
+  // It's not a protected route, so treat it as public (don't block on auth loading)
+  const isAuthCallback = pathname.startsWith("/auth/callback");
+  const isPublicRoute = isAuthCallback || (
+                        !pathname.startsWith("/admin") && 
                         !pathname.startsWith("/profile") && 
                         !pathname.startsWith("/vendor") &&
                         !pathname.startsWith("/checkout") &&
-                        !pathname.startsWith("/orders");
+                        !pathname.startsWith("/orders"));
 
   // Show configuration error if config is invalid
   if (!isLoading && !isConfigValid) {
@@ -37,6 +41,11 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         </div>
       </div>
     );
+  }
+
+  // Don't show Navbar/Footer on auth callback page - it needs to be minimal
+  if (isAuthCallback) {
+    return <main className="min-h-screen">{children}</main>;
   }
 
   return (
