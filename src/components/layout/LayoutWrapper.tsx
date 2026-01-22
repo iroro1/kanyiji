@@ -14,14 +14,21 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const { isConfigValid, isLoading } = useAuth();
   const isAdminRoute = pathname.startsWith("/admin");
+  const isPublicRoute = !pathname.startsWith("/admin") && 
+                        !pathname.startsWith("/profile") && 
+                        !pathname.startsWith("/vendor") &&
+                        !pathname.startsWith("/checkout") &&
+                        !pathname.startsWith("/orders");
 
   // Show configuration error if config is invalid
   if (!isLoading && !isConfigValid) {
     return <ConfigError />;
   }
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // CRITICAL: For public routes (like product pages), don't block on auth loading
+  // This prevents infinite spinner on mobile when logged in
+  // Only show loading for protected routes that actually need auth
+  if (isLoading && !isPublicRoute) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
