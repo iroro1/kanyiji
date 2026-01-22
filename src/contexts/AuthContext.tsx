@@ -284,19 +284,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // CRITICAL: Add timeout to prevent infinite loading on slow networks (especially mobile)
-  // If auth check takes longer than 5 seconds, stop loading to prevent infinite spinner
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Auth loading timeout - stopping loading state to prevent infinite spinner');
-        setIsLoading(false);
-      }
-    }, 5000); // 5 second timeout
-
-    return () => clearTimeout(timeoutId);
-  }, [isLoading]);
-
   // Fix Bug #1: Reset loading state when window is closed or loses focus
   // This prevents the continuous spinning spinner when the web window is exited
   // Cross-platform compatible: Works on Windows, macOS, and Linux

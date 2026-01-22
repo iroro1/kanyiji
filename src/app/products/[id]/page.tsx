@@ -346,6 +346,25 @@ export default function ProductDetailPage({
   const productCached = productCacheKey ? SessionStorage.getWithExpiry<any>(productCacheKey) : null;
   const hasLoadedFlag = params?.id ? SessionStorage.get<boolean>(`hasLoaded_${params.id}`) : false;
   
+  // CRITICAL: Add a maximum time check - if isLoading has been true for more than 20 seconds,
+  // force it to false to prevent infinite spinner (especially on mobile with slow networks)
+  const [forceHideLoader, setForceHideLoader] = useState(false);
+  useEffect(() => {
+    if (isLoading && !forceHideLoader) {
+      const timeout = setTimeout(() => {
+        console.warn('Loader has been showing for 20+ seconds, forcing it to hide');
+        setForceHideLoader(true);
+        // Mark as loaded to prevent spinner from showing again
+        if (params?.id) {
+          SessionStorage.set(`hasLoaded_${params.id}`, true, 24 * 60 * 60 * 1000);
+        }
+      }, 20000); // 20 seconds
+      return () => clearTimeout(timeout);
+    } else if (!isLoading) {
+      setForceHideLoader(false); // Reset when loading stops
+    }
+  }, [isLoading, params?.id, forceHideLoader]);
+  
   const shouldShowLoader = isLoading && 
                           !data && 
                           !productWithStock && 
@@ -354,7 +373,8 @@ export default function ProductDetailPage({
                           !hasCachedData && // Never show if we have cached data
                           !isPending && // Don't show if we're just pending (background refetch)
                           !productCached && // Never show if we have product cache
-                          !hasLoadedFlag; // Never show if we've loaded this product before
+                          !hasLoadedFlag && // Never show if we've loaded this product before
+                          !forceHideLoader; // Never show if we've forced it to hide
 
   // Only show loader on true initial load with no data and no cache
   // This should be extremely rare - only on first visit with no cache

@@ -340,6 +340,7 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
   const hasInitialLoadRef = useRef<boolean>(false);
   const hasEverLoadedRef = useRef<boolean>(initialState.hasEverLoaded); // Track if we've ever had data
   const shouldShowLoaderRef = useRef<boolean>(!initialState.hasEverLoaded); // Track if we should ever show loader
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track loading timeout
 
   // CRITICAL: useLayoutEffect runs synchronously before browser paint
   // This ensures cache check happens before first render, preventing loader flash
@@ -372,6 +373,16 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
       hasEverLoadedRef.current = true;
     }
   }, [productId, data]); // Run when productId or data changes
+
+  // Cleanup timeout on unmount or productId change
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [productId]);
 
   useEffect(() => {
     if (!productId) {
@@ -443,6 +454,20 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
       // This prevents loader from showing on tab switches after initial load
       if (shouldShowLoaderRef.current && hasFetchedRef.current !== productId) {
         setIsLoading(true);
+        // CRITICAL: Set a safety timeout to force isLoading to false after 20 seconds
+        // This prevents infinite spinner if something goes wrong
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+        }
+        loadingTimeoutRef.current = setTimeout(() => {
+          console.warn('Loading timeout reached, forcing isLoading to false');
+          setIsLoading(false);
+          setIsPending(false);
+          // Mark as loaded to prevent spinner from showing again
+          SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000);
+          hasEverLoadedRef.current = true;
+          shouldShowLoaderRef.current = false;
+        }, 20000); // 20 seconds safety timeout
       } else {
         // If we've fetched before, never show loader
         setIsLoading(false);
@@ -455,11 +480,19 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
         // CRITICAL: Add timeout to prevent infinite loading on slow networks
         // If fetch takes longer than 15 seconds, reject with timeout error
         const fetchPromise = getSingleProduct(productId);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 15000)
-        );
+        let timeoutId: NodeJS.Timeout | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('Request timeout - network may be slow'));
+          }, 15000);
+        });
         
         const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        
+        // Clear timeout if fetch completed successfully
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         // getSingleProduct returns an array [product], store it as array to match component expectations
         setData(result || []);
         if (result && result.length > 0) {
@@ -493,6 +526,12 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
           shouldShowLoaderRef.current = false;
         }
       } finally {
+        // CRITICAL: Clear the loading timeout if it exists
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
+        
         // CRITICAL: Always set isLoading to false after fetch completes (success or error)
         // This prevents infinite loading spinner
         setIsPending(false);
