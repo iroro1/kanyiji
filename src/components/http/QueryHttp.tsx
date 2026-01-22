@@ -452,7 +452,14 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
       hasFetchedRef.current = productId;
 
       try {
-        const result = await getSingleProduct(productId);
+        // CRITICAL: Add timeout to prevent infinite loading on slow networks
+        // If fetch takes longer than 15 seconds, reject with timeout error
+        const fetchPromise = getSingleProduct(productId);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 15000)
+        );
+        
+        const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
         // getSingleProduct returns an array [product], store it as array to match component expectations
         setData(result || []);
         if (result && result.length > 0) {
@@ -467,7 +474,7 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
       } catch (err: any) {
         setError(err);
         setIsError(true);
-        // Try stale cache on error
+        // Try stale cache on error (including timeout errors)
         const staleCache = SessionStorage.get<any>(cacheKey);
         if (staleCache) {
           // Ensure stale cache is in array format
@@ -478,15 +485,23 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
           hasInitialLoadRef.current = true;
           hasEverLoadedRef.current = true; // Mark that we've loaded data (even if stale)
           shouldShowLoaderRef.current = false; // Never show loader again
+        } else {
+          // No stale cache - mark that we've attempted to load to prevent infinite spinner
+          // This ensures the loader doesn't show again even if fetch failed
+          SessionStorage.set(`hasLoaded_${productId}`, true, 24 * 60 * 60 * 1000); // 24 hours
+          hasEverLoadedRef.current = true;
+          shouldShowLoaderRef.current = false;
         }
       } finally {
+        // CRITICAL: Always set isLoading to false after fetch completes (success or error)
+        // This prevents infinite loading spinner
         setIsPending(false);
-        // CRITICAL: Always set isLoading to false after fetch
-        // Also check if we have data - if yes, definitely set to false
+        setIsLoading(false);
+        
+        // If we got data, mark that we've loaded
         if (data || hasEverLoadedRef.current) {
-          setIsLoading(false);
-        } else {
-          setIsLoading(false); // Always set to false after fetch completes
+          hasEverLoadedRef.current = true;
+          shouldShowLoaderRef.current = false;
         }
       }
     };
