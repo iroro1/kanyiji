@@ -359,10 +359,20 @@ export default function ProductDetailPage({
   // Only show loader on true initial load with no data and no cache
   // This should be extremely rare - only on first visit with no cache
   // The loader will only show when there's truly nothing to display
+  // CRITICAL: Add timeout fallback - if loader shows for too long, show error
   if (shouldShowLoader) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner timeout={5000} />
+        <LoadingSpinner 
+          timeout={10000} 
+          onTimeout={() => {
+            // After timeout, if still loading, mark that we've attempted to load
+            // This prevents infinite spinner
+            if (params?.id) {
+              SessionStorage.set(`hasLoaded_${params.id}`, true, 24 * 60 * 60 * 1000);
+            }
+          }}
+        />
       </div>
     );
   }
