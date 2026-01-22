@@ -57,13 +57,14 @@ export default function ProductDetailPage({
   // CRITICAL: Force isLoading to false if we have any data
   // This runs on every render to ensure isLoading is never true when we have data
   // This prevents loader from showing when switching tabs
+  // Note: productWithStock is derived from data, so we only need data in dependencies
   useEffect(() => {
-    if (data || productWithStock || hasEverHadDataRef.current) {
+    if (data || hasEverHadDataRef.current) {
       // If we have data, we should never show loader
       // This effect ensures isLoading state doesn't cause issues
       // Note: We can't directly set isLoading here, but we check it in the render
     }
-  }, [data, productWithStock]);
+  }, [data]);
 
   // Silent background refetch when page becomes visible - doesn't block UI
   useEffect(() => {
