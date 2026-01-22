@@ -239,7 +239,7 @@ export default function HeroSection() {
       <div className="bg-gradient-to-br from-blue-50 to-white w-full relative overflow-hidden">
         {/* Full Width Auto-sliding Banner */}
         <motion.div
-          className="relative w-full h-[60vh] sm:h-[70vh] lg:h-[80vh]"
+          className="relative w-full h-[45vh] sm:h-[70vh] lg:h-[80vh]"
           variants={imageVariants}
           initial="hidden"
           animate="visible"
@@ -263,7 +263,7 @@ export default function HeroSection() {
                   src={bannerSlides[currentSlide].image}
                   alt={`Banner ${bannerSlides[currentSlide].id}`}
                   fill
-                  className="object-contain"
+                  className="object-contain sm:object-contain"
                   quality={90}
                   sizes="100vw"
                 />
@@ -271,32 +271,32 @@ export default function HeroSection() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation arrows */}
+          {/* Navigation arrows - reduced padding on mobile */}
           <button
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-2 rounded-full transition-all duration-300 shadow-lg"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-1.5 sm:p-2 rounded-full transition-all duration-300 shadow-lg"
             aria-label="Previous slide"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-2 rounded-full transition-all duration-300 shadow-lg"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-gray-800 p-1.5 sm:p-2 rounded-full transition-all duration-300 shadow-lg"
             aria-label="Next slide"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          {/* Dots indicator */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          {/* Dots indicator - reduced bottom spacing on mobile */}
+          <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 sm:gap-2">
             {bannerSlides.map((_, index) => (
               <button
                 key={index}
                 onClick={() => goToSlide(index)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
                   index === currentSlide
-                    ? "bg-white w-8"
-                    : "bg-white/50 hover:bg-white/75"
+                    ? "bg-white w-6 sm:w-8"
+                    : "bg-white/50 hover:bg-white/75 w-1.5 sm:w-2"
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

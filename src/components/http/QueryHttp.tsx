@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useToast } from "../ui/Toast";
 import { SessionStorage } from "@/utils/sessionStorage";
 import {
@@ -141,7 +141,7 @@ export function useFetchAllProducts(
   const [hasNextPage, setHasNextPage] = useState(true);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const hasFetchedRef = useRef(false);
+  const hasFetchedRef = useRef<string>("");
 
   const cacheKey = `allProducts_${JSON.stringify({ searchQuery, category, sale, feature, sort, priceRange })}`;
   const cacheDuration = 30 * 1000; // 30 seconds
@@ -149,45 +149,85 @@ export function useFetchAllProducts(
   useEffect(() => {
     if (authLoading) return;
 
-    // Check cache first
-    const cached = SessionStorage.getWithExpiry<any[]>(cacheKey);
-    if (cached && cached.length > 0) {
-      setProducts(cached);
-      setIsLoading(false);
-      setIsSuccess(true);
-      hasFetchedRef.current = true;
-      return;
+    // Reset fetch ref if cache key changed (dependencies changed)
+    const cacheKeyChanged = hasFetchedRef.current !== cacheKey && hasFetchedRef.current !== "";
+    if (cacheKeyChanged) {
+      hasFetchedRef.current = "";
+      setCurrentPage(0);
+      // Clear products when filters change to avoid showing stale data
+      setProducts([]);
+      setIsLoading(true);
     }
 
-    // Only fetch if not already fetched
-    if (hasFetchedRef.current) return;
+    // Check cache first (only if cache key hasn't changed)
+    if (!cacheKeyChanged) {
+      const cached = SessionStorage.getWithExpiry<any[]>(cacheKey);
+      if (cached && cached.length > 0) {
+        setProducts(cached);
+        setIsLoading(false);
+        setIsSuccess(true);
+        hasFetchedRef.current = cacheKey;
+        return;
+      }
+    }
+
+    // Only fetch if not already fetched for this cache key
+    if (hasFetchedRef.current === cacheKey) return;
 
     const fetchProducts = async () => {
       setIsLoading(true);
       setIsFetching(true);
       setIsError(false);
-      hasFetchedRef.current = true;
+      hasFetchedRef.current = cacheKey;
 
       try {
-        const result = await fetchAllProducts(
-          { pageParam: 0 },
-          searchQuery,
-          category,
-          sale,
-          feature,
-          sort,
-          priceRange
-        );
-        setProducts(result || []);
+        // Build query params for API route
+        const params = new URLSearchParams();
+        params.append("limit", PAGE_SIZE.toString());
+        params.append("offset", "0");
+        
+        if (searchQuery) params.append("search", searchQuery);
+        if (category) params.append("category_id", category);
+        if (feature === "true") params.append("featured", "true");
+        if (sale === "true") params.append("sale", "true");
+        if (sort) {
+          if (sort === "trending") {
+            params.append("sort", "trending");
+          } else if (sort === "price-true") {
+            params.append("sort", "price-asc");
+          } else if (sort === "price-false") {
+            params.append("sort", "price-desc");
+          } else if (sort === "updated_at-false") {
+            params.append("sort", "newest");
+          }
+        }
+
+        console.log("Fetching products from API:", params.toString());
+        const response = await fetch(`/api/products?${params.toString()}`, {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch products: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const result = data.products || [];
+        
+        console.log("Products fetched:", result.length);
+        setProducts(result);
         setHasNextPage((result?.length || 0) >= PAGE_SIZE);
         setIsSuccess(true);
-        SessionStorage.set(cacheKey, result || [], cacheDuration);
+        SessionStorage.set(cacheKey, result, cacheDuration);
       } catch (err) {
+        console.error("Error fetching products:", err);
         setIsError(true);
         // Try stale cache on error
         const staleCache = SessionStorage.get<any[]>(cacheKey);
         if (staleCache) {
           setProducts(staleCache);
+        } else {
+          setProducts([]);
         }
       } finally {
         setIsLoading(false);
@@ -196,7 +236,7 @@ export function useFetchAllProducts(
     };
 
     fetchProducts();
-  }, [authLoading, searchQuery, category, sale, feature, sort, priceRange]);
+  }, [authLoading, searchQuery, category, sale, feature, sort, priceRange, cacheKey]);
 
   const fetchNextPage = useCallback(async () => {
     if (isFetchingNextPage || !hasNextPage) return;
@@ -204,15 +244,40 @@ export function useFetchAllProducts(
     setIsFetchingNextPage(true);
     try {
       const nextPage = currentPage + 1;
-      const result = await fetchAllProducts(
-        { pageParam: nextPage },
-        searchQuery,
-        category,
-        sale,
-        feature,
-        sort,
-        priceRange
-      );
+      const offset = nextPage * PAGE_SIZE;
+      
+      // Build query params for API route
+      const params = new URLSearchParams();
+      params.append("limit", PAGE_SIZE.toString());
+      params.append("offset", offset.toString());
+      
+      if (searchQuery) params.append("search", searchQuery);
+      if (category) params.append("category_id", category);
+      if (feature === "true") params.append("featured", "true");
+      if (sale === "true") params.append("sale", "true");
+      if (sort) {
+        if (sort === "trending") {
+          params.append("sort", "trending");
+        } else if (sort === "price-true") {
+          params.append("sort", "price-asc");
+        } else if (sort === "price-false") {
+          params.append("sort", "price-desc");
+        } else if (sort === "updated_at-false") {
+          params.append("sort", "newest");
+        }
+      }
+
+      const response = await fetch(`/api/products?${params.toString()}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const result = data.products || [];
+      
       if (result && result.length > 0) {
         setProducts((prev) => [...prev, ...result]);
         setHasNextPage(result.length >= PAGE_SIZE);
@@ -240,12 +305,67 @@ export function useFetchAllProducts(
 }
 
 export function useFetchSingleProduct(productId: string, retry: boolean) {
-  const [data, setData] = useState<any>(null);
-  const [isPending, setIsPending] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  // Check cache immediately on mount to set initial state correctly
+  // This runs synchronously during render, before any effects
+  const getInitialState = () => {
+    if (!productId) {
+      return { data: null, isPending: false, isLoading: false, hasEverLoaded: false };
+    }
+    const cacheKey = `singleProduct_${productId}`;
+    const cached = SessionStorage.getWithExpiry<any>(cacheKey);
+    // If we have cached data, NEVER show loader
+    if (cached) {
+      return { data: cached, isPending: false, isLoading: false, hasEverLoaded: true };
+    }
+    // Only show loader if we truly have no cache
+    return { data: null, isPending: true, isLoading: true, hasEverLoaded: false };
+  };
+
+  const initialState = getInitialState();
+  // CRITICAL: Initialize with cache if available to prevent loader flash
+  const [data, setData] = useState<any>(initialState.data);
+  const [isPending, setIsPending] = useState(initialState.isPending);
+  // CRITICAL: Only set isLoading to true if we have NO cached data
+  const [isLoading, setIsLoading] = useState(initialState.isLoading);
   const [error, setError] = useState<any>(null);
   const [isError, setIsError] = useState(false);
   const hasFetchedRef = useRef<string | null>(null);
+  const hasInitialLoadRef = useRef<boolean>(false);
+  const hasEverLoadedRef = useRef<boolean>(initialState.hasEverLoaded); // Track if we've ever had data
+  const shouldShowLoaderRef = useRef<boolean>(!initialState.hasEverLoaded); // Track if we should ever show loader
+
+  // CRITICAL: useLayoutEffect runs synchronously before browser paint
+  // This ensures cache check happens before first render, preventing loader flash
+  useLayoutEffect(() => {
+    if (!productId) {
+      setIsPending(false);
+      setIsLoading(false);
+      return;
+    }
+
+    const cacheKey = `singleProduct_${productId}`;
+    const cached = SessionStorage.getWithExpiry<any>(cacheKey);
+    
+    // If we have cached data, set it immediately and disable loading
+    // This happens BEFORE the first paint, preventing loader from showing
+    if (cached) {
+      // Ensure cached data is in array format
+      const cacheData = Array.isArray(cached) ? cached : [cached];
+      setData(cacheData);
+      setIsPending(false);
+      setIsLoading(false); // CRITICAL: Set to false immediately
+      shouldShowLoaderRef.current = false; // Never show loader again
+      hasFetchedRef.current = productId;
+      hasInitialLoadRef.current = true;
+      hasEverLoadedRef.current = true;
+    } else if (data) {
+      // If we already have data in state, ensure loading is false
+      setIsPending(false);
+      setIsLoading(false);
+      shouldShowLoaderRef.current = false;
+      hasEverLoadedRef.current = true;
+    }
+  }, [productId, data]); // Run when productId or data changes
 
   useEffect(() => {
     if (!productId) {
@@ -256,60 +376,115 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
 
     const cacheKey = `singleProduct_${productId}`;
     const cacheDuration = 30 * 1000; // 30 seconds
-
-    // Check cache first
+    
+    // CRITICAL: Check cache FIRST, before anything else
+    // useLayoutEffect should have already handled this, but double-check here
     const cached = SessionStorage.getWithExpiry<any>(cacheKey);
-    if (cached && hasFetchedRef.current === productId) {
-      setData(cached);
+    
+    // If we have cached data OR data in state, use it IMMEDIATELY and set loading to false
+    if (cached || data || hasEverLoadedRef.current) {
+      // We have data (from cache, state, or previous load) - ensure loading states are false
+      if (cached && !data) {
+        setData(cached); // Set cached data if not already in state
+      }
       setIsPending(false);
-      setIsLoading(false);
-      return;
+      setIsLoading(false); // CRITICAL: Always set to false when we have data
+      shouldShowLoaderRef.current = false;
+      hasFetchedRef.current = productId;
+      hasInitialLoadRef.current = true;
+      hasEverLoadedRef.current = true;
+      
+      // Only do background refetch if retry is explicitly true
+      if (retry && cached) {
+        setIsPending(true); // Set pending but NOT loading (silent background refetch)
+        getSingleProduct(productId)
+          .then((result) => {
+            if (result && result.length > 0) {
+              setData(result);
+              SessionStorage.set(cacheKey, result, cacheDuration);
+            }
+          })
+          .catch(() => {
+            // Silently fail - keep cached data
+          })
+          .finally(() => {
+            setIsPending(false);
+          });
+      }
+      return; // Early return - don't proceed with fetch if we have data
     }
 
+    // No cached data - this is the initial load
+    // Always fetch, but only show loader if we haven't loaded data before
     const fetchProduct = async () => {
       setIsPending(true);
-      setIsLoading(true);
+      // Only set isLoading to true if we should show the loader
+      // This prevents loader from showing on tab switches after initial load
+      if (shouldShowLoaderRef.current) {
+        setIsLoading(true);
+      }
       setIsError(false);
       setError(null);
       hasFetchedRef.current = productId;
 
       try {
         const result = await getSingleProduct(productId);
-        const product = result?.[0] || null;
-        setData(product);
-        if (product) {
-          SessionStorage.set(cacheKey, product, cacheDuration);
+        // getSingleProduct returns an array [product], store it as array to match component expectations
+        setData(result || []);
+        if (result && result.length > 0) {
+          SessionStorage.set(cacheKey, result, cacheDuration);
+          hasEverLoadedRef.current = true; // Mark that we've successfully loaded data
+          shouldShowLoaderRef.current = false; // Never show loader again
         }
+        hasInitialLoadRef.current = true;
       } catch (err: any) {
         setError(err);
         setIsError(true);
         // Try stale cache on error
         const staleCache = SessionStorage.get<any>(cacheKey);
         if (staleCache) {
-          setData(staleCache);
+          // Ensure stale cache is in array format
+          const cacheData = Array.isArray(staleCache) ? staleCache : [staleCache];
+          setData(cacheData);
+          hasInitialLoadRef.current = true;
+          hasEverLoadedRef.current = true; // Mark that we've loaded data (even if stale)
+          shouldShowLoaderRef.current = false; // Never show loader again
         }
       } finally {
         setIsPending(false);
-        setIsLoading(false);
+        setIsLoading(false); // Always set to false after fetch completes
       }
     };
 
+    // Always fetch if we don't have cached data
+    // The condition ensures we fetch on initial load or when retry is true
     fetchProduct();
   }, [productId, retry]);
 
   const refetch = useCallback(async () => {
     if (!productId) return;
     const cacheKey = `singleProduct_${productId}`;
-    SessionStorage.remove(cacheKey);
-    hasFetchedRef.current = null;
-    setIsPending(true);
-    setIsLoading(true);
+    // Don't clear cache on refetch - keep it for instant display
+    // SessionStorage.remove(cacheKey);
+    // hasFetchedRef.current = null;
+    
+    // If we've ever loaded data, don't show loader on refetch
+    const shouldShowLoader = !hasEverLoadedRef.current;
+    
+    if (shouldShowLoader) {
+      setIsPending(true);
+      setIsLoading(true);
+    } else {
+      setIsPending(true); // Set pending but not loading (silent background refetch)
+    }
+    
     try {
       const result = await getSingleProduct(productId);
-      const product = result?.[0] || null;
-      setData(product);
-      if (product) {
-        SessionStorage.set(cacheKey, product, 30 * 1000);
+      // getSingleProduct returns an array [product], store it as array
+      setData(result || []);
+      if (result && result.length > 0) {
+        SessionStorage.set(cacheKey, result, 30 * 1000);
+        hasEverLoadedRef.current = true;
       }
     } catch (err: any) {
       setError(err);
