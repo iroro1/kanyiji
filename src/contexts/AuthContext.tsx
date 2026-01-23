@@ -37,8 +37,24 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
+  // CRITICAL: Check localStorage FIRST before setting initial state
+  // This prevents loading state from blocking on route/tab switches
+  const getInitialUser = (): AuthUser | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const storedUser = localStorage.getItem("kanyiji_auth_user");
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+    } catch (e) {
+      console.error("Error reading initial user from localStorage:", e);
+    }
+    return null;
+  };
+
+  const [user, setUser] = useState<AuthUser | null>(getInitialUser());
+  // CRITICAL: Start with false if we have cached user, true only if no cache
+  const [isLoading, setIsLoading] = useState(!getInitialUser());
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
 
@@ -57,6 +73,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // First, check the current session immediately
       const checkInitialSession = async () => {
         try {
+          // If we have cached user, verify session but don't block UI
+          const cachedUser = getInitialUser();
+          if (cachedUser && isMounted) {
+            // We have cached user - verify session in background
+            // Don't set loading to true - keep UI responsive
+            setIsLoading(false);
+          }
+
           // Wait a bit to ensure localStorage is available
           if (typeof window !== "undefined") {
             await new Promise((resolve) => setTimeout(resolve, 100));

@@ -3,11 +3,33 @@ import { supabase } from "./supabase";
 
 export function useSupabaseAuthReady() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [user, setUser] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  // CRITICAL: Check localStorage first to prevent blocking on route/tab switches
+  const getInitialUser = (): any => {
+    if (typeof window === "undefined") return null;
+    try {
+      const storedUser = localStorage.getItem("kanyiji_auth_user");
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+    } catch (e) {
+      console.error("Error reading initial user from localStorage:", e);
+    }
+    return null;
+  };
+
+  const [user, setUser] = useState<any>(getInitialUser());
+  // CRITICAL: Start with false if we have cached user, true only if no cache
+  // This prevents authLoading from blocking UI on route/tab switches
+  const [authLoading, setAuthLoading] = useState(!getInitialUser());
 
   useEffect(() => {
     let isMounted = true;
+
+    // If we have cached user, verify session but don't block UI
+    const cachedUser = getInitialUser();
+    if (cachedUser && isMounted) {
+      setAuthLoading(false); // Don't block UI while verifying
+    }
 
     // 1️⃣ Check immediately on mount
     supabase.auth
