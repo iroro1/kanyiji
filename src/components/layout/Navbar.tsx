@@ -257,7 +257,12 @@ const AuthButtons = ({
               </p>
             </div>
             <button
-              onClick={onLogout}
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await onLogout?.();
+              }}
               className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
             >
               <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
@@ -344,10 +349,14 @@ const AuthButtons = ({
               <div
                 className="fixed inset-0 z-10"
                 onClick={() => setShowDropdown(false)}
+                aria-hidden="true"
               />
 
-              {/* Dropdown Content */}
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-3 z-20">
+              {/* Dropdown Content - stopPropagation so clicks don't reach backdrop */}
+              <div
+                className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-3 z-20"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {/* User Info Header */}
                 <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50 rounded-t-xl">
                   <div className="flex items-center space-x-3">
@@ -578,9 +587,12 @@ const AuthButtons = ({
                   {/* Sign Out */}
                   <div className="border-t border-gray-100 my-2" />
                   <button
-                    onClick={() => {
-                      onLogout?.();
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setShowDropdown(false);
+                      await onLogout?.();
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
                   >
@@ -1363,9 +1375,12 @@ const MobileMenu = ({
             {/* Sign Out */}
             <div className="pt-2 border-t border-gray-100">
               <button
-                onClick={() => {
-                  onLogout?.();
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onLinkClick();
+                  await onLogout?.();
                 }}
                 className="flex items-center w-full px-3 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors group"
               >

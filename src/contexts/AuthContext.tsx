@@ -584,27 +584,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async (): Promise<void> => {
+    const userId = user?.id;
     try {
-      console.log("AuthContext logout called");
       setIsLoading(true);
       const response = await supabaseAuthService.logout();
-      console.log("Supabase logout response:", response);
 
       if (response.success) {
-        console.log("Logout successful - clearing user and redirecting");
         setUser(null);
-        // Clear localStorage backup
         if (typeof window !== "undefined") {
           localStorage.removeItem("kanyiji_auth_user");
+          SessionStorage.remove("currentUser");
+          if (userId) SessionStorage.remove(`vendor_${userId}`);
         }
-        // Clear loading state before redirect to prevent spinner from staying
         setIsLoading(false);
         toast.success("Logged out successfully");
-        // Use window.location for a full page reload to ensure clean state
-        // This prevents the loading spinner from getting stuck
         window.location.href = "/";
       } else {
-        console.log("Logout failed:", response.error);
         toast.error(response.error || "Logout failed");
         setIsLoading(false);
       }
