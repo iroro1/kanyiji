@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { Star, ShoppingCart, Heart, Sparkles } from "lucide-react";
-import Image from "next/image";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useFetchAllProducts } from "@/components/http/QueryHttp";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
+import { getProductImageUrl, PLACEHOLDER_IMAGE } from "@/utils/helpers";
 
 // MAIN COMPONENT //
 export default function NewProductsPage() {
@@ -19,6 +19,7 @@ export default function NewProductsPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useFetchAllProducts(null, null, null, null, "updated_at-false", null);
+  const safeProducts = Array.isArray(newProducts) ? newProducts : [];
 
   // Only show loading spinner on INITIAL load when no data exists
   // This prevents blocking when switching tabs - background refetches won't trigger spinner
@@ -66,19 +67,27 @@ export default function NewProductsPage() {
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {newProducts.map((product) => (
+          {safeProducts
+            .filter((p) => p != null)
+            .map((product) => {
+              const priceValue = Number(product.price ?? 0);
+              const formattedPrice = Number.isFinite(priceValue)
+                ? priceValue.toLocaleString()
+                : "0";
+              return (
             <div
               key={product.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
               {/* Product Image */}
-              <div className="relative aspect-square rounded-t-xl overflow-hidden">
-                <Image
-                  width={1000}
-                  height={500}
-                  src={product.product_images?.[0]?.image_url || ""}
-                  alt={product.name}
+              <div className="relative aspect-square rounded-t-xl overflow-hidden bg-gray-100">
+                <img
+                  src={getProductImageUrl(product)}
+                  alt={product.name ?? "Product"}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    e.currentTarget.src = PLACEHOLDER_IMAGE;
+                  }}
                 />
                 <div className="absolute top-3 right-3">
                   <button className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors">
@@ -119,7 +128,7 @@ export default function NewProductsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-gray-900">
-                      ₦{product.price.toLocaleString()}
+                      ₦{formattedPrice}
                     </span>
                     {product.original_price &&
                       typeof product.original_price === "number" &&
@@ -150,7 +159,8 @@ export default function NewProductsPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         {/* Load More Button */}

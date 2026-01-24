@@ -12,6 +12,7 @@ import CustomError from "../error";
 import { useDebounce } from "@/components/http/useDebounce";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
+import { getProductImageUrl } from "@/utils/helpers";
 
 export default function ProductsPage() {
   const { dispatch } = useCart();
@@ -218,7 +219,11 @@ export default function ProductsPage() {
           : "flex flex-col gap-6"
         }>
           {/* Product Cards */}
-          {products?.map((product) => (
+          {(Array.isArray(products) ? products : [])
+            .filter((p) => p != null)
+            .map((product) => {
+              const imageSrc = getProductImageUrl(product);
+              return (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
@@ -229,8 +234,8 @@ export default function ProductsPage() {
               <div className={`relative ${viewMode === "list" ? "w-[200px] flex-shrink-0" : ""}`}>
                 <div className={`relative ${viewMode === "list" ? "h-full" : "h-48"}`}>
                   <Image
-                    src={product.images?.[0] || product.product_images?.[0]?.image_url || "/placeholder-image.jpg"}
-                    alt={product?.name || "Product"}
+                    src={imageSrc}
+                    alt={product?.name ?? "Product"}
                     width={600}
                     height={500}
                     className={`w-full ${viewMode === "list" ? "h-full" : "h-48"} object-cover transition-transform duration-300 group-hover:scale-105 ${
@@ -268,7 +273,7 @@ export default function ProductsPage() {
                     {viewMode === "list" && (
                       <div className="flex items-baseline gap-2 ml-4">
                         <span className="font-bold text-gray-900 text-lg">
-                          ₦{product.price.toLocaleString()}
+                          ₦{Number(product?.price ?? 0).toLocaleString()}
                         </span>
                         {product.original_price && typeof product.original_price === 'number' && 
                          product.price && typeof product.price === 'number' &&
@@ -301,7 +306,7 @@ export default function ProductsPage() {
                       ))}
                     </div>
                     <span className={`text-gray-500 ml-2 ${viewMode === "list" ? "text-xs" : "text-sm"}`}>
-                      {product.review_count > 0 
+                      {(product?.review_count ?? 0) > 0 
                         ? `${product.review_count} review${product.review_count !== 1 ? "s" : ""}`
                         : "0 reviews"}
                     </span>
@@ -311,7 +316,7 @@ export default function ProductsPage() {
                     <div className="flex items-center justify-between pb-5">
                       <div className="flex items-baseline gap-2">
                         <span className="text-lg font-bold text-gray-900">
-                          ₦{product.price.toLocaleString()}
+                          ₦{Number(product?.price ?? 0).toLocaleString()}
                         </span>
 
                         {product.original_price && typeof product.original_price === 'number' && 
@@ -355,7 +360,8 @@ export default function ProductsPage() {
                 )}
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
 
         {/* Load More Button */}

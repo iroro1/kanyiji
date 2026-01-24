@@ -112,7 +112,10 @@ export default function CartPage() {
                       <Image
                         width={500}
                         height={200}
-                        src={item?.product_images[0]?.image_url}
+                        src={
+                          item?.product_images?.[0]?.image_url ||
+                          "/placeholder-product.png"
+                        }
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />

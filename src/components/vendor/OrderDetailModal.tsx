@@ -505,7 +505,7 @@ export default function OrderDetailModal({
                     <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                       {item.products?.product_images?.[0]?.image_url ? (
                         <Image
-                          src={item.products.product_images[0].image_url}
+                          src={item.products?.product_images?.[0]?.image_url || "/placeholder-image.jpg"}
                           alt={item.products.name || "Product"}
                           fill
                           className="object-cover"

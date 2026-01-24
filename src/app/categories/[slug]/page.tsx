@@ -6,6 +6,7 @@ import Link from "next/link";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { getCategoryBySlug, getActiveCategories, type Category } from "@/data/categories";
 import { ArrowLeft, Package } from "lucide-react";
+import { getProductImageUrl } from "@/utils/helpers";
 
 export default function CategoryPage() {
   const params = useParams();
@@ -65,7 +66,7 @@ export default function CategoryPage() {
                     productCount: productsData.products?.length || 0,
                     products: productsData.products,
                   });
-                  setProducts(productsData.products || []);
+                  setProducts(Array.isArray(productsData.products) ? productsData.products : []);
                 } else {
                   const errorData = await productsResponse.json().catch(() => ({}));
                   console.error("Failed to fetch products:", {
@@ -106,7 +107,7 @@ export default function CategoryPage() {
           
           if (response.ok) {
             const data = await response.json();
-            setProducts(data.products || []);
+            setProducts(Array.isArray(data.products) ? data.products : []);
           } else {
             setProducts([]);
           }
@@ -219,18 +220,25 @@ export default function CategoryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product) => (
+            {(Array.isArray(products) ? products : [])
+              .filter((p) => p != null)
+              .map((product) => {
+                const imageSrc = getProductImageUrl(product);
+                return (
               <Link
                 key={product.id}
                 href={`/products/${product.id}`}
                 className="group bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="aspect-square bg-gray-100 rounded-t-xl overflow-hidden">
-                  {product.images && product.images[0] ? (
+                  {imageSrc && imageSrc !== "/placeholder-image.jpg" ? (
                     <img
-                      src={product.images[0]}
-                      alt={product.name}
+                      src={imageSrc}
+                      alt={product.name || "Product"}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      onError={(e) => {
+                        e.currentTarget.src = "/placeholder-image.jpg";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -240,14 +248,15 @@ export default function CategoryPage() {
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
-                    {product.name}
+                    {product.name || "Unnamed Product"}
                   </h3>
                   <p className="text-lg font-bold text-primary-600">
                     ₦{parseFloat(product.price || "0").toLocaleString()}
                   </p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

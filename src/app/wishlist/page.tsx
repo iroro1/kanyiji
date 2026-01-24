@@ -88,7 +88,9 @@ export default function WishlistPage() {
                 {/* Image */}
                 <div className="relative aspect-square overflow-hidden bg-gray-100">
                   <img
-                    src={item.product_images[0]?.image_url || "/placeholder-product.png"}
+                    src={
+                      item.product_images?.[0]?.image_url || "/placeholder-product.png"
+                    }
                     alt={item.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
@@ -184,11 +186,11 @@ export default function WishlistPage() {
                             weight: item.weight || undefined, // Include weight if available
                             vendor_id: item.vendor_id,
                             title: "",
-                            product_images: item.product_images[0].image_url
+                            product_images: item.product_images?.[0]?.image_url
                               ? [
                                   {
                                     id: item.id,
-                                    image_url: item.product_images[0].image_url,
+                                    image_url: item.product_images?.[0]?.image_url,
                                   },
                                 ]
                               : [],

@@ -7,6 +7,7 @@ import { useFetchAllProducts } from "@/components/http/QueryHttp";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/Toast";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { getProductImageUrl } from "@/utils/helpers";
 
 export default function FeaturedProductsPage() {
   const {
@@ -19,6 +20,7 @@ export default function FeaturedProductsPage() {
 
   const { dispatch } = useCart();
   const { notify } = useToast();
+  const safeProducts = Array.isArray(featuredProducts) ? featuredProducts : [];
 
   function AddToCart(product: any) {
     dispatch({
@@ -69,7 +71,14 @@ export default function FeaturedProductsPage() {
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => (
+          {safeProducts
+            .filter((p) => p != null)
+            .map((product) => {
+              const priceValue = Number(product.price ?? 0);
+              const formattedPrice = Number.isFinite(priceValue)
+                ? priceValue.toLocaleString()
+                : "0";
+              return (
             <div
               key={product.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
@@ -79,8 +88,8 @@ export default function FeaturedProductsPage() {
                 <Image
                   width={1000}
                   height={700}
-                  src={product.product_images[0]?.image_url || ""}
-                  alt={product.name}
+                  src={getProductImageUrl(product)}
+                  alt={product.name ?? "Product"}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-3 right-3">
@@ -129,7 +138,7 @@ export default function FeaturedProductsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-gray-900">
-                      ₦{product.price.toLocaleString()}
+                      ₦{formattedPrice}
                     </span>
                     {product.original_price && typeof product.original_price === 'number' && 
                      product.price && typeof product.price === 'number' &&
@@ -158,7 +167,8 @@ export default function FeaturedProductsPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         {/* Load More Button */}

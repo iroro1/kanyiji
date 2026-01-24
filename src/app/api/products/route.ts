@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { calculateProductStock } from "@/utils/stockCalculator";
 
+const isMissingColumnError = (error: any) =>
+  error?.code === "42703" || /column .* does not exist/i.test(error?.message || "");
+
+const getMissingColumn = (error: any) => {
+  const message = error?.message || "";
+  const match = message.match(/column (?:\w+\.)?([a-z_]+) does not exist/i);
+  return match?.[1] || null;
+};
+
+const buildSelect = (fields: string[], includeAttributes: boolean) => {
+  const base = fields.join(", ");
+  return includeAttributes
+    ? `${base}, product_attributes( id, size, color, quantity )`
+    : base;
+};
+
+const applySort = (
+  query: any,
+  sortParam: string | null,
+  availableFields: Set<string>
+) => {
+  if (sortParam === "trending" && availableFields.has("rating")) {
+    return query.order("rating", { ascending: false });
+  }
+  if (sortParam === "price-asc" && availableFields.has("price")) {
+    return query.order("price", { ascending: true, nullsFirst: false });
+  }
+  if (sortParam === "price-desc" && availableFields.has("price")) {
+    return query.order("price", { ascending: false, nullsFirst: false });
+  }
+  if (sortParam === "newest" && availableFields.has("updated_at")) {
+    return query.order("updated_at", { ascending: false });
+  }
+  if (availableFields.has("created_at")) {
+    return query.order("created_at", { ascending: false });
+  }
+  return query;
+};
+
 // Public API route to fetch products
 // Supports filtering by category_id
 export async function GET(request: NextRequest) {
@@ -20,31 +59,33 @@ export async function GET(request: NextRequest) {
     const sale = searchParams.get("sale");
     const sortParam = searchParams.get("sort");
 
+    const baseFields = [
+      "id",
+      "name",
+      "description",
+      "price",
+      "original_price",
+      "sku",
+      "stock_quantity",
+      "weight",
+      "status",
+      "is_featured",
+      "is_on_sale",
+      "created_at",
+      "updated_at",
+      "vendor_id",
+      "category_id",
+      "category",
+      "sub_category",
+      "rating",
+      "review_count",
+    ];
+    const baseFieldsSet = new Set(baseFields);
+
     // Build query - fetch from products table
     let query = supabase
       .from("products")
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        original_price,
-        sku,
-        stock_quantity,
-        weight,
-        status,
-        is_featured,
-        is_on_sale,
-        created_at,
-        updated_at,
-        vendor_id,
-        category_id,
-        category,
-        sub_category,
-        rating,
-        review_count,
-        product_attributes( id, size, color, quantity )
-      `)
+      .select(buildSelect(baseFields, true))
       .or("status.eq.active,status.eq.approved,status.eq.published");
 
     // Apply search filter
@@ -64,21 +105,7 @@ export async function GET(request: NextRequest) {
 
     // Apply sorting - CRITICAL: must be done before range() and after all filters
     // Supabase requires order() to be called before range() for proper sorting
-    if (sortParam === "trending") {
-      // Sort by rating and review count for trending
-      query = query.order("rating", { ascending: false });
-    } else if (sortParam === "price-asc") {
-      // Sort price ascending (low to high)
-      query = query.order("price", { ascending: true, nullsFirst: false });
-    } else if (sortParam === "price-desc") {
-      // Sort price descending (high to low) - FIXED: ensure descending order
-      query = query.order("price", { ascending: false, nullsFirst: false });
-    } else if (sortParam === "newest") {
-      query = query.order("updated_at", { ascending: false });
-    } else {
-      // Default sort by created_at (newest first)
-      query = query.order("created_at", { ascending: false });
-    }
+    query = applySort(query, sortParam, baseFieldsSet);
     
     console.log("Products API: Sort applied:", {
       sortParam,
@@ -122,7 +149,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: products, error: productsError } = await query;
+    const missingColumn = productsError ? getMissingColumn(productsError) : null;
 
+    const firstProduct = products?.[0] as { id?: string; name?: string; category_id?: string; status?: string; vendor_id?: string } | undefined;
     // Log for debugging
     console.log("Products API - Query result:", {
       categoryId,
@@ -135,12 +164,12 @@ export async function GET(request: NextRequest) {
       errorCode: productsError?.code,
       errorDetails: productsError?.details,
       errorHint: productsError?.hint,
-      sampleProduct: products?.[0] ? {
-        id: products[0].id,
-        name: products[0].name,
-        category_id: products[0].category_id,
-        status: products[0].status,
-        vendor_id: products[0].vendor_id,
+      sampleProduct: firstProduct ? {
+        id: firstProduct.id,
+        name: firstProduct.name,
+        category_id: firstProduct.category_id,
+        status: firstProduct.status,
+        vendor_id: firstProduct.vendor_id,
       } : null,
       allStatuses: products?.map((p: any) => p.status) || [],
     });
@@ -178,56 +207,44 @@ export async function GET(request: NextRequest) {
         details: productsError.details,
         hint: productsError.hint,
       });
-      
-      // If error is about column not found, try without that column
-      if (productsError.message?.includes("category_id") || productsError.code === "42703") {
-        console.log("Retrying query without category_id column...");
-        // Retry without category_id in select
+
+      if (isMissingColumnError(productsError)) {
+        const retryFields = missingColumn
+          ? baseFields.filter((field) => field !== missingColumn)
+          : [...baseFields];
+        const retryFieldsSet = new Set(retryFields);
+        const includeAttributes = missingColumn !== "product_attributes";
+
         let retryQuery = supabase
           .from("products")
-          .select(`
-            id,
-            name,
-            description,
-            price,
-            original_price,
-            sku,
-            stock_quantity,
-            status,
-            created_at,
-            updated_at,
-            vendor_id,
-            category,
-            sub_category,
-            product_attributes( id, size, color, quantity )
-          `)
-          .eq("status", "active");
-        
-        // Apply the same sorting logic as main query
-        if (sortParam === "trending") {
-          retryQuery = retryQuery.order("rating", { ascending: false });
-        } else if (sortParam === "price-asc") {
-          retryQuery = retryQuery.order("price", { ascending: true, nullsFirst: false });
-        } else if (sortParam === "price-desc") {
-          retryQuery = retryQuery.order("price", { ascending: false, nullsFirst: false });
-        } else if (sortParam === "newest") {
-          retryQuery = retryQuery.order("updated_at", { ascending: false });
-        } else {
-          retryQuery = retryQuery.order("created_at", { ascending: false });
+          .select(buildSelect(retryFields, includeAttributes));
+
+        if (search) {
+          retryQuery = retryQuery.ilike("name", `%${search}%`);
         }
-        
+        if (retryFieldsSet.has("status")) {
+          retryQuery = retryQuery.or("status.eq.active,status.eq.approved,status.eq.published");
+        }
+        if (featured === "true" && retryFieldsSet.has("is_featured")) {
+          retryQuery = retryQuery.eq("is_featured", true);
+        }
+        if (sale === "true" && retryFieldsSet.has("is_on_sale")) {
+          retryQuery = retryQuery.eq("is_on_sale", true);
+        }
+
+        retryQuery = applySort(retryQuery, sortParam, retryFieldsSet);
         retryQuery = retryQuery.range(offset, offset + limit - 1);
-        
-        if (categoryId) {
+
+        if (categoryId && retryFieldsSet.has("category_id")) {
           retryQuery = retryQuery.eq("category_id", categoryId);
         }
-        
+
         const { data: retryProducts, error: retryError } = await retryQuery;
-        
+
         if (!retryError && retryProducts) {
-          console.log("Retry successful, found products:", retryProducts.length);
-          // Continue with retryProducts instead
-          const productIds = retryProducts.map((p) => p.id);
+          const list = retryProducts as any[];
+          console.log("Retry successful, found products:", list.length);
+          const productIds = list.map((p) => p.id);
           let productImages: Record<string, string[]> = {};
 
           if (productIds.length > 0) {
@@ -247,12 +264,72 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          const enrichedProducts = retryProducts.map((product: any) => {
+          const enrichedProducts = list.map((product: any) => {
             const calculatedStock = calculateProductStock(product);
             return {
-            ...product,
-            category_id: null, // Not available
-            images: productImages[product.id] || [],
+              ...product,
+              images: productImages[product.id] || [],
+              stock_quantity: calculatedStock,
+            };
+          });
+
+          return NextResponse.json({
+            products: enrichedProducts,
+            count: enrichedProducts.length,
+          });
+        }
+
+        const minimalFields = [
+          "id",
+          "name",
+          "description",
+          "price",
+          "original_price",
+          "sku",
+          "stock_quantity",
+          "created_at",
+          "updated_at",
+          "vendor_id",
+          "category",
+          "sub_category",
+        ];
+        const minimalFieldsSet = new Set(minimalFields);
+        let minimalQuery = supabase
+          .from("products")
+          .select(buildSelect(minimalFields, false));
+
+        minimalQuery = applySort(minimalQuery, sortParam, minimalFieldsSet);
+        minimalQuery = minimalQuery.range(offset, offset + limit - 1);
+
+        const { data: minimalProducts, error: minimalError } = await minimalQuery;
+
+        if (!minimalError && minimalProducts) {
+          const minimalList = minimalProducts as any[];
+          const productIds = minimalList.map((p) => p.id);
+          let productImages: Record<string, string[]> = {};
+
+          if (productIds.length > 0) {
+            const { data: images } = await supabase
+              .from("product_images")
+              .select("product_id, image_url")
+              .in("product_id", productIds)
+              .order("sort_order", { ascending: true });
+
+            if (images) {
+              images.forEach((img) => {
+                if (!productImages[img.product_id]) {
+                  productImages[img.product_id] = [];
+                }
+                productImages[img.product_id].push(img.image_url);
+              });
+            }
+          }
+
+          const enrichedProducts = minimalList.map((product: any) => {
+            const calculatedStock = calculateProductStock(product);
+            return {
+              ...product,
+              images: productImages[product.id] || [],
               stock_quantity: calculatedStock,
             };
           });
@@ -263,6 +340,11 @@ export async function GET(request: NextRequest) {
           });
         }
       }
+
+      return NextResponse.json(
+        { error: "Failed to fetch products", details: productsError.message },
+        { status: 500 }
+      );
     }
 
     // If we successfully got products, filter by status
@@ -408,7 +490,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Fetch product images
-      const productIds = finalProducts.map((p) => p.id);
+      const finalList = finalProducts as any[];
+      const productIds = finalList.map((p) => p.id);
       let productImages: Record<string, string[]> = {};
 
       if (productIds.length > 0) {
@@ -428,7 +511,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const enrichedProducts = finalProducts.map((product: any) => {
+      const enrichedProducts = finalList.map((product: any) => {
         const calculatedStock = calculateProductStock(product);
         return {
         ...product,
@@ -447,9 +530,9 @@ export async function GET(request: NextRequest) {
     // fetch all products and filter client-side
     if (productsError || (useCategoryFilter && (!products || products.length === 0))) {
       console.log("Category filter issue - fetching all products:", {
-        error: productsError?.message,
+        error: (productsError as any)?.message,
         categoryId,
-        productsFound: products?.length || 0,
+        productsFound: (products as any[])?.length || 0,
       });
       
       // Fetch all products without category filter (no status filter)
@@ -654,12 +737,12 @@ export async function GET(request: NextRequest) {
     }
 
     // TEMPORARILY: Show all products regardless of status for debugging
-    const publicProducts = products || []; // Show all products for now
+    const publicProducts = (products || []) as any[];
     
     console.log("Products API: Final fallback - all products:", {
-      totalFetched: (products || []).length,
-      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
-      allProducts: (products || []).map((p: any) => ({ 
+      totalFetched: publicProducts.length,
+      statusesFound: Array.from(new Set(publicProducts.map((p: any) => p.status))),
+      allProducts: publicProducts.map((p: any) => ({ 
         id: p.id, 
         name: p.name, 
         status: p.status 
@@ -698,9 +781,9 @@ export async function GET(request: NextRequest) {
     });
 
     console.log("Products API: Final fallback response:", {
-      totalFetched: (products || []).length,
+      totalFetched: publicProducts.length,
       publicProducts: enrichedProducts.length,
-      statusesFound: Array.from(new Set((products || []).map((p: any) => p.status))),
+      statusesFound: Array.from(new Set(publicProducts.map((p: any) => p.status))),
       publicStatuses: Array.from(new Set(enrichedProducts.map((p: any) => p.status))),
     });
 

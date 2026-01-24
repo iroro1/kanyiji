@@ -75,10 +75,6 @@ export default function RootLayout({
             </CartProvider>
           </AuthProvider>
         </AppQueryProvider>
-        <Script
-          src="https://js.paystack.co/v1/inline.js"
-          strategy="lazyOnload"
-        />
       </body>
     </html>
   );

@@ -7,7 +7,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, amount, channels } = body;
 
+    // Validate required fields
+    if (!email || !email.includes("@")) {
+      return NextResponse.json(
+        { error: "Valid email is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      return NextResponse.json(
+        { error: "Valid amount in kobo is required" },
+        { status: 400 }
+      );
+    }
+
     // 2️⃣ Send to Paystack Initialize Transaction endpoint
+    // This returns a transaction reference for use with PaystackPop.setup() (popup mode)
     const paystackRes = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {

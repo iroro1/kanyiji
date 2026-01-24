@@ -419,9 +419,9 @@ export default function ProductDetailPage({
                 productWithStock.product_images.length > 0 ? (
                   <Image
                     src={
-                      productWithStock.product_images[selectedImage]
+                      productWithStock.product_images?.[selectedImage]
                         ?.image_url ||
-                      productWithStock.product_images[0]?.image_url ||
+                      productWithStock.product_images?.[0]?.image_url ||
                       "/placeholder-image.jpg"
                     }
                     alt={productWithStock?.name || "Product image"}

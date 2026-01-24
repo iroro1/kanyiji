@@ -209,7 +209,7 @@ export function useFetchAllProducts(
     
     if ((cached && cached.length > 0) || (staleCache && staleCache.length > 0)) {
       const cacheData = cached || staleCache;
-      if (cacheData && !products.length) {
+      if (cacheData && Array.isArray(cacheData) && !products.length) {
         setProducts(cacheData);
         setIsLoading(false);
         setIsSuccess(true);
@@ -281,7 +281,7 @@ export function useFetchAllProducts(
         }
 
         const data = await response.json();
-        const result = data.products || [];
+        const result = Array.isArray(data.products) ? data.products : [];
         
         console.log("Products fetched:", result.length);
         setProducts(result);
@@ -294,7 +294,7 @@ export function useFetchAllProducts(
         setIsError(true);
         // Try stale cache on error
         const staleCache = SessionStorage.get<any[]>(cacheKey);
-        if (staleCache) {
+        if (staleCache && Array.isArray(staleCache)) {
           setProducts(staleCache);
           hasEverLoadedRef.current = true; // Mark as loaded even with stale cache
         } else {
@@ -347,10 +347,13 @@ export function useFetchAllProducts(
       }
 
       const data = await response.json();
-      const result = data.products || [];
+      const result = Array.isArray(data.products) ? data.products : [];
       
       if (result && result.length > 0) {
-        setProducts((prev) => [...prev, ...result]);
+        setProducts((prev) => {
+          const prevArray = Array.isArray(prev) ? prev : [];
+          return [...prevArray, ...result];
+        });
         setHasNextPage(result.length >= PAGE_SIZE);
         setCurrentPage(nextPage);
       } else {
@@ -364,7 +367,7 @@ export function useFetchAllProducts(
   }, [currentPage, hasNextPage, isFetchingNextPage, searchQuery, category, sale, feature, sort, priceRange]);
 
   return {
-    products,
+    products: Array.isArray(products) ? products : [],
     isLoading,
     isError,
     isSuccess,

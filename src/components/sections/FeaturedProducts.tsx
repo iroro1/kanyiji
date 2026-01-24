@@ -5,6 +5,7 @@ import { Heart, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 import { getCategoryById } from "@/data/categories";
 import { SessionStorage } from "@/utils/sessionStorage";
+import { getProductImageUrl } from "@/utils/helpers";
 
 interface Product {
   id: string;
@@ -113,9 +114,7 @@ export default function FeaturedProducts() {
                 description: product.description || product.short_description || "No description available",
                 price: parseFloat(product.price || "0"),
                 original_price: product.original_price ? parseFloat(product.original_price) : undefined,
-                image_url: product.images && product.images.length > 0 && product.images[0]
-                  ? product.images[0]
-                  : "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+                image_url: getProductImageUrl(product),
                 vendor_name: vendorMap[product.vendor_id] || "Vendor",
                 rating: product.rating ? parseFloat(product.rating) : 0, // Use actual rating from database
                 review_count: product.review_count || 0, // Use actual review count from database

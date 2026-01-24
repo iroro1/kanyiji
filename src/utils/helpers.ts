@@ -132,6 +132,33 @@ export const deepClone = <T>(obj: T): T => {
   return obj;
 };
 
+/** Fallback when product has no image. Unsplash URL allowed in next.config. */
+export const PLACEHOLDER_IMAGE =
+  "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80";
+
+/**
+ * Safely get the first product image URL. Handles undefined/null images,
+ * non-array values, and product_images shape. Never throws.
+ */
+export function getProductImageUrl(product: {
+  images?: unknown;
+  product_images?: Array<{ image_url?: string }>;
+} | null | undefined): string {
+  if (!product) return PLACEHOLDER_IMAGE;
+  const imgs = product.images;
+  if (Array.isArray(imgs) && imgs.length > 0) {
+    const first = imgs[0];
+    if (typeof first === "string" && first) return first;
+  }
+  const pimgs = product.product_images;
+  if (Array.isArray(pimgs) && pimgs.length > 0) {
+    const first = pimgs[0];
+    const url = first?.image_url;
+    if (typeof url === "string" && url) return url;
+  }
+  return PLACEHOLDER_IMAGE;
+}
+
 export function slugify(text: string): string {
   const a =
     "àáâäæãåāăąçćčđďèéêëēėęěğǵḧîïíīįìłḿñńǹňôöòóœøōõőṕŕřßśšşșťțûüùúūǘůűųẃẍÿýžźż·/_,:;";

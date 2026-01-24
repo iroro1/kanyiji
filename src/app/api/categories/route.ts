@@ -4,6 +4,20 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const isMissingColumnError = (error: any) =>
+  error?.code === "42703" || /column .* does not exist/i.test(error?.message || "");
+
+const getMissingColumn = (error: any) => {
+  const message = error?.message || "";
+  const match = message.match(/column (?:\w+\.)?([a-z_]+) does not exist/i);
+  return match?.[1] || null;
+};
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value
+  );
+
 // Public API route to fetch categories
 export async function GET(req: NextRequest) {
   try {
@@ -15,75 +29,140 @@ export async function GET(req: NextRequest) {
     const featured = searchParams.get("featured");
     const slug = searchParams.get("slug");
 
+    const categorySelect = "id, name, slug, description, image_url";
+    const categorySelectMinimal = "id, name, slug";
+    const categorySelectFallback = "id, name";
+
+    const runSingleCategoryQuery = async (
+      buildQuery: (select: string, useActive: boolean) => any
+    ) => {
+      const attempts = [
+        { select: categorySelect, useActive: true },
+        { select: categorySelect, useActive: false },
+        { select: categorySelectMinimal, useActive: false },
+        { select: categorySelectFallback, useActive: false },
+      ];
+
+      let lastError: any = null;
+      let missingColumn: string | null = null;
+
+      for (const attempt of attempts) {
+        const { data, error } = await buildQuery(attempt.select, attempt.useActive);
+        if (!error) {
+          return { category: data?.[0] || null, error: null, missingColumn: null };
+        }
+        lastError = error;
+        if (!isMissingColumnError(error)) {
+          break;
+        }
+        missingColumn = getMissingColumn(error) || missingColumn;
+      }
+
+      return { category: null, error: lastError, missingColumn };
+    };
+
     // If slug is provided, fetch a single category
     if (slug) {
       // Normalize slug: remove trailing dashes and convert to lowercase
-      const normalizedSlug = slug.trim().toLowerCase().replace(/-+$/, ''); // Remove trailing dashes
+      const normalizedSlug = slug.trim().toLowerCase().replace(/-+$/, ""); // Remove trailing dashes
+      const slugIsId = isUuid(normalizedSlug);
+      const slugCandidates = [normalizedSlug];
+      if (slug.trim().toLowerCase() !== normalizedSlug) {
+        slugCandidates.push(slug.trim().toLowerCase());
+      }
       
-      // First try exact match with normalized slug
-      let { data: category, error } = await supabase
-        .from("categories")
-        .select("id, name, slug, description, image_url, product_count")
-        .eq("slug", normalizedSlug)
-        .eq("is_active", true)
-        .single();
+      let category: any = null;
+      let error: any = null;
+      let slugColumnMissing = false;
 
-      // If not found, try with original slug (in case it has trailing dash)
-      if (error && slug !== normalizedSlug) {
-        const { data: categoryAlt, error: errorAlt } = await supabase
-          .from("categories")
-          .select("id, name, slug, description, image_url, product_count")
-          .eq("slug", slug.trim().toLowerCase())
-          .eq("is_active", true)
-          .single();
-        
-        if (!errorAlt && categoryAlt) {
-          category = categoryAlt;
-          error = null;
+      if (slugIsId) {
+        const result = await runSingleCategoryQuery((select, useActive) => {
+          let query = supabase.from("categories").select(select).eq("id", normalizedSlug);
+          if (useActive) {
+            query = query.eq("is_active", true);
+          }
+          return query.limit(1);
+        });
+        category = result.category;
+        error = result.error;
+      }
+
+      // Try exact match with normalized slug
+      if (!category) {
+        for (const candidate of slugCandidates) {
+          const result = await runSingleCategoryQuery((select, useActive) => {
+            let query = supabase.from("categories").select(select).eq("slug", candidate);
+            if (useActive) {
+              query = query.eq("is_active", true);
+            }
+            return query.limit(1);
+          });
+          if (result.category) {
+            category = result.category;
+            error = null;
+            break;
+          }
+          if (result.missingColumn === "slug") {
+            slugColumnMissing = true;
+            error = result.error;
+            break;
+          }
+          error = result.error;
         }
       }
 
-      // If still not found, try partial match (slug starts with normalized slug)
-      if (error) {
-        const { data: categories, error: partialError } = await supabase
-          .from("categories")
-          .select("id, name, slug, description, image_url, product_count")
-          .eq("is_active", true)
-          .ilike("slug", `${normalizedSlug}%`); // Case-insensitive partial match
-        
-        if (!partialError && categories && categories.length > 0) {
-          // Use the first matching category
-          category = categories[0];
+      // Try partial slug match if slug column exists
+      if (!category && !slugColumnMissing) {
+        const result = await runSingleCategoryQuery((select, useActive) => {
+          let query = supabase.from("categories").select(select).ilike("slug", `${normalizedSlug}%`);
+          if (useActive) {
+            query = query.eq("is_active", true);
+          }
+          return query.limit(1);
+        });
+        if (result.category) {
+          category = result.category;
           error = null;
+        } else {
+          if (result.missingColumn === "slug") {
+            slugColumnMissing = true;
+          }
+          error = result.error;
         }
       }
 
       // If still not found, try matching by category name (case-insensitive partial match)
-      if (error) {
-        // Generate a slug-like string from the search term (e.g., "fashion" -> "fashion")
-        const searchTerm = normalizedSlug.replace(/-/g, ' '); // Replace dashes with spaces for name matching
-        
-        const { data: categories, error: nameError } = await supabase
-          .from("categories")
-          .select("id, name, slug, description, image_url, product_count")
-          .eq("is_active", true)
-          .or(`name.ilike.%${searchTerm}%,name.ilike.%${normalizedSlug}%`);
-        
-        if (!nameError && categories && categories.length > 0) {
-          // Find the best match (exact name match or contains the search term)
-          const exactMatch = categories.find(cat => 
-            cat.name.toLowerCase().includes(searchTerm) || 
-            cat.name.toLowerCase().includes(normalizedSlug)
-          );
-          category = exactMatch || categories[0];
+      if (!category) {
+        const searchTerm = normalizedSlug.replace(/-/g, " ");
+        const result = await runSingleCategoryQuery((select, useActive) => {
+          let query = supabase
+            .from("categories")
+            .select(select)
+            .or(`name.ilike.%${searchTerm}%,name.ilike.%${normalizedSlug}%`);
+          if (useActive) {
+            query = query.eq("is_active", true);
+          }
+          return query.limit(1);
+        });
+        if (result.category) {
+          category = result.category;
           error = null;
+        } else {
+          error = result.error;
         }
       }
 
-      if (error || !category) {
+      if (error && !isMissingColumnError(error)) {
         console.error("Get category by slug error:", error);
         return NextResponse.json(
-          { error: error?.message || "Category not found", category: null },
+          { error: error?.message || "Failed to fetch category", category: null },
+          { status: 500 }
+        );
+      }
+
+      if (!category) {
+        return NextResponse.json(
+          { error: "Category not found", category: null },
           { status: 404 }
         );
       }
@@ -106,8 +185,8 @@ export async function GET(req: NextRequest) {
             .trim();
         };
 
-        const normalizedCategoryName = normalizeCategoryName(category.name);
-        const normalizedCategorySlug = normalizeCategoryName(category.slug);
+        const normalizedCategoryName = normalizeCategoryName(category?.name ?? "");
+        const normalizedCategorySlug = normalizeCategoryName(category?.slug ?? category?.name ?? "");
 
         // Filter products by status and match to category
         const matchingProducts = allProducts.filter((p: any) => {
@@ -151,6 +230,15 @@ export async function GET(req: NextRequest) {
         productCount = matchingProducts.length;
       }
 
+      if (productsError && isMissingColumnError(productsError)) {
+        return NextResponse.json({
+          category: {
+            ...category,
+            product_count: 0,
+          },
+        });
+      }
+
       return NextResponse.json({
         category: {
           ...category,
@@ -160,25 +248,50 @@ export async function GET(req: NextRequest) {
     }
 
     // Otherwise, fetch all categories
-    let query = supabase
-      .from("categories")
-      .select("id, name, slug, description, image_url, product_count")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true });
+    const listAttempts = [
+      { select: categorySelect, useActive: true, useSortOrder: true },
+      { select: categorySelect, useActive: true, useSortOrder: false },
+      { select: categorySelect, useActive: false, useSortOrder: false },
+      { select: categorySelectMinimal, useActive: false, useSortOrder: false },
+      { select: categorySelectFallback, useActive: false, useSortOrder: false },
+    ];
 
-    // Limit results if specified
-    if (limit) {
-      const limitNum = parseInt(limit, 10);
-      if (!isNaN(limitNum) && limitNum > 0) {
-        query = query.limit(limitNum);
+    let categories: any[] | null = null;
+    let listError: any = null;
+
+    for (const attempt of listAttempts) {
+      let query = supabase.from("categories").select(attempt.select);
+      if (attempt.useActive) {
+        query = query.eq("is_active", true);
+      }
+      if (attempt.useSortOrder) {
+        query = query.order("sort_order", { ascending: true });
+      }
+      query = query.order("name", { ascending: true });
+
+      // Limit results if specified
+      if (limit) {
+        const limitNum = parseInt(limit, 10);
+        if (!isNaN(limitNum) && limitNum > 0) {
+          query = query.limit(limitNum);
+        }
+      }
+
+      const { data, error } = await query;
+      if (!error) {
+        categories = data || [];
+        listError = null;
+        break;
+      }
+
+      listError = error;
+      if (!isMissingColumnError(error)) {
+        break;
       }
     }
 
-    const { data: categories, error } = await query;
-
-    if (error) {
-      throw error;
+    if (listError) {
+      throw listError;
     }
 
     // Calculate actual product counts for each category dynamically
@@ -214,8 +327,8 @@ export async function GET(req: NextRequest) {
 
         // Calculate product count for each category
         const categoriesWithCounts = categories.map((cat: any) => {
-          const normalizedCategoryName = normalizeCategoryName(cat.name);
-          const normalizedCategorySlug = normalizeCategoryName(cat.slug);
+          const normalizedCategoryName = normalizeCategoryName(cat?.name ?? "");
+          const normalizedCategorySlug = normalizeCategoryName(cat?.slug ?? cat?.name ?? "");
 
           const productCount = activeProducts.filter((p: any) => {
             // Match by category_id

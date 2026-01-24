@@ -3,15 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  image_url?: string;
-  product_count?: number;
-}
+import { getActiveCategories, type Category } from "@/data/categories";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,7 +43,12 @@ export default function CategoriesPage() {
         setCategories(dbCategories);
       } catch (err: any) {
         console.error("Error loading categories:", err);
-        setError(err.message || "Failed to load categories");
+        const fallbackCategories = getActiveCategories();
+        if (fallbackCategories.length > 0) {
+          setCategories(fallbackCategories);
+        } else {
+          setError(err.message || "Failed to load categories");
+        }
       } finally {
         setLoading(false);
       }
@@ -117,7 +114,9 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {categories.map((category) => (
+            {(Array.isArray(categories) ? categories : []).map((category) => {
+              if (!category) return null;
+              return (
               <Link
                 key={category.id}
                 href={`/categories/${category.slug || category.id}`}
@@ -137,7 +136,7 @@ export default function CategoriesPage() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <span className="text-6xl text-gray-400">
-                        {category.name.charAt(0).toUpperCase()}
+                        {category.name ? String(category.name).charAt(0).toUpperCase() : "?"}
                       </span>
                     </div>
                   )}
@@ -159,7 +158,8 @@ export default function CategoriesPage() {
                   </div>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

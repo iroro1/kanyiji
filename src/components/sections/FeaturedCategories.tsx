@@ -126,7 +126,9 @@ export default function FeaturedCategories() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-            {categories.map((category) => (
+            {(Array.isArray(categories) ? categories : []).map((category) => {
+              if (!category) return null;
+              return (
               <Link
                 key={category.id}
                 href={`/categories/${category.slug || category.id}`}
@@ -150,7 +152,7 @@ export default function FeaturedCategories() {
                     ) : (
                       <div className="w-full h-20 sm:h-24 md:h-28 lg:h-32 flex items-center justify-center">
                         <span className="text-3xl sm:text-4xl">
-                          {category.name.charAt(0).toUpperCase()}
+                          {category.name ? String(category.name).charAt(0).toUpperCase() : "?"}
                         </span>
                       </div>
                     )}
@@ -164,7 +166,8 @@ export default function FeaturedCategories() {
                   </p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
 
