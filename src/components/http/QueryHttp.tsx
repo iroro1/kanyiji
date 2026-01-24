@@ -165,6 +165,29 @@ export function useFetchAllProducts(
   const cacheKey = `allProducts_${JSON.stringify({ searchQuery, category, sale, feature, sort, priceRange })}`;
   const cacheDuration = 30 * 1000; // 30 seconds
 
+  // CRITICAL: When returning to the tab, ensure loader isn't stuck
+  // If we already have data or cache, force loading states off
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const cached = SessionStorage.getWithExpiry<any[]>(cacheKey);
+      const staleCache = SessionStorage.get<any[]>(cacheKey);
+      if ((cached && cached.length > 0) || (staleCache && staleCache.length > 0) || products.length > 0 || hasEverLoadedRef.current) {
+        setIsLoading(false);
+        setIsFetching(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [cacheKey, products.length]);
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -403,6 +426,32 @@ export function useFetchSingleProduct(productId: string, retry: boolean) {
   const hasInitialLoadRef = useRef<boolean>(false);
   const hasEverLoadedRef = useRef<boolean>(initialState.hasEverLoaded); // Track if we've ever had data
   const shouldShowLoaderRef = useRef<boolean>(!initialState.hasEverLoaded); // Track if we should ever show loader
+
+  // CRITICAL: When returning to the tab, ensure loader isn't stuck
+  // If we already have data or cache, force loading states off
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!productId) return;
+      const cacheKey = `singleProduct_${productId}`;
+      const cached = SessionStorage.getWithExpiry<any>(cacheKey);
+      const staleCache = SessionStorage.get<any>(cacheKey);
+      const hasLoadedFlag = SessionStorage.get<boolean>(`hasLoaded_${productId}`);
+      if (cached || staleCache || data || hasEverLoadedRef.current || hasLoadedFlag) {
+        setIsLoading(false);
+        setIsPending(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [productId, data]);
 
   // CRITICAL: useLayoutEffect runs synchronously before browser paint
   // This ensures cache check happens before first render, preventing loader flash

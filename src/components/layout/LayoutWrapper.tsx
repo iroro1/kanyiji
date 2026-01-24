@@ -12,7 +12,7 @@ interface LayoutWrapperProps {
 
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
-  const { isConfigValid, isLoading } = useAuth();
+  const { isConfigValid, isLoading, user } = useAuth();
   const isAdminRoute = pathname.startsWith("/admin");
 
   // Show configuration error if config is invalid
@@ -20,8 +20,8 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
     return <ConfigError />;
   }
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Show loading state while checking auth, but never block if we already have user data
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
