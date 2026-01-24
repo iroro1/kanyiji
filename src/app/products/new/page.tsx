@@ -75,9 +75,10 @@ export default function NewProductsPage() {
                 ? priceValue.toLocaleString()
                 : "0";
               return (
-            <div
+            <Link
               key={product.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              href={`/products/${product.id}`}
+              className="block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
               {/* Product Image */}
               <div className="relative aspect-square rounded-t-xl overflow-hidden bg-gray-100">
@@ -90,7 +91,14 @@ export default function NewProductsPage() {
                   }}
                 />
                 <div className="absolute top-3 right-3">
-                  <button className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors">
+                  <button
+                    type="button"
+                    className="p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
                     <Heart className="w-4 h-4 text-gray-600" />
                   </button>
                 </div>
@@ -144,21 +152,20 @@ export default function NewProductsPage() {
 
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    onClick={() => AddToCart(product)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      AddToCart(product);
+                    }}
                   >
                     <ShoppingCart className="w-4 h-4" />
                     Add to Cart
                   </button>
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    View
-                  </Link>
                 </div>
               </div>
-            </div>
+            </Link>
           );
           })}
         </div>

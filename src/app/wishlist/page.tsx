@@ -81,9 +81,10 @@ export default function WishlistPage() {
         {data && data.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {data?.map((item) => (
-              <div
+              <Link
                 key={item.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200 group"
+                href={`/products/${item.id}`}
+                className="block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200 group"
               >
                 {/* Image */}
                 <div className="relative aspect-square overflow-hidden bg-gray-100">
@@ -100,7 +101,12 @@ export default function WishlistPage() {
 
                   {/* Remove Button */}
                   <button
-                    onClick={() => deleteWishlistProduct(item.id)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deleteWishlistProduct(item.id);
+                    }}
                     className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-red-50 hover:text-red-600 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -175,7 +181,10 @@ export default function WishlistPage() {
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() =>
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         dispatch({
                           type: "ADD_TO_CART",
                           product: {
@@ -183,7 +192,7 @@ export default function WishlistPage() {
                             id: String(item.id),
                             price: Number(item.price),
                             stock_quantity: item.stock_quantity || 0,
-                            weight: item.weight || undefined, // Include weight if available
+                            weight: item.weight || undefined,
                             vendor_id: item.vendor_id,
                             title: "",
                             product_images: item.product_images?.[0]?.image_url
@@ -195,23 +204,16 @@ export default function WishlistPage() {
                                 ]
                               : [],
                           },
-                        })
-                      }
+                        });
+                      }}
                       className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                     >
                       <ShoppingCart className="w-4 h-4" />
                       <span className="text-sm">Add to Cart</span>
                     </button>
-
-                    <Link
-                      href={`/products/${item.id}`}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center min-w-[80px] shadow-sm hover:shadow-md"
-                    >
-                      <span className="text-sm">View</span>
-                    </Link>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (

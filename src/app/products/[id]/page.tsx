@@ -17,8 +17,7 @@ import {
   Package,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import { supabase } from "@/lib/supabase";
+import { useParams } from "next/navigation";
 import WishlistButton from "@/components/ui/Wishlist";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -32,16 +31,15 @@ import {
 } from "@/utils/shippingCalculator";
 import { useMemo } from "react";
 import { SessionStorage } from "@/utils/sessionStorage";
+import { getProductImageUrl, PLACEHOLDER_IMAGE } from "@/utils/helpers";
 
-export default function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function ProductDetailPage() {
+  const params = useParams();
+  const productId = (params?.id as string) ?? "";
   const { user } = useAuth();
   const [retry, setRetry] = useState<boolean>(false);
   const { data, isPending, isLoading, isError, refetch } =
-    useFetchSingleProduct(params?.id, retry);
+    useFetchSingleProduct(productId, retry);
   const { dispatch } = useCart();
   
   // CRITICAL: Track if we've ever had data to prevent loader from showing
@@ -68,12 +66,10 @@ export default function ProductDetailPage({
 
   // Silent background refetch when page becomes visible - doesn't block UI
   useEffect(() => {
-    if (!params?.id) return;
+    if (!productId) return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && data) {
-        // Silent background refetch - only if we already have data (prevents blocking)
-        // This updates stock without showing loading spinner
         refetch();
       }
     };
@@ -83,7 +79,7 @@ export default function ProductDetailPage({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [params?.id, refetch, data]);
+  }, [productId, refetch, data]);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -321,64 +317,7 @@ export default function ProductDetailPage({
     ];
   }, [productWithStock]);
 
-  // Only show loading spinner on INITIAL load when we have NO data
-  // This prevents blocking when switching tabs - data updates happen silently in background
-  // CRITICAL: Never show loader if we have data (even if isLoading is true from a re-render)
-  // data can be either an array [product] or a single product object
-  const hasAnyData = Boolean(
-    (Array.isArray(data) && data.length > 0) ||
-    (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) ||
-    productWithStock
-  );
-  
-  // CRITICAL: Only show loader on TRUE initial load - when we have NO data and NO cache
-  // This is the strictest check to prevent loader from showing unnecessarily
-  // Never show loader if we have ANY indication of data OR have ever had data
-  // Also check cache directly as a final safeguard
-  const cacheKey = params?.id ? `singleProduct_${params.id}` : null;
-  const cachedData = cacheKey ? SessionStorage.getWithExpiry<any>(cacheKey) : null;
-  const hasCachedData = Boolean(cachedData);
-  
-  // CRITICAL: Never show loader if we have ANY indication of data or have ever loaded
-  // This is the absolute final safeguard to prevent loader from showing on tab switches
-  // Check multiple conditions to be absolutely sure - check cache DIRECTLY in render
-  const productCacheKey = params?.id ? `singleProduct_${params.id}` : null;
-  const productCached = productCacheKey ? SessionStorage.getWithExpiry<any>(productCacheKey) : null;
-  const productStaleCache = productCacheKey ? SessionStorage.get<any>(productCacheKey) : null;
-  const hasLoadedFlag = params?.id ? SessionStorage.get<boolean>(`hasLoaded_${params.id}`) : false;
-  
-  // CRITICAL: Check ALL possible indicators that we have data
-  // If ANY of these are true, NEVER show loader
-  // This check happens in render, so it's synchronous and prevents loader flash
-  const hasAnyDataIndicator = Boolean(
-    data ||
-    productWithStock ||
-    hasAnyData ||
-    hasEverHadDataRef.current ||
-    hasCachedData ||
-    productCached ||
-    productStaleCache ||
-    hasLoadedFlag ||
-    isPending // If we're pending, we might be refetching - don't show loader
-  );
-  
-  // CRITICAL: Only show loader if ALL conditions are met:
-  // 1. isLoading is true
-  // 2. We have NO data indicators at all
-  // 3. We're not pending (which would indicate a background refetch)
-  // This is the absolute final check - if ANY data exists, loader won't show
-  const shouldShowLoader = isLoading && !hasAnyDataIndicator && !isPending && !data;
-
-  // Only show loader on true initial load with no data and no cache
-  // This should be extremely rare - only on first visit with no cache
-  // The loader will only show when there's truly nothing to display
-  if (shouldShowLoader) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner timeout={5000} />
-      </div>
-    );
-  }
+  const stillLoading = (isLoading || isPending) && !productWithStock;
 
   if (isError) {
     return (
@@ -389,6 +328,75 @@ export default function ProductDetailPage({
         onRetry={setRetry}
         retry={retry}
       />
+    );
+  }
+
+  if (!productId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4">
+        <Package className="w-16 h-16 text-gray-400" />
+        <h2 className="text-xl font-semibold text-gray-900">Invalid product</h2>
+        <p className="text-gray-600 text-center">This product link is invalid.</p>
+        <Link
+          href="/products"
+          className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Products
+        </Link>
+      </div>
+    );
+  }
+
+  if (stillLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Link
+              href="/products"
+              className="inline-flex items-center text-gray-600 hover:text-primary-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Products
+            </Link>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+          <LoadingSpinner timeout={10000} />
+          <p className="mt-4 text-gray-500 text-sm">Loading product...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!productWithStock) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Link
+              href="/products"
+              className="inline-flex items-center text-gray-600 hover:text-primary-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Products
+            </Link>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Product not found</h2>
+          <p className="text-gray-600 mb-6">This product may have been removed or the link is incorrect.</p>
+          <Link
+            href="/products"
+            className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+          >
+            Browse Products
+            <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+          </Link>
+        </div>
+      </div>
     );
   }
 
@@ -414,54 +422,55 @@ export default function ProductDetailPage({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Product Images */}
             <div>
-              <div className="aspect-square bg-white rounded-2xl overflow-hidden mb-4">
-                {productWithStock.product_images &&
-                productWithStock.product_images.length > 0 ? (
-                  <Image
-                    src={
-                      productWithStock.product_images?.[selectedImage]
-                        ?.image_url ||
-                      productWithStock.product_images?.[0]?.image_url ||
-                      "/placeholder-image.jpg"
-                    }
-                    alt={productWithStock?.name || "Product image"}
-                    className="w-full h-full object-cover"
-                    width={1000}
-                    height={1000}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                    No image available
-                  </div>
-                )}
+              <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden mb-4">
+                {(() => {
+                  const imgs = productWithStock.product_images;
+                  const hasImgs = Array.isArray(imgs) && imgs.length > 0;
+                  const primaryUrl = hasImgs
+                    ? (imgs[selectedImage]?.image_url ?? imgs[0]?.image_url)
+                    : getProductImageUrl(productWithStock);
+                  const src = primaryUrl || PLACEHOLDER_IMAGE;
+                  return (
+                    <img
+                      src={src}
+                      alt={productWithStock?.name ?? "Product image"}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                      }}
+                    />
+                  );
+                })()}
               </div>
 
               {/* Thumbnail Images */}
-              <div className="flex gap-3">
-                {productWithStock.product_images &&
-                  productWithStock.product_images.length > 0 &&
-                  productWithStock.product_images.map(
-                    (image: { image_url: string }, index: number) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedImage(index)}
-                        className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                          selectedImage === index
-                            ? "border-primary-500"
-                            : "border-gray-200"
-                        }`}
-                      >
-                        <Image
-                          src={image?.image_url}
-                          alt={`${productWithStock.name} ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          width={200}
-                          height={200}
-                        />
-                      </button>
-                    )
-                  )}
-              </div>
+              {Array.isArray(productWithStock.product_images) &&
+                productWithStock.product_images.length > 1 && (
+                  <div className="flex gap-3">
+                    {productWithStock.product_images.map(
+                      (image: { image_url?: string }, index: number) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImage(index)}
+                          className={`w-20 h-20 rounded-lg overflow-hidden border-2 flex-shrink-0 ${
+                            selectedImage === index
+                              ? "border-primary-500"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          <img
+                            src={image?.image_url || PLACEHOLDER_IMAGE}
+                            alt={`${productWithStock.name ?? "Product"} ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = PLACEHOLDER_IMAGE;
+                            }}
+                          />
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
             </div>
 
             {/* Product Info */}
@@ -526,11 +535,11 @@ export default function ProductDetailPage({
               <div className="mb-6">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl font-bold text-gray-900">
-                    ₦{productWithStock.price.toLocaleString()}
+                    ₦{Number(productWithStock.price ?? 0).toLocaleString()}
                   </span>
-                  {productWithStock.original_price &&
+                  {productWithStock.original_price != null &&
                     typeof productWithStock.original_price === "number" &&
-                    productWithStock.price &&
+                    productWithStock.price != null &&
                     typeof productWithStock.price === "number" &&
                     productWithStock.original_price >
                       productWithStock.price && (
@@ -553,9 +562,11 @@ export default function ProductDetailPage({
               </div>
 
               {/* Description */}
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                {productWithStock.description}
-              </p>
+              {(productWithStock.description != null && String(productWithStock.description).trim() !== "") && (
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  {productWithStock.description}
+                </p>
+              )}
 
               {/* Size Selection */}
               {availableSizes.length > 0 && (

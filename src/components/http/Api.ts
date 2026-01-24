@@ -84,8 +84,9 @@ export async function getSingleProduct(productId: string) {
     // Fallback to slug if not a UUID
     query = query.eq("slug", productId);
   }
-  
-  const { data, error } = await query.eq("status", "active").single();
+
+  query = query.or("status.eq.active,status.eq.approved,status.eq.published");
+  const { data, error } = await query.single();
 
   if (error) throw error;
   
@@ -433,22 +434,24 @@ export async function updateVendorOrderStatus(orderId: string, status: string) {
 }
 
 export async function fetchVendorDetails(userId: string) {
+  if (!userId) return null;
+
   const { data, error } = await supabase
     .from("vendors")
-    .select(`*, products(*, product_images(*), product_attributes( id, size, color, quantity )), vendor_bank_accounts(*)`)
+    .select(`*, products(*, product_images(*), product_attributes(id, size, color, quantity)), vendor_bank_accounts(*)`)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  
+
   // Calculate stock_quantity for each product from product_attributes if they exist
-  if (data && data.products && Array.isArray(data.products)) {
+  if (data?.products && Array.isArray(data.products)) {
     data.products = data.products.map((product: any) => {
       product.stock_quantity = calculateProductStock(product);
       return product;
     });
   }
-  
+
   return data;
 }
 
