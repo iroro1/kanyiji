@@ -37,8 +37,24 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as true to wait for initial auth check
+  // CRITICAL: Check localStorage FIRST before setting initial state
+  // This prevents loading state from blocking on route/tab switches
+  const getInitialUser = (): AuthUser | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const storedUser = localStorage.getItem("kanyiji_auth_user");
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+    } catch (e) {
+      console.error("Error reading initial user from localStorage:", e);
+    }
+    return null;
+  };
+
+  const [user, setUser] = useState<AuthUser | null>(getInitialUser());
+  // CRITICAL: Start with false if we have cached user, true only if no cache
+  const [isLoading, setIsLoading] = useState(!getInitialUser());
   const [isConfigValid, setIsConfigValid] = useState(true);
   const router = useRouter();
 
@@ -57,6 +73,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // First, check the current session immediately
       const checkInitialSession = async () => {
         try {
+          // If we have cached user, verify session but don't block UI
+          const cachedUser = getInitialUser();
+          if (cachedUser && isMounted) {
+            // We have cached user - verify session in background
+            // Don't set loading to true - keep UI responsive
+            setIsLoading(false);
+          }
+
           // Wait a bit to ensure localStorage is available
           if (typeof window !== "undefined") {
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -293,24 +317,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return;
     }
 
-    const handleBeforeUnload = () => {
-      // Reset loading state when window is about to close
-      // Works on Windows (Edge, Chrome, Firefox) and all modern browsers
-      setIsLoading(false);
+    const getCachedUser = () => {
+      try {
+        const storedUser = localStorage.getItem("kanyiji_auth_user");
+        return storedUser ? JSON.parse(storedUser) : null;
+      } catch (error) {
+        console.warn("Error reading cached user:", error);
+        return null;
+      }
     };
 
-    const handleVisibilityChange = () => {
-      // Reset loading state when page becomes hidden (tab switch, window close, minimize, etc.)
-      // Most reliable cross-platform event - works consistently on Windows
-      if (document.visibilityState === 'hidden' || document.hidden) {
+    const forceStopLoadingIfPossible = () => {
+      const cachedUser = getCachedUser();
+      if (user || cachedUser) {
         setIsLoading(false);
       }
     };
 
+    const handleBeforeUnload = () => {
+      // Reset loading state when window is about to close
+      setIsLoading(false);
+    };
+
+    const handleVisibilityChange = () => {
+      // Stop loading both when hidden and when visible again
+      if (document.visibilityState === 'hidden' || document.hidden) {
+        setIsLoading(false);
+        return;
+      }
+      // When tab becomes visible, ensure loader isn't stuck
+      forceStopLoadingIfPossible();
+    };
+
     const handleWindowBlur = () => {
       // Reset loading state when window loses focus
-      // Backup handler for Windows - may not fire in all scenarios (e.g., Alt+F4)
       setIsLoading(false);
+    };
+
+    const handleWindowFocus = () => {
+      // When window gains focus, ensure loader isn't stuck
+      forceStopLoadingIfPossible();
     };
 
     // Add event listeners with error handling for Windows compatibility
@@ -318,6 +364,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       window.addEventListener('beforeunload', handleBeforeUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
       window.addEventListener('blur', handleWindowBlur);
+      window.addEventListener('focus', handleWindowFocus);
+      window.addEventListener('pageshow', handleWindowFocus);
     } catch (error) {
       console.warn('Error adding event listeners for Bug #1 fix:', error);
     }
@@ -328,11 +376,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('blur', handleWindowBlur);
+        window.removeEventListener('focus', handleWindowFocus);
+        window.removeEventListener('pageshow', handleWindowFocus);
       } catch (error) {
         console.warn('Error removing event listeners for Bug #1 fix:', error);
       }
     };
-  }, []);
+  }, [user]);
 
   const checkAuthStatus = async () => {
     try {

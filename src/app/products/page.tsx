@@ -194,10 +194,14 @@ export default function ProductsPage() {
           retry={false}
         />
       )}
-      {/* Only show loading spinner on INITIAL load when no data exists */}
+      {/* CRITICAL: Only show loading spinner on TRUE initial load when no data exists */}
       {/* This prevents blocking when switching tabs - background refetches won't trigger spinner */}
-      {/* Timeout after 5 seconds to prevent endless loading */}
-      {isLoading && !products && !hasInitialLoadRef.current && <LoadingSpinner timeout={5000} />}
+      {/* Allow loader during initial fetch even if isFetching is true */}
+      {isLoading &&
+       !products?.length &&
+       !hasInitialLoadRef.current && (
+         <LoadingSpinner timeout={5000} />
+       )}
 
       {!isLoading && products?.length === 0 && (
         <EmptyState

@@ -341,58 +341,41 @@ export default function ProductDetailPage({
   
   // CRITICAL: Never show loader if we have ANY indication of data or have ever loaded
   // This is the absolute final safeguard to prevent loader from showing on tab switches
-  // Check multiple conditions to be absolutely sure
+  // Check multiple conditions to be absolutely sure - check cache DIRECTLY in render
   const productCacheKey = params?.id ? `singleProduct_${params.id}` : null;
   const productCached = productCacheKey ? SessionStorage.getWithExpiry<any>(productCacheKey) : null;
+  const productStaleCache = productCacheKey ? SessionStorage.get<any>(productCacheKey) : null;
   const hasLoadedFlag = params?.id ? SessionStorage.get<boolean>(`hasLoaded_${params.id}`) : false;
   
-  // CRITICAL: Add a maximum time check - if isLoading has been true for more than 20 seconds,
-  // force it to false to prevent infinite spinner (especially on mobile with slow networks)
-  const [forceHideLoader, setForceHideLoader] = useState(false);
-  useEffect(() => {
-    if (isLoading && !forceHideLoader) {
-      const timeout = setTimeout(() => {
-        console.warn('Loader has been showing for 20+ seconds, forcing it to hide');
-        setForceHideLoader(true);
-        // Mark as loaded to prevent spinner from showing again
-        if (params?.id) {
-          SessionStorage.set(`hasLoaded_${params.id}`, true, 24 * 60 * 60 * 1000);
-        }
-      }, 20000); // 20 seconds
-      return () => clearTimeout(timeout);
-    } else if (!isLoading) {
-      setForceHideLoader(false); // Reset when loading stops
-    }
-  }, [isLoading, params?.id, forceHideLoader]);
+  // CRITICAL: Check ALL possible indicators that we have data
+  // If ANY of these are true, NEVER show loader
+  // This check happens in render, so it's synchronous and prevents loader flash
+  const hasAnyDataIndicator = Boolean(
+    data ||
+    productWithStock ||
+    hasAnyData ||
+    hasEverHadDataRef.current ||
+    hasCachedData ||
+    productCached ||
+    productStaleCache ||
+    hasLoadedFlag ||
+    isPending // If we're pending, we might be refetching - don't show loader
+  );
   
-  const shouldShowLoader = isLoading && 
-                          !data && 
-                          !productWithStock && 
-                          !hasAnyData &&
-                          !hasEverHadDataRef.current && // Never show if we've ever had data
-                          !hasCachedData && // Never show if we have cached data
-                          !isPending && // Don't show if we're just pending (background refetch)
-                          !productCached && // Never show if we have product cache
-                          !hasLoadedFlag && // Never show if we've loaded this product before
-                          !forceHideLoader; // Never show if we've forced it to hide
+  // CRITICAL: Only show loader if ALL conditions are met:
+  // 1. isLoading is true
+  // 2. We have NO data indicators at all
+  // 3. We're not pending (which would indicate a background refetch)
+  // This is the absolute final check - if ANY data exists, loader won't show
+  const shouldShowLoader = isLoading && !hasAnyDataIndicator && !isPending && !data;
 
   // Only show loader on true initial load with no data and no cache
   // This should be extremely rare - only on first visit with no cache
   // The loader will only show when there's truly nothing to display
-  // CRITICAL: Add timeout fallback - if loader shows for too long, show error
   if (shouldShowLoader) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner 
-          timeout={10000} 
-          onTimeout={() => {
-            // After timeout, if still loading, mark that we've attempted to load
-            // This prevents infinite spinner
-            if (params?.id) {
-              SessionStorage.set(`hasLoaded_${params.id}`, true, 24 * 60 * 60 * 1000);
-            }
-          }}
-        />
+        <LoadingSpinner timeout={5000} />
       </div>
     );
   }
