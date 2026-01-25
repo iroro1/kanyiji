@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Package, User, Calendar, DollarSign, MapPin, Phone, Mail, Truck, CreditCard, FileText, Hash } from "lucide-react";
-import Image from "next/image";
+import { parseOrderItemsFromInternalNotes } from "@/utils/helpers";
 
 interface OrderItem {
   id: string;
@@ -139,10 +139,33 @@ export default function OrderDetailModal({
 }: OrderDetailModalProps) {
   if (!isOpen || !order) return null;
 
-  const totalQuantity = order.order_items?.reduce(
-    (sum, item) => sum + (item.quantity || 0),
-    0
-  ) || 0;
+  const itemsFromNotes = parseOrderItemsFromInternalNotes(order.internal_notes);
+  const useNotesItems = itemsFromNotes.length > 0;
+  type DisplayItem = { id: string; name: string; quantity: number; unit_price?: number; total_price?: number; size?: string; color?: string; products?: { product_images?: Array<{ image_url: string }> }; product_name?: string };
+  const displayItems: DisplayItem[] = useNotesItems
+    ? itemsFromNotes.map((it, i) => ({
+        id: `notes-${i}`,
+        name: it.name,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        total_price: it.total_price,
+        size: it.size,
+        color: it.color,
+      }))
+    : (order.order_items || []).map((it) => ({
+        id: it.id,
+        name: it.products?.name || (it as any).product_name || "Product",
+        quantity: it.quantity || 0,
+        unit_price: parseFloat(String(it.unit_price || "0")),
+        total_price: parseFloat(String(it.total_price || "0")),
+        size: it.size,
+        color: it.color,
+        products: it.products,
+      }));
+
+  const totalQuantity = useNotesItems
+    ? itemsFromNotes.reduce((s, it) => s + it.quantity, 0)
+    : (order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0);
 
   const shippingAddress = typeof order.shipping_address === "string" 
     ? order.shipping_address 
@@ -493,43 +516,24 @@ export default function OrderDetailModal({
             </div>
           )}
 
-          {/* Order Items */}
+          {/* Order Items – from internal_notes when available, else order_items */}
           <div>
             <h4 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">
               Order Items ({totalQuantity} {totalQuantity === 1 ? "item" : "items"})
             </h4>
             <div className="space-y-4">
-              {order.order_items && order.order_items.length > 0 ? (
-                order.order_items.map((item) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-4 flex items-start gap-4">
-                    <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                      {item.products?.product_images?.[0]?.image_url ? (
-                        <Image
-                          src={item.products?.product_images?.[0]?.image_url || "/placeholder-image.jpg"}
-                          alt={item.products.name || "Product"}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
+              {displayItems.length > 0 ? (
+                displayItems.map((item, index) => (
+                  <div key={item.id} className="border border-gray-200 rounded-lg p-4 flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold flex items-center justify-center">
+                      {index + 1}
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-sm font-semibold text-gray-900">
-                        {item.products?.name || "Product"}
-                      </h5>
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>Quantity: <strong>{item.quantity}</strong></span>
-                          {item.size && <span>Size: <strong>{item.size}</strong></span>}
-                          {item.color && <span>Color: <strong className="capitalize">{item.color}</strong></span>}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>Unit Price: <strong>{formatPrice(parseFloat(item.unit_price || "0"))}</strong></span>
-                          <span>Total: <strong className="text-gray-900">{formatPrice(parseFloat(item.total_price || "0"))}</strong></span>
-                        </div>
+                      <h5 className="text-sm font-semibold text-gray-900">{item.name}</h5>
+                      <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        <span>Quantity: <strong>{item.quantity}</strong></span>
+                        {item.size && <span>Size: <strong>{item.size}</strong></span>}
+                        {item.color && <span>Color: <strong className="capitalize">{item.color}</strong></span>}
                       </div>
                     </div>
                   </div>
@@ -617,8 +621,8 @@ export default function OrderDetailModal({
             </div>
           )}
 
-          {/* Internal Notes */}
-          {order.internal_notes && (
+          {/* Internal Notes – only when not used as Order Items source */}
+          {order.internal_notes && !useNotesItems && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wide flex items-center gap-2">
                 <FileText className="w-4 h-4" />

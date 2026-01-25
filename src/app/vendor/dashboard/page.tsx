@@ -45,6 +45,7 @@ import DocumentViewerModal from "@/components/vendor/DocumentViewerModal";
 import OrderDetailModal from "@/components/vendor/OrderDetailModal";
 import { useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
+import { parseOrderItemsFromInternalNotes } from "@/utils/helpers";
 
 interface Product {
   id: string;
@@ -103,7 +104,7 @@ interface VendorStats {
 }
 
 export default function VendorDashboard() {
-  const { data: user } = useFetchCurrentUser();
+  const { data: user, isPending: userLoading } = useFetchCurrentUser();
   const { user: authUser } = useAuth();
   const { notify } = useToast();
 
@@ -111,7 +112,7 @@ export default function VendorDashboard() {
 
   console.log("authUser", authUser);
   const userId = user ? user.id : "";
-  const { vendor, isPending } = useFetchVendorDetails(userId);
+  const { vendor, isPending, isError: vendorError, refetch: refetchVendor } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();
   const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders();
   
@@ -613,7 +614,26 @@ export default function VendorDashboard() {
     }
   };
 
-  if (user?.role !== "vendor") {
+  const hasVendorRole = user?.role === "vendor";
+  const hasVendorRecord = vendor != null;
+  const vendorOk = hasVendorRole || hasVendorRecord;
+
+  if (userLoading || (userId && isPending)) {
+    return <LoadingSpinner timeout={0} />;
+  }
+
+  if (!user) {
+    return (
+      <CustomError
+        statusCode={403}
+        title="Access Denied"
+        message="You must be logged in to access the vendor dashboard."
+        retry={false}
+      />
+    );
+  }
+
+  if (!vendorOk) {
     return (
       <CustomError
         statusCode={403}
@@ -624,12 +644,37 @@ export default function VendorDashboard() {
     );
   }
 
-  // Check if vendor is approved
-  if (isPending && !vendor) {
-    return <LoadingSpinner />;
+  if (!vendor) {
+    if (vendorError) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-8 text-center">
+            <p className="text-gray-600 mb-6">
+              Vendor profile could not be loaded. Please check your connection and try again.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => refetchVendor()}
+                className="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+              <Link
+                href="/profile"
+                className="px-6 py-3 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg transition-colors text-center"
+              >
+                Back to Profile
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <LoadingSpinner timeout={0} />;
   }
 
-  if (vendor && vendor.status !== "approved") {
+  if (vendor.status !== "approved") {
     const statusMessages: Record<string, string> = {
       pending: "Your vendor account is pending approval. Our team is reviewing your application. You'll be notified once your account is approved.",
       suspended: "Your vendor account has been suspended. Please contact support for more information.",
@@ -827,9 +872,13 @@ export default function VendorDashboard() {
                     <div className="text-center py-8 text-gray-500">No orders yet</div>
                   ) : (
                     orders.slice(0, 5).map((order: Order) => {
+                      const overviewNotes = parseOrderItemsFromInternalNotes(order.internal_notes);
+                      const useOverviewNotes = overviewNotes.length > 0;
                       const firstItem = order.order_items?.[0];
-                      const productName = firstItem?.products?.name || "Multiple items";
-                      const itemCount = order.order_items?.length || 0;
+                      const productName = useOverviewNotes
+                        ? (overviewNotes[0]?.name || "Multiple items")
+                        : (firstItem?.products?.name || (firstItem as any)?.product_name || "Multiple items");
+                      const itemCount = useOverviewNotes ? overviewNotes.length : (order.order_items?.length || 0);
                       return (
                         <div
                           key={order.id}
@@ -1079,9 +1128,16 @@ export default function VendorDashboard() {
                       </tr>
                     ) : (
                       orders.map((order: Order) => {
+                        const notesItems = parseOrderItemsFromInternalNotes(order.internal_notes);
+                        const useNotes = notesItems.length > 0;
                         const firstItem = order.order_items?.[0];
-                        const productName = firstItem?.products?.name || "Multiple items";
-                        const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                        const productName = useNotes
+                          ? (notesItems[0]?.name || "Multiple items")
+                          : (firstItem?.products?.name || (firstItem as any)?.product_name || "Multiple items");
+                        const itemCount = useNotes ? notesItems.length : (order.order_items?.length || 0);
+                        const totalQuantity = useNotes
+                          ? notesItems.reduce((s, it) => s + it.quantity, 0)
+                          : (order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0);
                         const orderDate = new Date(order.created_at).toLocaleDateString("en-NG", {
                           year: "numeric",
                           month: "short",
@@ -1089,9 +1145,20 @@ export default function VendorDashboard() {
                           hour: "2-digit",
                           minute: "2-digit",
                         });
-                        const hasSizeOrColor = firstItem?.size || firstItem?.color;
                         return (
-                          <tr key={order.id} className="hover:bg-gray-50">
+                          <tr
+                            key={order.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setViewingOrder(order)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setViewingOrder(order);
+                              }
+                            }}
+                            className="hover:bg-gray-50 cursor-pointer"
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
                                 #{order.id.slice(0, 8)}
@@ -1105,7 +1172,7 @@ export default function VendorDashboard() {
                                 {order.customer?.full_name || "N/A"}
                               </div>
                               {order.customer?.email && (
-                              <div className="text-sm text-gray-500">
+                                <div className="text-sm text-gray-500">
                                   {order.customer.email}
                                 </div>
                               )}
@@ -1113,19 +1180,12 @@ export default function VendorDashboard() {
                             <td className="px-6 py-4">
                               <div className="text-sm text-gray-900">
                                 {productName}
-                                {order.order_items && order.order_items.length > 1 && (
-                                  <span className="text-gray-500"> +{order.order_items.length - 1} more</span>
+                                {itemCount > 1 && (
+                                  <span className="text-gray-500"> +{itemCount - 1} more</span>
                                 )}
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
                                 Qty: {totalQuantity}
-                                {hasSizeOrColor && (
-                                  <span className="ml-2">
-                                    {firstItem?.size && `Size: ${firstItem.size}`}
-                                    {firstItem?.size && firstItem?.color && " • "}
-                                    {firstItem?.color && `Color: ${firstItem.color}`}
-                                  </span>
-                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -1141,31 +1201,32 @@ export default function VendorDashboard() {
                                 <span className="ml-1 capitalize">{order.status}</span>
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-2">
                                 <button
+                                  type="button"
                                   onClick={() => setViewingOrder(order)}
                                   className="text-primary-600 hover:text-primary-700 font-medium"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
-                              <select
-                                value={order.status}
-                                onChange={(e) =>
-                                  handleUpdateOrderStatus(
-                                    order.id,
-                                    e.target.value as Order["status"]
-                                  )
-                                }
-                                disabled={isUpdatingOrder}
-                                className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="processing">Processing</option>
-                                <option value="shipped">Shipped</option>
-                                <option value="delivered">Delivered</option>
-                                <option value="cancelled">Cancelled</option>
-                              </select>
+                                <select
+                                  value={order.status}
+                                  onChange={(e) =>
+                                    handleUpdateOrderStatus(
+                                      order.id,
+                                      e.target.value as Order["status"]
+                                    )
+                                  }
+                                  disabled={isUpdatingOrder}
+                                  className="text-sm border border-gray-300 rounded px-2 py-1 disabled:opacity-50"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="processing">Processing</option>
+                                  <option value="shipped">Shipped</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
                               </div>
                             </td>
                           </tr>
@@ -2208,11 +2269,11 @@ export default function VendorDashboard() {
                   </div>
 
                   {/* Bank Accounts */}
-                  {vendor.vendor_bank_accounts && Array.isArray(vendor.vendor_bank_accounts) && vendor.vendor_bank_accounts.length > 0 && (
+                  {vendor?.vendor_bank_accounts && Array.isArray(vendor.vendor_bank_accounts) && vendor.vendor_bank_accounts.length > 0 && (
                     <div className="bg-white rounded-lg border border-gray-200 p-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank Accounts</h3>
                       <div className="space-y-4">
-                        {vendor.vendor_bank_accounts.map((account: any, index: number) => (
+                        {vendor?.vendor_bank_accounts.map((account: any, index: number) => (
                           <div key={account.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="font-medium text-gray-900">

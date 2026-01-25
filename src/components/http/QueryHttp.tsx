@@ -813,7 +813,17 @@ export function useFetchVendorDetails(userId: string) {
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState<any>(null);
   const [isError, setIsError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const hasFetchedRef = useRef<string | null>(null);
+
+  const refetch = useCallback(() => {
+    if (!userId) return;
+    SessionStorage.remove(`vendor_${userId}`);
+    hasFetchedRef.current = null;
+    setError(null);
+    setIsError(false);
+    setRetryKey((k) => k + 1);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -824,7 +834,7 @@ export function useFetchVendorDetails(userId: string) {
     const cacheKey = `vendor_${userId}`;
     const cacheDuration = 15 * 60 * 1000; // 15 minutes
 
-    // Check cache first
+    // Check cache first (skip on retry)
     const cached = SessionStorage.getWithExpiry<any>(cacheKey);
     if (cached && hasFetchedRef.current === userId) {
       setVendor(cached);
@@ -847,7 +857,6 @@ export function useFetchVendorDetails(userId: string) {
       } catch (err: any) {
         setError(err);
         setIsError(true);
-        // Try stale cache on error
         const staleCache = SessionStorage.get<any>(cacheKey);
         if (staleCache) {
           setVendor(staleCache);
@@ -858,9 +867,9 @@ export function useFetchVendorDetails(userId: string) {
     };
 
     fetchVendor();
-  }, [userId]);
+  }, [userId, retryKey]);
 
-  return { vendor, isPending, error, isError };
+  return { vendor, isPending, error, isError, refetch };
 }
 
 // VENDOR ADD PRODUCTS

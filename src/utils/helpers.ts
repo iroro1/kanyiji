@@ -184,3 +184,79 @@ export function slugify(text: string): string {
       .replace(/-+$/, "")
   );
 }
+
+/** Order item shape parsed from order internal_notes (JSON or legacy "Product Variants" text) */
+export interface InternalNoteOrderItem {
+  name: string;
+  quantity: number;
+  unit_price?: number;
+  total_price?: number;
+  size?: string;
+  color?: string;
+  product_id?: string;
+}
+
+/**
+ * Parse legacy "Product Variants: Item 1 (Name): Size: L, Color: gold" format.
+ */
+function parseLegacyProductVariants(text: string): InternalNoteOrderItem[] {
+  const out: InternalNoteOrderItem[] = [];
+  const normalized = text.replace(/^Product Variants:\s*/i, "").trim();
+  if (!normalized) return out;
+  const itemRe = /Item\s+\d+\s*\(\s*([^)]+)\s*\)\s*(?::\s*(.+))?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = itemRe.exec(normalized)) !== null) {
+    const name = m[1].trim();
+    const rest = (m[2] || "").trim();
+    let size: string | undefined;
+    let color: string | undefined;
+    if (rest) {
+      const sizeMatch = rest.match(/Size:\s*([^,]+?)(?:\s*,|$)/i);
+      const colorMatch = rest.match(/Color:\s*([^,]+?)(?:\s*,|$)/i);
+      if (sizeMatch) size = sizeMatch[1].trim();
+      if (colorMatch) color = colorMatch[1].trim();
+    }
+    out.push({ name: name || "Product", quantity: 1, size, color });
+  }
+  return out;
+}
+
+/**
+ * Parse order items from order.internal_notes.
+ * Supports: (1) JSON array of items; (2) legacy "Product Variants: Item 1 (Name): Size: L, Color: gold".
+ * Returns [] if invalid or missing.
+ */
+export function parseOrderItemsFromInternalNotes(
+  internalNotes: string | null | undefined
+): InternalNoteOrderItem[] {
+  if (!internalNotes || typeof internalNotes !== "string") return [];
+  const t = internalNotes.trim();
+  if (!t) return [];
+
+  try {
+    const parsed = JSON.parse(t) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed
+        .filter((row: any) => row && (row.name != null || row.quantity != null))
+        .map((row: any) => {
+          const qty = Math.max(0, Math.floor(Number(row.quantity ?? row.qty ?? 1) || 0));
+          const up = parseFloat(String(row.unit_price ?? row.price ?? 0)) || 0;
+          const tp = parseFloat(String(row.total_price ?? row.total ?? 0)) || up * qty;
+          return {
+            name: String(row.name ?? row.product_name ?? "Product"),
+            quantity: qty,
+            unit_price: up,
+            total_price: tp,
+            size: row.size ?? undefined,
+            color: row.color ?? undefined,
+            product_id: row.product_id ?? undefined,
+          };
+        });
+    }
+  } catch {
+    /* not JSON */
+  }
+
+  const legacy = parseLegacyProductVariants(t);
+  return legacy.length > 0 ? legacy : [];
+}
