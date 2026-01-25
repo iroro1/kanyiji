@@ -126,8 +126,8 @@ export function useFetchCurrentUser() {
       } catch (err: any) {
         setError(err);
         setIsError(true);
-        // Try stale cache on error
-        const staleCache = SessionStorage.get<any>(cacheKey);
+        const raw = SessionStorage.get<any>(cacheKey);
+        const staleCache = raw && typeof raw === "object" && "value" in raw ? (raw as { value: any }).value : raw;
         if (staleCache) {
           setData(staleCache);
         }
@@ -842,6 +842,8 @@ export function useFetchVendorDetails(userId: string) {
       return;
     }
 
+    const VENDOR_FETCH_TIMEOUT_MS = 15_000;
+
     const fetchVendor = async () => {
       setIsPending(true);
       setIsError(false);
@@ -849,7 +851,10 @@ export function useFetchVendorDetails(userId: string) {
       hasFetchedRef.current = userId;
 
       try {
-        const result = await fetchVendorDetails(userId);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Vendor fetch timed out")), VENDOR_FETCH_TIMEOUT_MS)
+        );
+        const result = await Promise.race([fetchVendorDetails(userId), timeoutPromise]);
         setVendor(result);
         if (result) {
           SessionStorage.set(cacheKey, result, cacheDuration);
@@ -857,7 +862,8 @@ export function useFetchVendorDetails(userId: string) {
       } catch (err: any) {
         setError(err);
         setIsError(true);
-        const staleCache = SessionStorage.get<any>(cacheKey);
+        const raw = SessionStorage.get<any>(cacheKey);
+        const staleCache = raw && typeof raw === "object" && "value" in raw ? (raw as { value: any }).value : raw;
         if (staleCache) {
           setVendor(staleCache);
         }

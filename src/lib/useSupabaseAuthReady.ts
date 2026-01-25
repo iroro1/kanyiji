@@ -24,6 +24,7 @@ export function useSupabaseAuthReady() {
 
   useEffect(() => {
     let isMounted = true;
+    const SAFETY_TIMEOUT_MS = 12_000; // stop blocking after 12s if getSession hangs
 
     // If we have cached user, verify session but don't block UI
     const cachedUser = getInitialUser();
@@ -31,10 +32,17 @@ export function useSupabaseAuthReady() {
       setAuthLoading(false); // Don't block UI while verifying
     }
 
+    const stopLoading = () => {
+      if (isMounted) setAuthLoading(false);
+    };
+
+    const timeoutId = setTimeout(stopLoading, SAFETY_TIMEOUT_MS);
+
     // 1️⃣ Check immediately on mount
     supabase.auth
       .getSession()
       .then(({ data: { session }, error }) => {
+        clearTimeout(timeoutId);
         if (!isMounted) return;
 
         if (error) {
@@ -47,6 +55,7 @@ export function useSupabaseAuthReady() {
         setAuthLoading(false);
       })
       .catch((error) => {
+        clearTimeout(timeoutId);
         console.error("Error in getSession:", error);
         if (isMounted) {
           setAuthLoading(false);
@@ -65,6 +74,7 @@ export function useSupabaseAuthReady() {
     // 3️⃣ Cleanup
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
       subscription.subscription.unsubscribe();
     };
   }, []);
