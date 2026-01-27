@@ -425,22 +425,40 @@ class SupabaseAuthService {
       }
 
       console.log("📤 Calling signInWithPassword...");
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password,
-      });
+      const LOGIN_TIMEOUT_MS = 60_000; // 60s so slow connections can complete
+      let data: { user: any; session: any } | null = null;
+      let error: { message: string } | null = null;
+      try {
+        const result = await Promise.race([
+          supabase.auth.signInWithPassword({
+            email: credentials.email,
+            password: credentials.password,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Login timed out. Please check your connection and try again.")), LOGIN_TIMEOUT_MS)
+          ),
+        ]);
+        data = result.data as { user: any; session: any };
+        error = result.error as { message: string } | null;
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err?.message || "Login timed out. Please check your connection and try again.",
+        };
+      }
 
       if (error) {
         console.error("❌ Supabase auth error:", error);
         
         // Check if error is related to MFA
         // Supabase returns MFA challenges in the error response
-        const isMFAError = 
-          error.message?.toLowerCase().includes("mfa") || 
-          error.message?.toLowerCase().includes("multi-factor") ||
-          error.message?.toLowerCase().includes("2fa") ||
-          error.message?.toLowerCase().includes("two-factor") ||
-          error.status === 401; // MFA challenges often return 401
+        const err = error as { message?: string; status?: number };
+        const isMFAError =
+          err.message?.toLowerCase().includes("mfa") ||
+          err.message?.toLowerCase().includes("multi-factor") ||
+          err.message?.toLowerCase().includes("2fa") ||
+          err.message?.toLowerCase().includes("two-factor") ||
+          err.status === 401; // MFA challenges often return 401
         
         if (isMFAError) {
           console.log("⚠️ MFA challenge detected from error response");
@@ -476,118 +494,70 @@ class SupabaseAuthService {
       }
 
       console.log("✅ Auth successful, user ID:", data.user.id);
-      console.log("📥 Fetching user profile...");
 
-      // Get user profile - try with maybeSingle to handle missing profiles
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .maybeSingle();
+      // Build user from session immediately so login doesn't hang on profile fetch
+      const userFromSession = {
+        id: data.user.id,
+        email: data.user.email!,
+        name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+        role: (data.user.user_metadata?.role as "customer" | "vendor" | "admin") || "customer",
+        isEmailVerified: data.user.email_confirmed_at !== null,
+        createdAt: data.user.created_at || new Date().toISOString(),
+      };
+
+      // Profile fetch with short timeout so login returns quickly; use session data if it hangs
+      const PROFILE_TIMEOUT_MS = 4_000;
+      let profile: { full_name?: string; role?: string; created_at?: string } | null = null;
+      let profileError: { code?: string; message?: string } | null = null;
+      try {
+        const profileResult = await Promise.race([
+          supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle(),
+          new Promise<{ data: null; error: { message: string } }>((_, reject) =>
+            setTimeout(() => reject(new Error("Profile fetch timed out")), PROFILE_TIMEOUT_MS)
+          ),
+        ]);
+        if (profileResult && "data" in profileResult) {
+          profile = (profileResult as { data: any; error: any }).data;
+          profileError = (profileResult as { data: any; error: any }).error;
+        }
+      } catch (_) {
+        // Timeout or error: use session user
+        return { success: true, user: userFromSession };
+      }
 
       if (profileError) {
-        console.error("❌ Profile fetch error:", profileError);
-        // If profile doesn't exist, try to create it
-        if (profileError.code === "PGRST116" || profileError.message.includes("No rows")) {
-          console.log("⚠️ Profile not found, attempting to create...");
-          try {
-            const { error: createError } = await supabase
-              .from("profiles")
-              .insert({
-                id: data.user.id,
-                email: data.user.email!,
-                full_name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
-                role: data.user.user_metadata?.role || "customer",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-
-            if (createError) {
-              console.error("❌ Failed to create profile:", createError);
-              // Still return user with basic info if profile creation fails
-              return {
-                success: true,
-                user: {
-                  id: data.user.id,
-                  email: data.user.email!,
-                  name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
-                  role: data.user.user_metadata?.role || "customer",
-                  isEmailVerified: data.user.email_confirmed_at !== null,
-                  createdAt: new Date().toISOString(),
-                },
-              };
-            } else {
-              console.log("✅ Profile created successfully");
-              // Fetch the newly created profile
-              const { data: newProfile } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", data.user.id)
-                .single();
-
-              if (newProfile) {
-                return {
-                  success: true,
-                  user: {
-                    id: data.user.id,
-                    email: data.user.email!,
-                    name: newProfile.full_name,
-                    role: newProfile.role,
-                    isEmailVerified: data.user.email_confirmed_at !== null,
-                    createdAt: newProfile.created_at,
-                  },
-                };
-              }
-            }
-          } catch (createErr: any) {
-            console.error("❌ Error creating profile:", createErr);
-            // Fallback: return user with basic info
-            return {
-              success: true,
-              user: {
-                id: data.user.id,
-                email: data.user.email!,
-                name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
-                role: data.user.user_metadata?.role || "customer",
-                isEmailVerified: data.user.email_confirmed_at !== null,
-                createdAt: new Date().toISOString(),
-              },
-            };
-          }
-        } else {
-          return {
-            success: false,
-            error: `Profile error: ${profileError.message}`,
-          };
+        const msg = profileError.message ?? "";
+        const isNotFound = profileError.code === "PGRST116" || msg.includes("No rows");
+        if (isNotFound) {
+          // Create profile in background so it exists next time
+          void Promise.resolve(
+            supabase.from("profiles").insert({
+              id: data.user.id,
+              email: data.user.email!,
+              full_name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
+              role: data.user.user_metadata?.role || "customer",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+          ).catch(() => {});
         }
+        // Never fail login when sign-in succeeded — use session user for any profile error
+        return { success: true, user: userFromSession };
       }
 
       if (!profile) {
-        console.warn("⚠️ Profile query returned null, using user metadata");
-        // Fallback to user metadata if profile doesn't exist
-        return {
-          success: true,
-          user: {
-            id: data.user.id,
-            email: data.user.email!,
-            name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
-            role: data.user.user_metadata?.role || "customer",
-            isEmailVerified: data.user.email_confirmed_at !== null,
-            createdAt: new Date().toISOString(),
-          },
-        };
+        return { success: true, user: userFromSession };
       }
 
-      console.log("✅ Login successful, profile found");
       return {
         success: true,
         user: {
           id: data.user.id,
           email: data.user.email!,
-          name: profile.full_name,
-          role: profile.role,
+          name: profile.full_name ?? userFromSession.name,
+          role: (profile.role as "customer" | "vendor" | "admin") ?? userFromSession.role,
           isEmailVerified: data.user.email_confirmed_at !== null,
-          createdAt: profile.created_at,
+          createdAt: profile.created_at ?? userFromSession.createdAt,
         },
       };
     } catch (error: any) {
@@ -832,11 +802,10 @@ class SupabaseAuthService {
           : "https://kanyiji.ng/auth/callback";
       };
 
+      const redirectTo = getRedirectUrl();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: getRedirectUrl(),
-        },
+        options: { redirectTo },
       });
 
       if (error) {
@@ -846,6 +815,13 @@ class SupabaseAuthService {
         };
       }
 
+      // Supabase returns data.url — the browser must navigate there to start the OAuth flow
+      if (data?.url && typeof window !== "undefined") {
+        window.location.href = data.url;
+        return { success: true };
+      }
+
+      // Fallback if no URL (e.g. server-side): caller may need to redirect
       return { success: true };
     } catch (error: any) {
       console.error("Google login error:", error);

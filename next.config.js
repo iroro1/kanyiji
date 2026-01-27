@@ -38,6 +38,12 @@ const nextConfig = {
   optimizeFonts: true,
   // Enable static page generation where possible
   output: 'standalone',
+  async redirects() {
+    return [
+      // Fix typo: /vendor/dashboard. → /vendor/dashboard
+      { source: '/vendor/dashboard.', destination: '/vendor/dashboard', permanent: false },
+    ];
+  },
 };
 
 module.exports = nextConfig;

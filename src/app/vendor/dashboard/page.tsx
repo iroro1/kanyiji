@@ -122,8 +122,11 @@ export default function VendorDashboard() {
   const { user: authUser } = useAuth();
   const { notify } = useToast();
 
-  // Memoize userId to prevent unnecessary re-renders and refetches
-  const userId = useMemo(() => (user ? user.id : ""), [user?.id]);
+  // Use auth user id when available so vendor/orders start fetching before useFetchCurrentUser resolves
+  const userId = useMemo(
+    () => (user?.id ?? (authUser as { id?: string })?.id) ?? "",
+    [user?.id, (authUser as { id?: string })?.id]
+  );
   const { vendor, isPending, isError: vendorError, refetch: refetchVendor } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();
   const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders(userId);
@@ -421,11 +424,6 @@ export default function VendorDashboard() {
 
     setIsSavingVendor(true);
     try {
-      console.log('Saving vendor data:', vendorFormData);
-      console.log('Current vendor ID:', vendor.id);
-      console.log('Current user ID:', userId);
-      console.log('Vendor user_id from loaded data:', vendor.user_id);
-
       // Include vendor ID in the request so API can use it directly
       const response = await fetch('/api/vendor/profile', {
         method: 'PATCH',
@@ -565,21 +563,21 @@ export default function VendorDashboard() {
     }
   };
 
-  const hasVendorRole = user?.role === "vendor";
+  const effectiveUser = user ?? authUser;
+  const hasVendorRole = (user?.role === "vendor") || ((authUser as { role?: string })?.role === "vendor");
   const hasVendorRecord = vendor != null;
   const vendorOk = hasVendorRole || hasVendorRecord;
 
-  // Show loading only when:
-  // 1. User is still loading, OR
-  // 2. User is loaded and we have a userId and vendor is still loading
-  // Don't show loading if userId is empty (can't fetch vendor without userId)
-  const isLoading = userLoading || (user && userId && isPending && !vendorError);
+  // Show loading only when we have no user yet and no auth fallback, or when vendor is still loading
+  // If we have authUser we can start showing content as soon as vendor is ready (don't wait for useFetchCurrentUser)
+  const isLoading =
+    (userLoading && !authUser) || (userId && isPending && !vendorError);
 
   if (isLoading) {
     return <LoadingSpinner timeout={0} />;
   }
 
-  if (!user) {
+  if (!effectiveUser) {
     return (
       <CustomError
         statusCode={403}

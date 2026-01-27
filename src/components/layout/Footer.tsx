@@ -184,6 +184,8 @@ export default function Footer() {
                 height={150}
                 width={150}
                 priority
+                className="object-contain"
+                style={{ width: "auto", height: "auto" }}
               />
             </div>
             <p className="text-gray-300 mb-6 max-w-md">

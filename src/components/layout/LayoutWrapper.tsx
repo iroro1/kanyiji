@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "./Navbar";
@@ -10,18 +11,32 @@ interface LayoutWrapperProps {
   children: React.ReactNode;
 }
 
+const INITIAL_LOAD_MAX_MS = 2_500; // show app after this even if auth still loading
+
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const { isConfigValid, isLoading, user } = useAuth();
   const isAdminRoute = pathname.startsWith("/admin");
+  const [allowRender, setAllowRender] = useState(false);
+
+  // For public/home routes, don't block forever: show app after a short delay
+  // so initial load doesn't hang when Supabase is slow
+  useEffect(() => {
+    if (!isLoading || user) {
+      setAllowRender(true);
+      return;
+    }
+    const t = setTimeout(() => setAllowRender(true), INITIAL_LOAD_MAX_MS);
+    return () => clearTimeout(t);
+  }, [isLoading, user]);
 
   // Show configuration error if config is invalid
   if (!isLoading && !isConfigValid) {
     return <ConfigError />;
   }
 
-  // Show loading state while checking auth, but never block if we already have user data
-  if (isLoading && !user) {
+  // Show loading only briefly; after INITIAL_LOAD_MAX_MS show app (auth will resolve in background)
+  if (isLoading && !user && !allowRender) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

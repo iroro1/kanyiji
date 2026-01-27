@@ -39,7 +39,7 @@ const DeleteAccountModal = dynamic(
 );
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: currentUser } = useFetchCurrentUser();
   const userId = currentUser?.id || user?.id || "";
   const { vendor, isPending: vendorLoading } = useFetchVendorDetails(userId);
@@ -179,28 +179,27 @@ export default function ProfilePage() {
   }, [vendor]);
 
   // Fetch user profile data from database - ONLY ONCE when user is available
+  // Use currentUser?.id || user?.id so we load when either source is ready (useAuth can be slow)
   // Use sessionStorage to persist data across tab switches within the same session
   useEffect(() => {
-    // Don't fetch if not authenticated or user ID not available yet
-    if (!isAuthenticated || !user?.id) {
+    const userId = currentUser?.id || user?.id;
+    if (!userId) {
       setIsLoading(false);
       hasInitialLoadRef.current = true;
       return;
     }
 
-    const userId = user.id; // Extract user ID once to prevent dependency issues
-    
     // CHECK SESSIONSTORAGE FIRST - Load from session if available
     // This prevents showing loader when switching tabs
     const sessionData = getProfileFromSession(userId);
     if (sessionData) {
-      console.log("📦 Loading profile data from sessionStorage for user:", userId);
       // Ensure avatar_url is included from session data or fallback to user metadata
       const sessionDataWithAvatar = {
         ...sessionData,
         avatar_url: sessionData.avatar_url || 
                    (user as any)?.user_metadata?.avatar_url || 
                    (user as any)?.user_metadata?.picture || 
+                   (currentUser as any)?.avatar_url || 
                    "",
       };
       setUserData(sessionDataWithAvatar);
@@ -289,12 +288,13 @@ export default function ProfilePage() {
                            profile.image_url || 
                            (user as any)?.user_metadata?.avatar_url || 
                            (user as any)?.user_metadata?.picture || 
+                           (currentUser as any)?.avatar_url || 
                            "";
 
           const profileData = {
             firstName,
             lastName,
-            email: profile.email || user.email || "",
+            email: profile.email || (user as any)?.email || (currentUser as any)?.email || "",
             phone: phone,
             address: profile.address || "",
             city: profile.city || "",
@@ -342,10 +342,9 @@ export default function ProfilePage() {
     return () => {
       isMounted = false;
     };
-    // STRICT DEPENDENCY: Only depend on user ID (string primitive) to prevent unnecessary re-runs
-    // SessionStorage persists data across tab switches - only refetch when user ID changes
+    // Re-run when user ID from either source changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Only re-run when user ID actually changes (not on tab switch)
+  }, [currentUser?.id, user?.id]);
 
   const handleSave = async () => {
     if (!isAuthenticated || !user?.id) {
@@ -481,6 +480,18 @@ export default function ProfilePage() {
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
+  // Wait for auth to finish before deciding — never show "Please Sign In" while auth is still loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading state ONLY on initial load, not when switching tabs
   if (isLoading && !hasInitialLoadRef.current) {
     return (
@@ -493,7 +504,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Show login prompt if not authenticated
+  // Show login prompt only after auth has finished and we know the user is not authenticated
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

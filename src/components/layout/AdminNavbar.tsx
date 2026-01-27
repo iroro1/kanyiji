@@ -146,7 +146,7 @@ export default function AdminNavbar() {
                     style={{ 
                       filter: 'brightness(0.85) contrast(1.3) saturate(1.1)',
                       width: '100%',
-                      height: '100%'
+                      height: 'auto'
                     }}
                   />
                 </div>

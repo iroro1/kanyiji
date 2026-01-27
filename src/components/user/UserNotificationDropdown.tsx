@@ -73,17 +73,7 @@ export default function UserNotificationDropdown({ unreadCount: initialCount, on
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Notifications API response:", {
-          notificationsCount: data.notifications?.length || 0,
-          unreadCount: data.unreadCount || 0,
-          pagination: data.pagination,
-          sampleNotifications: data.notifications?.slice(0, 2).map((n: any) => ({
-            id: n.id,
-            title: n.title,
-            user_id: n.user_id,
-            recipient_type: n.recipient_type,
-          })),
-        });
+        // Removed debug logging for production
         setNotifications(data.notifications || []);
         const newCount = data.unreadCount || 0;
         setUnreadCount(newCount);

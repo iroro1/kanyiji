@@ -24,7 +24,15 @@ import UserNotificationDropdown from "@/components/user/UserNotificationDropdown
 // Logo Component
 const Logo = () => (
   <Link href="/" className="flex items-center space-x-3 group">
-    <Image src={kanyiyi} alt="Kanyiyi" height={130} width={130} priority />
+    <Image
+      src={kanyiyi}
+      alt="Kanyiyi"
+      height={88}
+      width={88}
+      priority
+      className="object-contain"
+      style={{ width: "auto", height: "auto" }}
+    />
   </Link>
 );
 
@@ -258,10 +266,10 @@ const AuthButtons = ({
             </div>
             <button
               type="button"
-              onClick={async (e) => {
+              onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                await onLogout?.();
+                onLogout?.();
               }}
               className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
             >
@@ -588,11 +596,10 @@ const AuthButtons = ({
                   <div className="border-t border-gray-100 my-2" />
                   <button
                     type="button"
-                    onClick={async (e) => {
+                    onMouseDown={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setShowDropdown(false);
-                      await onLogout?.();
+                      onLogout?.();
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
                   >
@@ -630,18 +637,62 @@ const AuthButtons = ({
 
 // Main Navbar Component
 export default function Navbar() {
-  const { isAuthenticated, logout, user: authUser } = useAuth();
+  const { isAuthenticated, logout, user: authUser, refreshUser } = useAuth();
 
   const { data: user } = useFetchCurrentUser();
-  
+
   // Use user from hook, fallback to authUser, ensure we always have user data
   const displayUser = user || authUser;
-  const userId = displayUser?.id || user?.id || "";
-  
+  // Include authUser.id so vendor fetch runs as soon as we're authenticated (before profile loads)
+  const userId = displayUser?.id || user?.id || authUser?.id || "";
+
   const { vendor } = useFetchVendorDetails(userId);
-  
-  // Check if user is a vendor (either by role or by having a vendor record)
-  const isVendor = displayUser?.role === "vendor" || !!vendor;
+
+  // Server-side source of truth: /api/vendor/me returns isVendor from DB (bypasses RLS/client cache issues)
+  const [apiIsVendor, setApiIsVendor] = useState(false);
+  useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      setApiIsVendor(false);
+      return;
+    }
+    fetch("/api/vendor/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((body) => setApiIsVendor(!!body?.isVendor))
+      .catch(() => setApiIsVendor(false));
+  }, [isAuthenticated, userId]);
+
+  // Fallback: treat as vendor if we've stored that in localStorage for this user (avoids "Become a Vendor" when already vendor)
+  const [storedIsVendor, setStoredIsVendor] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !authUser?.id) {
+      setStoredIsVendor(false);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem("kanyiji_auth_user");
+      const stored = raw ? JSON.parse(raw) : null;
+      setStoredIsVendor(!!(stored?.id === authUser.id && (stored?.role === "vendor" || stored?.role === "admin")));
+    } catch {
+      setStoredIsVendor(false);
+    }
+  }, [authUser?.id]);
+
+  // Treat as vendor if: API says so, profile/session role, vendor record from client, or stored before
+  const isVendor =
+    apiIsVendor ||
+    displayUser?.role === "vendor" ||
+    (authUser as { role?: string })?.role === "vendor" ||
+    !!vendor ||
+    storedIsVendor;
+
+  // When we have a vendor record but auth still says customer, refresh user so profile (role vendor) is persisted
+  const didRefreshForVendor = useRef(false);
+  useEffect(() => {
+    if (!vendor || !userId || !refreshUser || didRefreshForVendor.current) return;
+    if (displayUser?.role === "vendor" || (authUser as { role?: string })?.role === "vendor") return;
+    didRefreshForVendor.current = true;
+    refreshUser();
+  }, [vendor, userId, refreshUser, displayUser?.role, (authUser as { role?: string })?.role]);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -715,19 +766,19 @@ export default function Navbar() {
     }
   }, [isAuthenticated, userId]);
 
+  // When auth state becomes authenticated (e.g. from SIGNED_IN listener), clear
+  // login-in-progress and close the auth modal so UI doesn’t stay stuck.
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsLoginInProgress(false);
+      setShowAuthModal(false);
+    }
+  }, [isAuthenticated]);
+
   // Prevent modal from closing if login is in progress
   const shouldCloseModal = () => {
     return !isLoginInProgress;
   };
-
-  console.log(
-    "Navbar render - showAuthModal:",
-    showAuthModal,
-    "isAuthenticated:",
-    isAuthenticated,
-    "isLoginInProgress:",
-    isLoginInProgress
-  );
 
   const navigation = [
     { name: "Categories", href: "/categories" },
@@ -1344,11 +1395,10 @@ const MobileMenu = ({
             <div className="pt-2 border-t border-gray-100">
               <button
                 type="button"
-                onClick={async (e) => {
+                onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onLinkClick();
-                  await onLogout?.();
+                  onLogout?.();
                 }}
                 className="flex items-center w-full px-3 py-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors group"
               >

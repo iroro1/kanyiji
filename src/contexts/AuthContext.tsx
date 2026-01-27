@@ -17,7 +17,7 @@ interface AuthContextType {
   register: (
     userData: any
   ) => Promise<{ success: boolean; requiresVerification?: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  logout: () => void;
   refreshUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -37,17 +37,36 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  // CRITICAL: Check localStorage FIRST before setting initial state
-  // This prevents loading state from blocking on route/tab switches
+  // CRITICAL: kanyiji_auth_user (localStorage), kanyiji_currentUser (session), kanyiji_profile_data (session) = auth data. If any is present, treat user as logged in.
   const getInitialUser = (): AuthUser | null => {
     if (typeof window === "undefined") return null;
     try {
-      const storedUser = localStorage.getItem("kanyiji_auth_user");
-      if (storedUser) {
-        return JSON.parse(storedUser);
+      const fromLocal = localStorage.getItem("kanyiji_auth_user");
+      if (fromLocal) {
+        return JSON.parse(fromLocal);
+      }
+      const fromSession = SessionStorage.getWithExpiry<AuthUser>("currentUser");
+      if (fromSession && fromSession.id && fromSession.email) {
+        return fromSession;
+      }
+      const profileDataRaw = sessionStorage.getItem("kanyiji_profile_data");
+      if (profileDataRaw) {
+        const parsed = JSON.parse(profileDataRaw) as { userId?: string; profileData?: Record<string, unknown> };
+        const uid = parsed?.userId;
+        if (uid) {
+          const p = parsed?.profileData as Record<string, unknown> | undefined;
+          return {
+            id: uid,
+            email: (p?.email as string) || "",
+            name: (p?.full_name as string) || (p?.firstName as string) || "User",
+            role: (p?.role as "customer" | "vendor" | "admin") || "customer",
+            isEmailVerified: false,
+            createdAt: new Date().toISOString(),
+          };
+        }
       }
     } catch (e) {
-      console.error("Error reading initial user from localStorage:", e);
+      console.error("Error reading initial user:", e);
     }
     return null;
   };
@@ -70,18 +89,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log("after supabase validation");
 
     if (configValid) {
-      // First, check the current session immediately
+      const INITIAL_LOAD_SAFETY_MS = 8_000; // stop blocking if getSession hangs
+      const GET_SESSION_RACE_MS = 7_500;  // race timeout; on timeout treat as no session (no user-facing error)
+      const safetyTimeoutId = setTimeout(() => {
+        if (isMounted) {
+          setIsLoading(false);
+          setUser(null);
+        }
+      }, INITIAL_LOAD_SAFETY_MS);
+
       const checkInitialSession = async () => {
         try {
-          // If we have cached user, verify session but don't block UI
+          // Restore from kanyiji_auth_user / kanyiji_currentUser / kanyiji_profile_data immediately so UI never shows "Please Sign In" when we have the data
           const cachedUser = getInitialUser();
           if (cachedUser && isMounted) {
-            // We have cached user - verify session in background
-            // Don't set loading to true - keep UI responsive
+            setUser(cachedUser);
             setIsLoading(false);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("kanyiji_auth_user", JSON.stringify(cachedUser));
+            }
           }
 
-          // Wait a bit to ensure localStorage is available
           if (typeof window !== "undefined") {
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
@@ -89,10 +117,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const {
             data: { session },
             error: sessionError,
-          } = await supabase.auth.getSession();
+          } = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<{ data: { session: null }; error: null }>((resolve) =>
+              setTimeout(() => resolve({ data: { session: null }, error: null }), GET_SESSION_RACE_MS)
+            ),
+          ]).then(
+            (r) => r,
+            () => ({ data: { session: null }, error: null }) // timeout or throw → treat as no session, never surface message
+          );
 
           if (sessionError) {
-            console.error("Session error:", sessionError);
             if (isMounted) {
               setUser(null);
               setIsLoading(false);
@@ -157,27 +192,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } else {
             console.log("No existing session found");
-            // Check localStorage backup
+            // Restore from localStorage, kanyiji_currentUser, or kanyiji_profile_data — if any present, user should be logged in
             if (typeof window !== "undefined" && isMounted) {
               try {
-                const storedUser = localStorage.getItem("kanyiji_auth_user");
-                if (storedUser) {
-                  const parsedUser = JSON.parse(storedUser);
-                  console.log("Found user in localStorage backup, verifying session...");
-                  // Verify session still exists
+                let parsedUser: AuthUser | null = null;
+                const fromLocal = localStorage.getItem("kanyiji_auth_user");
+                if (fromLocal) {
+                  parsedUser = JSON.parse(fromLocal);
+                }
+                if (!parsedUser) {
+                  const fromSession = SessionStorage.getWithExpiry<AuthUser>("currentUser");
+                  if (fromSession && fromSession.id) {
+                    parsedUser = fromSession;
+                  }
+                }
+                if (!parsedUser) {
+                  const profileDataRaw = sessionStorage.getItem("kanyiji_profile_data");
+                  if (profileDataRaw) {
+                    const parsed = JSON.parse(profileDataRaw) as { userId?: string; profileData?: Record<string, unknown> };
+                    const uid = parsed?.userId;
+                    if (uid) {
+                      const p = parsed?.profileData as Record<string, unknown> | undefined;
+                      parsedUser = {
+                        id: uid,
+                        email: (p?.email as string) || "",
+                        name: (p?.full_name as string) || (p?.firstName as string) || "User",
+                        role: (p?.role as "customer" | "vendor" | "admin") || "customer",
+                        isEmailVerified: false,
+                        createdAt: new Date().toISOString(),
+                      };
+                    }
+                  }
+                }
+                if (parsedUser) {
+                  console.log("Found user in backup (local or session), restoring...");
                   const { data: { session: verifySession } } = await supabase.auth.getSession();
                   if (verifySession) {
                     console.log("Session verified, restoring from backup");
-                    setUser(parsedUser);
-                    setIsLoading(false);
-                    return;
                   } else {
-                    // Session expired, clear backup
-                    localStorage.removeItem("kanyiji_auth_user");
+                    console.log("Restoring user from backup (getSession was null)");
                   }
+                  setUser(parsedUser);
+                  setIsLoading(false);
+                  if (typeof window !== "undefined" && !fromLocal) {
+                    localStorage.setItem("kanyiji_auth_user", JSON.stringify(parsedUser));
+                  }
+                  supabase.auth.getSession().then(({ data: { session: retrySession } }) => {
+                    if (isMounted && retrySession) {
+                      supabaseAuthService.getCurrentUser().then((u) => {
+                        if (isMounted && u) {
+                          setUser(u);
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("kanyiji_auth_user", JSON.stringify(u));
+                          }
+                        }
+                      }).catch(() => {});
+                    }
+                  }).catch(() => {});
+                  return;
                 }
               } catch (e) {
-                console.error("Error checking localStorage backup:", e);
+                console.error("Error checking user backup:", e);
               }
             }
             if (isMounted) {
@@ -206,68 +281,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("Session exists:", !!session);
         console.log("User exists:", !!session?.user);
 
-        if (event === "SIGNED_IN" && session) {
-          try {
-            console.log("User signed in, getting current user...");
-            setIsLoading(true);
-            
-            // Wait a bit for session to be fully established
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            
-            const currentUser = await supabaseAuthService.getCurrentUser();
-
-            if (!currentUser) {
-              console.warn("No current user found, but session exists. Creating user from session...");
-              // Fallback: create user object from session if getCurrentUser fails
-              if (session.user) {
-                const fallbackUser = {
-                  id: session.user.id,
-                  email: session.user.email!,
-                  name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
-                  role: session.user.user_metadata?.role || "customer",
-                  isEmailVerified: session.user.email_confirmed_at !== null,
-                  createdAt: session.user.created_at,
-                };
-                console.log("Using fallback user from session:", fallbackUser);
-                if (isMounted) {
-                  setUser(fallbackUser);
-                  SessionStorage.remove("currentUser");
-                  setIsLoading(false);
-                }
-                return;
+        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+          // Use session immediately — do not await getCurrentUser(); it can hang (getSession inside).
+          let role: "customer" | "vendor" | "admin" =
+            (session.user.user_metadata?.role as "customer" | "vendor" | "admin") || "customer";
+          // Persist vendor/admin role: don't downgrade when session has no role but we previously stored one
+          if (typeof window !== "undefined" && role === "customer") {
+            try {
+              const stored = localStorage.getItem("kanyiji_auth_user");
+              const existing = stored ? JSON.parse(stored) : null;
+              if (existing?.id === session.user.id && (existing?.role === "vendor" || existing?.role === "admin")) {
+                role = existing.role;
               }
-              throw new Error("No current user found after sign-in");
-            }
-            console.log("Current user:", currentUser);
-            if (isMounted) {
-              setUser(currentUser);
-              // Clear sessionStorage cache to trigger refetch of current user
-              SessionStorage.remove("currentUser");
-              setIsLoading(false);
-            }
-          } catch (error) {
-            console.error("Error in SIGNED_IN handler:", error);
-            // Don't set user to null if we have a session - try to use session data
-            if (session?.user && isMounted) {
-              const fallbackUser = {
-                id: session.user.id,
-                email: session.user.email!,
-                name: session.user.user_metadata?.full_name || session.user.email!.split("@")[0],
-                role: session.user.user_metadata?.role || "customer",
-                isEmailVerified: session.user.email_confirmed_at !== null,
-                createdAt: session.user.created_at,
-              };
-              console.log("Using fallback user after error:", fallbackUser);
-              setUser(fallbackUser);
-              // Store in localStorage as backup
-              if (typeof window !== "undefined") {
-                localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
-              }
-            } else if (isMounted) {
-              setUser(null);
-            }
-            setIsLoading(false);
+            } catch (_) {}
           }
+          const userFromSession = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email!.split("@")[0],
+            role,
+            isEmailVerified: session.user.email_confirmed_at !== null,
+            createdAt: session.user.created_at || new Date().toISOString(),
+          };
+          if (isMounted) {
+            setUser(userFromSession);
+            SessionStorage.remove("currentUser");
+            setIsLoading(false);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("kanyiji_auth_user", JSON.stringify(userFromSession));
+            }
+          }
+          // Refresh from profile in background so role/name stay in sync; persist when we get it
+          supabaseAuthService.getCurrentUser().then((currentUser) => {
+            if (isMounted && currentUser) {
+              setUser(currentUser);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("kanyiji_auth_user", JSON.stringify(currentUser));
+              }
+            }
+          }).catch(() => {});
         } else if (event === "SIGNED_OUT") {
           console.log("User signed out");
           if (isMounted) {
@@ -281,12 +333,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setIsLoading(false);
           }
         } else if (event === "TOKEN_REFRESHED") {
-          // Handle token refresh - update user if session exists
+          // Handle token refresh - update user if session exists and persist
           if (session?.user) {
             try {
               const currentUser = await supabaseAuthService.getCurrentUser();
-              if (isMounted) {
+              if (isMounted && currentUser) {
                 setUser(currentUser);
+                setIsLoading(false);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("kanyiji_auth_user", JSON.stringify(currentUser));
+                }
+              } else if (isMounted) {
                 setIsLoading(false);
               }
             } catch (error) {
@@ -301,12 +358,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return () => {
         isMounted = false;
+        clearTimeout(safetyTimeoutId);
         subscription.unsubscribe();
       };
     } else {
       setIsLoading(false);
     }
   }, []);
+
+  // When user is null but session/local has kanyiji_currentUser or kanyiji_profile_data, rehydrate so we never show "Please Sign In" when the data exists (e.g. written by a child after mount)
+  useEffect(() => {
+    if (user !== null || typeof window === "undefined") return;
+    const t = setTimeout(() => {
+      const u = getInitialUser();
+      if (u) {
+        setUser(u);
+        setIsLoading(false);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("kanyiji_auth_user", JSON.stringify(u));
+        }
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [user]);
 
   // Fix Bug #1: Reset loading state when window is closed or loses focus
   // This prevents the continuous spinning spinner when the web window is exited
@@ -389,6 +463,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const currentUser = await supabaseAuthService.getCurrentUser();
       setUser(currentUser);
+      if (currentUser && typeof window !== "undefined") {
+        localStorage.setItem("kanyiji_auth_user", JSON.stringify(currentUser));
+      }
     } catch (error) {
       console.error("Error checking auth status:", error);
       setUser(null);
@@ -425,22 +502,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.user) {
         console.log("✅ AuthContext: Login successful, setting user");
         setUser(response.user);
-        // Clear sessionStorage cache to trigger refetch of current user
         SessionStorage.remove("currentUser");
-        toast.success("Login successful!");
-        
-        // Verify session is persisted and store backup
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          console.log("✅ Session persisted successfully");
-          // Store user in localStorage as backup
-          if (typeof window !== "undefined") {
-            localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
-          }
-        } else {
-          console.warn("⚠️ Session not found after login, attempting to restore...");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
         }
-        
+        toast.success("Login successful!");
+        // Do not await getSession() — it can hang; we already have the user from the login response
         return { success: true };
       } else {
         console.error("❌ AuthContext: Login failed:", response.error);
@@ -466,17 +533,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("✅ AuthContext: MFA verification successful, setting user");
         setUser(response.user);
         SessionStorage.remove("currentUser");
-        toast.success("Login successful!");
-        
-        // Verify session is persisted and store backup
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          console.log("✅ Session persisted successfully after MFA");
-          if (typeof window !== "undefined") {
-            localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
-          }
+        if (typeof window !== "undefined") {
+          localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
         }
-        
+        toast.success("Login successful!");
         return true;
       } else {
         console.error("❌ AuthContext: MFA verification failed:", response.error);
@@ -583,31 +643,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = async (): Promise<void> => {
+  const logout = (): void => {
     const userId = user?.id;
-    try {
-      setIsLoading(true);
-      const response = await supabaseAuthService.logout();
 
-      if (response.success) {
-        setUser(null);
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("kanyiji_auth_user");
-          SessionStorage.remove("currentUser");
-          if (userId) SessionStorage.remove(`vendor_${userId}`);
+    // Fire-and-forget: try to sign out from Supabase (signOut() can hang)
+    supabase.auth.signOut().catch(() => {});
+
+    // Clear local state first
+    setUser(null);
+    setIsLoading(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("kanyiji_auth_user");
+      // Clear Supabase session so reload doesn't restore auth (matches storageKey in lib/supabase.ts)
+      localStorage.removeItem("supabase.auth.token");
+      // Clear any other Supabase auth keys (e.g. sb-<project>-auth-token)
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("sb-") && key.includes("auth-token")) {
+          localStorage.removeItem(key);
         }
-        setIsLoading(false);
-        toast.success("Logged out successfully");
-        window.location.href = "/";
-      } else {
-        toast.error(response.error || "Logout failed");
-        setIsLoading(false);
+      });
+      SessionStorage.clear();
+      sessionStorage.removeItem("kanyiji_profile_data");
+      if (userId) {
+        const keys = Object.keys(sessionStorage);
+        keys.forEach((key) => {
+          if (key.includes(`vendorOrders_${userId}`) || key.includes(`userOrders_${userId}`)) {
+            sessionStorage.removeItem(key);
+          }
+        });
       }
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("An unexpected error occurred");
-      setIsLoading(false);
     }
+    toast.success("Logged out successfully");
+    // Defer redirect so it runs after React flushes; use replace for a hard navigation
+    setTimeout(() => {
+      window.location.replace("/");
+    }, 0);
   };
 
   const refreshUser = async (): Promise<void> => {

@@ -47,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
+    <html lang="en" className={`${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
       <head>
         {/* Preconnect to external domains for faster loading */}
         <link rel="preconnect" href="https://vunesehycewonscqnamb.supabase.co" />
@@ -55,7 +55,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://js.paystack.co" />
         <link rel="dns-prefetch" href="https://js.paystack.co" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <AppQueryProvider>
           <AuthProvider>
             <CartProvider>
