@@ -1012,7 +1012,8 @@ export function useEditVendorProduct() {
 }
 
 // FETCH VENDOR ORDERS
-export function useFetchVendorOrders(status?: string) {
+// userId scopes cache so one vendor never sees another vendor's cached orders.
+export function useFetchVendorOrders(userId?: string, status?: string) {
   const { authLoading } = useSupabaseAuthReady();
   const [orders, setOrders] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -1026,13 +1027,22 @@ export function useFetchVendorOrders(status?: string) {
   const [isError, setIsError] = useState(false);
   const hasFetchedRef = useRef<string | null>(null);
 
+  const cacheKey = `vendorOrders_${userId ?? "anon"}_${status || "all"}`;
+
   useEffect(() => {
     if (authLoading) return;
+    // Don't fetch orders when we don't have a user — API would return empty anyway
+    if (!userId) {
+      setOrders([]);
+      setStats({ totalOrders: 0, totalRevenue: 0, totalCustomers: 0 });
+      setPagination(null);
+      setIsLoading(false);
+      return;
+    }
 
-    const cacheKey = `vendorOrders_${status || "all"}`;
     const cacheDuration = 30 * 1000; // 30 seconds
 
-    // Check cache first
+    // Check cache first (scoped by userId so vendors don't see each other's data)
     const cached = SessionStorage.getWithExpiry<any>(cacheKey);
     if (cached && hasFetchedRef.current === cacheKey) {
       setOrders(cached.orders || []);
@@ -1079,10 +1089,9 @@ export function useFetchVendorOrders(status?: string) {
     };
 
     fetchOrders();
-  }, [authLoading, status]);
+  }, [authLoading, status, userId]);
 
   const refetch = useCallback(async () => {
-    const cacheKey = `vendorOrders_${status || "all"}`;
     SessionStorage.remove(cacheKey);
     hasFetchedRef.current = null;
     setIsLoading(true);
@@ -1107,7 +1116,7 @@ export function useFetchVendorOrders(status?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [status]);
+  }, [status, userId]);
 
   return {
     orders,

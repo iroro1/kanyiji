@@ -196,7 +196,8 @@ export async function GET(req: NextRequest) {
 
       console.log("Orders with related data:", ordersWithData.length);
 
-      // Filter orders to only include those belonging to this vendor (if vendor ID was found)
+      // Filter orders to only include those belonging to this vendor.
+      // If we cannot identify the vendor from the session, return empty — never return other vendors' orders.
       if (vendorId) {
         allOrders = ordersWithData.filter((order: any) => {
           const orderVendorId = order.vendor_id
@@ -210,11 +211,10 @@ export async function GET(req: NextRequest) {
         });
         console.log("Orders filtered for vendor:", allOrders.length);
       } else {
-        // If no vendor ID found, return all orders (for debugging/admin purposes)
-        allOrders = ordersWithData;
+        // No vendor ID from session: do not return other vendors' data. Return empty.
+        allOrders = [];
         console.log(
-          "No vendor ID found, returning all orders:",
-          allOrders.length
+          "No vendor ID from session — returning empty orders for vendor dashboard."
         );
       }
     }

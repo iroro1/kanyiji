@@ -126,7 +126,7 @@ export default function VendorDashboard() {
   const userId = useMemo(() => (user ? user.id : ""), [user?.id]);
   const { vendor, isPending, isError: vendorError, refetch: refetchVendor } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();
-  const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders();
+  const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders(userId);
   
   // Removed debug logging for production performance
   const { updateOrderStatus, isPending: isUpdatingOrder } = useUpdateVendorOrderStatus();
@@ -708,19 +708,20 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header — stacked on mobile so "Back to Profile" is easy to tap */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                 {vendor?.business_name}
               </h1>
-              <p className="text-gray-600">Manage your products and orders</p>
+              <p className="text-gray-600 text-sm sm:text-base">Manage your products and orders</p>
             </div>
             <Link
               href="/profile"
-              className="text-primary-600 hover:text-primary-700 font-medium"
+              className="inline-flex items-center justify-center min-h-[44px] py-2.5 px-4 rounded-lg border border-primary-200 bg-primary-50 text-primary-700 font-medium hover:bg-primary-100 active:bg-primary-100 shrink-0 touch-manipulation"
+              aria-label="Back to Profile"
             >
               Back to Profile
             </Link>
@@ -794,31 +795,36 @@ export default function VendorDashboard() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs — scroll horizontally on mobile so all tabs are reachable */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <nav className="flex space-x-8 px-6">
-            {[
-              { id: "overview", label: "Overview", icon: BarChart3 },
-              { id: "products", label: "Products", icon: Package },
-              { id: "orders", label: "Orders", icon: ShoppingBag },
-              { id: "analytics", label: "Analytics", icon: TrendingUp },
-              { id: "payouts", label: "Payouts", icon: Wallet },
-              { id: "settings", label: "Settings", icon: Settings },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? "border-primary-500 text-primary-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+          <div
+            className="overflow-x-auto overflow-y-hidden overscroll-x-contain md:overflow-visible"
+            style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
+            <nav className="flex flex-nowrap gap-4 sm:gap-6 md:gap-8 px-4 sm:px-6 min-w-max">
+              {[
+                { id: "overview", label: "Overview", icon: BarChart3 },
+                { id: "products", label: "Products", icon: Package },
+                { id: "orders", label: "Orders", icon: ShoppingBag },
+                { id: "analytics", label: "Analytics", icon: TrendingUp },
+                { id: "payouts", label: "Payouts", icon: Wallet },
+                { id: "settings", label: "Settings", icon: Settings },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap shrink-0 ${
+                    activeTab === tab.id
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -1024,9 +1030,15 @@ export default function VendorDashboard() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button className="text-gray-600 hover:text-gray-900">
+                          <Link
+                            href={`/products/${product.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex text-gray-600 hover:text-gray-900"
+                            title="View product on storefront"
+                          >
                             <Eye className="w-4 h-4" />
-                          </button>
+                          </Link>
                           <button
                             onClick={() => {
                               setSelectedProduct(product);

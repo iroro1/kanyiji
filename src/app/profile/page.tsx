@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   User,
   Mail,
@@ -16,12 +17,26 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
-import PasswordChangeModal from "@/components/settings/PasswordChangeModal";
-import NotificationsSettings from "@/components/settings/NotificationsSettings";
-import PrivacySettings from "@/components/settings/PrivacySettings";
-import DeleteAccountModal from "@/components/settings/DeleteAccountModal";
 import { useFetchVendorDetails, useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
+
+// Lazy-load settings modals to speed up initial load (especially on mobile)
+const PasswordChangeModal = dynamic(
+  () => import("@/components/settings/PasswordChangeModal"),
+  { ssr: false, loading: () => null }
+);
+const NotificationsSettings = dynamic(
+  () => import("@/components/settings/NotificationsSettings"),
+  { ssr: false, loading: () => null }
+);
+const PrivacySettings = dynamic(
+  () => import("@/components/settings/PrivacySettings"),
+  { ssr: false, loading: () => null }
+);
+const DeleteAccountModal = dynamic(
+  () => import("@/components/settings/DeleteAccountModal"),
+  { ssr: false, loading: () => null }
+);
 
 export default function ProfilePage() {
   const { user, isAuthenticated } = useAuth();
