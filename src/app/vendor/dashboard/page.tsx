@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   Package,
   ShoppingBag,
@@ -39,10 +40,23 @@ import {
   useFetchVendorOrders,
   useUpdateVendorOrderStatus,
 } from "@/components/http/QueryHttp";
-import DeleteConfirmationModal from "@/components/ui/DeleteModal";
-import EditProductModal from "@/components/vendor/EditProductModal";
-import DocumentViewerModal from "@/components/vendor/DocumentViewerModal";
-import OrderDetailModal from "@/components/vendor/OrderDetailModal";
+// Lazy load modals to improve initial page load performance
+const DeleteConfirmationModal = dynamic(() => import("@/components/ui/DeleteModal"), {
+  loading: () => null,
+  ssr: false,
+});
+const EditProductModal = dynamic(() => import("@/components/vendor/EditProductModal"), {
+  loading: () => null,
+  ssr: false,
+});
+const DocumentViewerModal = dynamic(() => import("@/components/vendor/DocumentViewerModal"), {
+  loading: () => null,
+  ssr: false,
+});
+const OrderDetailModal = dynamic(() => import("@/components/vendor/OrderDetailModal"), {
+  loading: () => null,
+  ssr: false,
+});
 import { useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
 import { parseOrderItemsFromInternalNotes } from "@/utils/helpers";
@@ -108,30 +122,13 @@ export default function VendorDashboard() {
   const { user: authUser } = useAuth();
   const { notify } = useToast();
 
-  console.log("queryUser", user);
-
-  console.log("authUser", authUser);
-  const userId = user ? user.id : "";
+  // Memoize userId to prevent unnecessary re-renders and refetches
+  const userId = useMemo(() => (user ? user.id : ""), [user?.id]);
   const { vendor, isPending, isError: vendorError, refetch: refetchVendor } = useFetchVendorDetails(userId);
   const { deleteProduct, isDeleting } = useDeleteVendorProduct();
   const { orders, stats: orderStats, isLoading: ordersLoading, error: ordersError } = useFetchVendorOrders();
   
-  // Debug: Log orders data
-  useEffect(() => {
-    if (orders) {
-      console.log("Vendor Dashboard - Orders received:", {
-        ordersCount: orders.length,
-        orders: orders.map((o: any) => ({
-          id: o.id,
-          vendor_id: o.vendor_id,
-          order_items_count: o.order_items?.length || 0,
-        })),
-      });
-    }
-    if (ordersError) {
-      console.error("Vendor Dashboard - Orders error:", ordersError);
-    }
-  }, [orders, ordersError]);
+  // Removed debug logging for production performance
   const { updateOrderStatus, isPending: isUpdatingOrder } = useUpdateVendorOrderStatus();
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
@@ -165,22 +162,12 @@ export default function VendorDashboard() {
     bankAccountId: "",
   });
 
-  console.log(selectedProduct);
+  // Removed console.log for production performance
   const ProductToBeEdited = vendor?.products.find(
     (product: any) => product.id === editingProductId
   );
 
-  // Debug: Log kyc_documents structure
-  useEffect(() => {
-    if (vendor?.kyc_documents) {
-      console.log('KYC Documents structure:', vendor.kyc_documents);
-      console.log('KYC Documents type:', typeof vendor.kyc_documents);
-      console.log('KYC Documents is array:', Array.isArray(vendor.kyc_documents));
-      if (Array.isArray(vendor.kyc_documents) && vendor.kyc_documents.length > 0) {
-        console.log('First KYC document:', vendor.kyc_documents[0]);
-      }
-    }
-  }, [vendor?.kyc_documents]);
+  // Removed debug logging for production performance
 
   // Track component mount state
   useEffect(() => {
@@ -206,20 +193,17 @@ export default function VendorDashboard() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // Reset all loading states when user comes back to tab
-        console.log('Tab became visible, resetting loading states');
         setLoadingDocuments({});
       }
     };
 
     const handleWindowFocus = () => {
       // Reset loading states when window regains focus (handles tab switching)
-      console.log('Window regained focus, resetting loading states');
       setLoadingDocuments({});
     };
 
     const handleWindowBlur = () => {
       // Also reset when leaving tab to prevent stuck states
-      console.log('Window lost focus, resetting loading states');
       setLoadingDocuments({});
     };
 
@@ -266,7 +250,6 @@ export default function VendorDashboard() {
 
     // Check if URL is already a signed URL (has token) - use it directly
     if (originalUrl.includes('/object/sign/') && originalUrl.includes('token=')) {
-      console.log('URL is already signed, using directly:', originalUrl);
       if (isMounted) {
         setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
       }
@@ -286,7 +269,6 @@ export default function VendorDashboard() {
     );
     
     if (isPublicUrl && !isPrivateFile) {
-      console.log('Using public URL directly (not in private folder):', originalUrl);
       if (isMounted) {
         setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
       }
@@ -295,11 +277,6 @@ export default function VendorDashboard() {
     
     // For private files, we MUST call the API to get a signed URL
     // Even if the URL says /public/, if the file path contains /private/, we need a signed URL
-    if (isPrivateFile) {
-      console.log('File is in private folder - MUST get signed URL from API:', originalUrl);
-    } else {
-      console.log('Getting signed URL from API for:', originalUrl);
-    }
 
     // Don't set loading state for viewing - fetch in background
     try {
@@ -341,29 +318,21 @@ export default function VendorDashboard() {
       }
 
       const data = await response.json();
-      console.log('API response data:', data);
       
       if (data.url) {
-        console.log('Got signed URL from API:', data.url);
         if (isMounted) {
           setDocumentUrls((prev) => ({ ...prev, [docKey]: data.url }));
-        }
-        // Show warning if bucket issue
-        if (data.warning) {
-          console.warn('Document access warning:', data.warning);
         }
         return data.url;
       }
       
       // If error response, log it
       if (data.error) {
-        console.error('Document access error:', data.error, data.details);
         notify(`Unable to access document: ${data.error}`, 'error');
         return null;
       }
       
       // If no URL in response, something went wrong
-      console.error('No URL in API response:', data);
       notify('Failed to get document access URL', 'error');
       return null;
     } catch (error) {
@@ -382,18 +351,14 @@ export default function VendorDashboard() {
       return;
     }
     
-    console.log('Viewing document:', { originalUrl, docKey });
-    
     // Check if we already have a cached signed URL
     if (documentUrls[docKey]) {
-      console.log('Using cached signed URL:', documentUrls[docKey]);
       setViewingDocument({ url: documentUrls[docKey], name: documentName, docKey });
       return;
     }
     
     // Check if URL is already a signed URL (has token) - use directly
     if (originalUrl.includes('/object/sign/') && originalUrl.includes('token=')) {
-      console.log('Opening signed URL directly:', originalUrl);
       // Cache it for future use
       if (isMounted) {
         setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
@@ -413,7 +378,6 @@ export default function VendorDashboard() {
     );
     
     if (isPublicUrl && !isPrivateFile) {
-      console.log('Opening public URL directly (not in private folder):', originalUrl);
       // Cache it for future use
       if (isMounted) {
         setDocumentUrls((prev) => ({ ...prev, [docKey]: originalUrl }));
@@ -423,21 +387,16 @@ export default function VendorDashboard() {
     }
     
     // For private files, always get signed URL from API
-    console.log('File is private or needs signed URL, fetching from API...');
-    
     // Don't set loading state for viewing - just fetch in background
     try {
       const signedUrl = await getDocumentUrl(originalUrl, docKey);
       
       if (signedUrl) {
-        console.log('Got signed URL, opening in modal:', signedUrl);
         setViewingDocument({ url: signedUrl, name: documentName, docKey });
       } else {
-        console.error('Failed to get signed URL');
         notify('Unable to generate document access URL. Please try again.', 'error');
       }
     } catch (error) {
-      console.error('Error viewing document:', error);
       notify('Unable to open document. Please try again or contact support.', 'error');
     }
   };
@@ -481,14 +440,12 @@ export default function VendorDashboard() {
       });
 
       const data = await response.json();
-      console.log('Save response:', { status: response.status, data });
 
       if (!response.ok) {
         // Show detailed error message
         const errorMessage = data.details 
           ? `${data.error}: ${data.details}${data.suggestion ? ` ${data.suggestion}` : ''}`
           : data.error || 'Failed to update vendor';
-        console.error('Save failed:', errorMessage);
         notify(errorMessage, 'error');
         return;
       }
@@ -501,9 +458,7 @@ export default function VendorDashboard() {
         window.location.reload();
       }, 1500);
     } catch (error: any) {
-      console.error('Error saving vendor:', error);
       const errorMsg = error.message || 'Failed to save changes. Please try again.';
-      console.error('Full error:', error);
       notify(errorMsg, 'error');
     } finally {
       setIsSavingVendor(false);
@@ -513,16 +468,12 @@ export default function VendorDashboard() {
   const router = useRouter();
   const pathname = usePathname();
 
-  console.log("isDeleting", isDeleting);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   function handleConfirmDelete(productId: string, imageName: any[]) {
-    console.log(imageName);
     const paths = imageName?.map(
       (image) => image.image_url.split("/vendor-product-images/")[1]
     );
-
-    console.log(paths);
 
     deleteProduct({ productId, userId, imagePath: paths });
   }
@@ -618,7 +569,13 @@ export default function VendorDashboard() {
   const hasVendorRecord = vendor != null;
   const vendorOk = hasVendorRole || hasVendorRecord;
 
-  if (userLoading || (userId && isPending)) {
+  // Show loading only when:
+  // 1. User is still loading, OR
+  // 2. User is loaded and we have a userId and vendor is still loading
+  // Don't show loading if userId is empty (can't fetch vendor without userId)
+  const isLoading = userLoading || (user && userId && isPending && !vendorError);
+
+  if (isLoading) {
     return <LoadingSpinner timeout={0} />;
   }
 
@@ -671,7 +628,19 @@ export default function VendorDashboard() {
         </div>
       );
     }
-    return <LoadingSpinner timeout={0} />;
+    // Only show loading spinner if we have a userId and no error yet
+    // If userId is empty, we can't fetch vendor, so show error instead
+    if (userId) {
+      return <LoadingSpinner timeout={0} />;
+    }
+    return (
+      <CustomError
+        statusCode={403}
+        title="Access Denied"
+        message="User must be a registered vendor to access the dashboard."
+        retry={false}
+      />
+    );
   }
 
   if (vendor.status !== "approved") {
