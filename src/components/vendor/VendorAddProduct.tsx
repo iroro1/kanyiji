@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image, Info, Shirt, Tag, Trash2 } from "lucide-react";
+import { Plus, Image, Info, Shirt, Tag, Trash2, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadProductImage } from "@/utils/supabase-images";
 import { supabase } from "@/lib/supabase";
