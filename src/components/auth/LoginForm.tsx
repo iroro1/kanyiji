@@ -32,6 +32,7 @@ export default function LoginForm({
   onLoginStart,
   onLoginEnd,
 }: LoginFormProps) {
+  const router = useRouter();
   const { login, verifyMFA } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
