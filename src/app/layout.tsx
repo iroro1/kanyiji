@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
+import ClarityScript from "@/components/analytics/ClarityScript";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import AppQueryProvider from "@/components/http/QueryHttp";
@@ -56,6 +56,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://js.paystack.co" />
       </head>
       <body suppressHydrationWarning>
+        <ClarityScript />
         <AppQueryProvider>
           <AuthProvider>
             <CartProvider>
