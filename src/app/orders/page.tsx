@@ -513,7 +513,7 @@ export default function OrdersPage() {
                       formData.append("itemName", returnForm.itemName);
                       formData.append("reason", returnForm.reason);
                       formData.append("customerEmail", user?.email || "");
-                      formData.append("customerName", user?.full_name || user?.email || "");
+                      formData.append("customerName", user?.name || user?.email || "");
                       if (returnForm.image) formData.append("image", returnForm.image);
                       const res = await fetch("/api/orders/request-return", { method: "POST", body: formData });
                       if (res.ok) {
