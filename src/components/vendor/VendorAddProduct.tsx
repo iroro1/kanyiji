@@ -129,6 +129,7 @@ function AddProductPage() {
     sku?: string;
     stock?: string;
     salePercentage?: string;
+    weight?: string;
   }>({});
 
   // Use a ref to track if we've already handled success to prevent re-triggering
