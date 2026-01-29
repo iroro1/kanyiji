@@ -83,18 +83,20 @@ export default function FeaturedCategories() {
 
   if (loading) {
     return (
-      <section className="py-16 bg-white">
+      <section className="py-12 sm:py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="section-title">Shop by Category</h2>
-            <p className="section-subtitle">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
+              Shop by Category
+            </h2>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 px-4">
               Discover products organized by category
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="bg-gray-200 rounded-lg h-32 mb-3"></div>
+                <div className="bg-gray-200 rounded-lg h-20 sm:h-24 md:h-28 lg:h-32 mb-2 sm:mb-3"></div>
                 <div className="bg-gray-200 rounded h-4 mb-2"></div>
                 <div className="bg-gray-200 rounded h-3 w-2/3"></div>
               </div>

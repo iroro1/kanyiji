@@ -12,8 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
     storageKey: "supabase.auth.token",
-    // Remove PKCE flow - it may cause issues in production
-    // flowType: "pkce",
   },
 });
 

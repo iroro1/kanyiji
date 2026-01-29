@@ -980,6 +980,30 @@ export default function ProductDetailPage() {
                       </p>
                     </div>
                   )}
+
+                  {(productWithStock as any).third_party_return_policy && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h3 className="font-semibold text-gray-900 mb-3">
+                        Third party return policy
+                      </h3>
+                      <p className="text-gray-600 whitespace-pre-wrap">
+                        {(productWithStock as any).third_party_return_policy}
+                      </p>
+                    </div>
+                  )}
+
+                  {(productWithStock as any).size_guide_url && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <a
+                        href={(productWithStock as any).size_guide_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        View size guide
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -238,6 +238,7 @@ export default function VendorDashboard() {
         postal_code: vendor.postal_code || "",
         website_url: vendor.website_url || "",
         business_description: vendor.business_description || "",
+        account_information: vendor.account_information || "",
         social_media: vendor.social_media || {},
       });
     }
@@ -1506,6 +1507,49 @@ export default function VendorDashboard() {
                     )}
                   </div>
 
+                  {/* Account statement (earnings) */}
+                  {payoutData.earnings && payoutData.earnings.length > 0 && (
+                    <div className="bg-white rounded-lg border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Account statement
+                        </h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gross</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commission</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {payoutData.earnings.slice(0, 50).map((e: any) => (
+                              <tr key={e.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {e.created_at ? new Date(e.created_at).toLocaleDateString() : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-sm">₦{parseFloat(e.gross_amount || 0).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-sm text-red-600">-₦{parseFloat(e.commission_amount || 0).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-sm font-medium">₦{parseFloat(e.net_amount || 0).toLocaleString()}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                    e.status === "paid" ? "bg-green-100 text-green-800" : e.status === "pending" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {(e.status || "available").charAt(0).toUpperCase() + (e.status || "available").slice(1)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payout History */}
                   <div className="bg-white rounded-lg border border-gray-200 p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -2130,6 +2174,16 @@ export default function VendorDashboard() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-gray-700"
                       />
                     </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Vendor account information <span className="text-gray-400 text-xs">(optional)</span></label>
+                      <textarea
+                        value={vendorFormData.account_information || ""}
+                        onChange={(e) => setVendorFormData({ ...vendorFormData, account_information: e.target.value })}
+                        rows={3}
+                        placeholder="e.g. bank account details, payment preferences, or other account notes"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-gray-700"
+                      />
+                    </div>
                   </div>
 
                   {/* Social Media */}
@@ -2325,6 +2379,12 @@ export default function VendorDashboard() {
                   {/* Account Dates */}
                   <div className="bg-white rounded-lg border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+                    {vendor?.account_information && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Vendor account information</label>
+                        <p className="text-gray-600 whitespace-pre-wrap text-sm">{vendor.account_information}</p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Account Created</label>

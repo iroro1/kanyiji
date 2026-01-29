@@ -299,8 +299,7 @@ export default function VendorAgreementPage() {
                 <li className="flex items-start gap-3">
                   <span className="text-purple-600 mt-1">•</span>
                   <span>
-                    Vendor may opt for Platform-supported logistics or approved
-                    self-shipping methods.
+                    Vendor Agrees to use platform shipping methods.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">

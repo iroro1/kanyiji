@@ -1,103 +1,222 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 
+const STUCK_FALLBACK_MS = 15_000;
+const SET_SESSION_TIMEOUT_MS = 8_000;
+
+const SUPABASE_STORAGE_KEY = "supabase.auth.token";
+
+// Decode JWT payload (base64url) to get user info when setSession hangs (client-only)
+function decodeJwtPayload(accessToken: string): { sub?: string; email?: string; exp?: number; user_metadata?: { full_name?: string; name?: string }; app_metadata?: { provider?: string } } | null {
+  if (typeof atob === "undefined") return null;
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "==".slice(0, (4 - (base64.length % 4)) % 4);
+    const json = atob(padded);
+    return JSON.parse(json) as { sub?: string; email?: string; exp?: number; user_metadata?: { full_name?: string; name?: string }; app_metadata?: { provider?: string } };
+  } catch {
+    return null;
+  }
+}
+
+/** Persist session to Supabase storage so getSession() works after redirect (e.g. for 2FA). */
+function persistSessionToSupabaseStorage(accessToken: string, refreshToken: string) {
+  if (typeof window === "undefined") return;
+  const payload = decodeJwtPayload(accessToken);
+  if (!payload?.sub) return;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = payload.exp ?? nowSec + 3600;
+  const expiresIn = Math.max(1, exp - nowSec);
+  const session = {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+    expires_at: exp,
+    token_type: "bearer",
+    user: {
+      id: payload.sub,
+      email: payload.email ?? "",
+      app_metadata: payload.app_metadata ?? {},
+      user_metadata: payload.user_metadata ?? {},
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  };
+  try {
+    window.localStorage.setItem(SUPABASE_STORAGE_KEY, JSON.stringify(session));
+  } catch (e) {
+    console.warn("Failed to persist session to storage:", e);
+  }
+}
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [stuck, setStuck] = useState(false);
+  const doneRef = useRef(false);
 
   useEffect(() => {
+    const getHash = () => {
+      if (typeof window === "undefined") return "";
+      const href = window.location.href;
+      const i = href.indexOf("#");
+      return i >= 0 ? href.slice(i) : (window.location.hash || "");
+    };
+
+    const writeUserAndRedirect = (authUser: { id: string; email: string; name: string; role: "customer" | "vendor" | "admin"; isEmailVerified: boolean; createdAt: string }) => {
+      if (typeof window === "undefined") return;
+      doneRef.current = true;
+      localStorage.setItem("kanyiji_auth_user", JSON.stringify(authUser));
+      toast.success("Successfully signed in!");
+      window.history.replaceState(null, "", window.location.pathname);
+      window.location.href = "/";
+    };
+
+    const tryHashLogin = async (): Promise<boolean> => {
+      const hash = getHash();
+      if (!hash || !hash.includes("access_token")) return false;
+      const hashStr = hash.substring(1);
+      const getParam = (key: string): string | null => {
+        const prefix = key + "=";
+        const start = hashStr.indexOf(prefix);
+        if (start === -1) return null;
+        const valueStart = start + prefix.length;
+        const end = hashStr.indexOf("&", valueStart);
+        return end === -1 ? hashStr.slice(valueStart) : hashStr.slice(valueStart, end);
+      };
+      const accessToken = getParam("access_token");
+      const refreshToken = getParam("refresh_token");
+      if (!accessToken || !refreshToken) return false;
+
+      const sessionPromise = supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { message: "Timeout" } }), SET_SESSION_TIMEOUT_MS)
+      );
+      const { data: sessionData, error: sessionError } = await Promise.race([sessionPromise, timeoutPromise]);
+
+      if (sessionError) {
+        if (sessionError.message === "Timeout") {
+          // setSession hung – persist session to storage so Supabase has it (2FA, profile, etc.) then redirect
+          persistSessionToSupabaseStorage(accessToken, refreshToken);
+          const payload = decodeJwtPayload(accessToken);
+          if (payload?.sub && typeof window !== "undefined") {
+            const authUser = {
+              id: payload.sub,
+              email: payload.email ?? "",
+              name: payload.user_metadata?.full_name ?? payload.user_metadata?.name ?? payload.email?.split("@")[0] ?? "User",
+              role: "customer" as const,
+              isEmailVerified: true,
+              createdAt: new Date().toISOString(),
+            };
+            writeUserAndRedirect(authUser);
+            return true;
+          }
+        }
+        console.error("Error setting session from hash:", sessionError);
+        toast.error("Authentication failed. Please try again.");
+        router.push("/");
+        return true;
+      }
+
+      const user = sessionData?.session?.user;
+      if (user && typeof window !== "undefined") {
+        const authUser = {
+          id: user.id,
+          email: user.email ?? "",
+          name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split("@")[0] ?? "User",
+          role: (user.user_metadata?.role as "customer" | "vendor" | "admin") ?? "customer",
+          isEmailVerified: !!user.email_confirmed_at,
+          createdAt: user.created_at ?? new Date().toISOString(),
+        };
+        localStorage.setItem("kanyiji_auth_user", JSON.stringify(authUser));
+      }
+      doneRef.current = true;
+      toast.success("Successfully signed in!");
+      window.history.replaceState(null, "", window.location.pathname);
+      await new Promise((r) => setTimeout(r, 150));
+      window.location.href = "/";
+      return true;
+    };
+
     const handleAuthCallback = async () => {
+      if (doneRef.current) return;
       try {
-        // Check if there's a code in the URL (OAuth callback)
+        // Try hash login immediately (from href or location.hash)
+        if (await tryHashLogin()) return;
+
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get("code");
-        const hash = window.location.hash;
 
-        // Handle code-based OAuth callback (PKCE/implicit flow)
         if (code) {
-          console.log("Processing OAuth code callback...", { code: code.substring(0, 20) + "..." });
+          console.log("Processing OAuth code callback...");
           try {
-            // Exchange code for session
             const { data, error } = await supabase.auth.exchangeCodeForSession(code);
             
+            if (doneRef.current) return;
             if (error) {
+              const { data: sessionCheck } = await supabase.auth.getSession();
+              if (sessionCheck?.session?.user) {
+                doneRef.current = true;
+                toast.success("Successfully signed in!");
+                window.location.href = "/";
+                return;
+              }
               console.error("Error exchanging code for session:", error);
-              console.error("Error details:", {
-                message: error.message,
-                status: error.status,
-                name: error.name,
-              });
               toast.error(`Authentication failed: ${error.message || "Please try again."}`);
-              // Redirect with error for debugging
               router.push(`/?auth_error=${encodeURIComponent(error.message || "authentication_failed")}`);
               return;
             }
 
-            if (data.session) {
-              console.log("Session created successfully from code", {
-                userId: data.session.user.id,
-                email: data.session.user.email,
-              });
+            if (data?.session) {
+              doneRef.current = true;
+              console.log("Session created successfully from code");
               toast.success("Successfully signed in!");
-              // Clear code from URL
-              window.history.replaceState(null, "", window.location.pathname);
-              // Small delay to ensure session is saved
-              await new Promise((resolve) => setTimeout(resolve, 300));
-              router.push("/");
-              return;
-            } else {
-              console.error("No session returned after code exchange");
-              toast.error("Authentication failed: No session created");
-              router.push("/?auth_error=no_session");
+              window.location.href = "/";
               return;
             }
+            toast.error("Authentication failed: No session created");
+            router.push("/?auth_error=no_session");
+            return;
           } catch (err: any) {
+            if (doneRef.current) return;
+            const { data: sessionCheck } = await supabase.auth.getSession();
+            if (sessionCheck?.session?.user) {
+              doneRef.current = true;
+              toast.success("Successfully signed in!");
+              window.location.href = "/";
+              return;
+            }
             console.error("Exception during code exchange:", err);
-            toast.error(`Authentication error: ${err.message || "Unknown error"}`);
-            router.push(`/?auth_error=${encodeURIComponent(err.message || "exception")}`);
+            const msg = err?.message || "Unknown error";
+            toast.error(`Authentication error: ${msg}`);
+            router.push(`/?auth_error=${encodeURIComponent(msg)}`);
             return;
           }
         }
 
-        // Handle hash-based OAuth callback (implicit flow)
-        if (hash && hash.includes("access_token")) {
-          // Handle hash-based OAuth callback
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token");
-
-          if (accessToken && refreshToken) {
-            // Set the session manually
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-
-            if (sessionError) {
-              console.error("Error setting session from hash:", sessionError);
-              toast.error("Authentication failed. Please try again.");
-              router.push("/");
-              return;
-            }
-
-            if (sessionData.session) {
-              toast.success("Successfully signed in!");
-              // Clear hash from URL
-              window.history.replaceState(null, "", window.location.pathname);
-              router.push("/");
-              return;
-            }
-          }
+        // No code and no hash: maybe session was set by detectSessionInUrl
+        const { data: existingSession } = await supabase.auth.getSession();
+        if (existingSession?.session?.user) {
+          toast.success("Successfully signed in!");
+          window.location.href = "/";
+          return;
         }
 
-        // Wait for the URL to be processed (in case server-side route is still processing)
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Brief wait in case session is still being set
+        await new Promise((resolve) => setTimeout(resolve, 800));
 
-        // Get the session
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -187,9 +306,8 @@ export default function AuthCallbackPage() {
 
           // User is authenticated
           toast.success("Successfully signed in!");
-          router.push("/");
+          window.location.href = "/";
         } else {
-          // No session found
           toast.error("Authentication failed. Please try again.");
           router.push("/");
         }
@@ -198,12 +316,61 @@ export default function AuthCallbackPage() {
         toast.error("Authentication failed. Please try again.");
         router.push("/");
       } finally {
-        setIsLoading(false);
+        if (!doneRef.current) setIsLoading(false);
       }
     };
 
     handleAuthCallback();
+
+    // Retry hash login on load and after short delays (hash may not be ready on first tick)
+    const onLoadOrRetry = () => {
+      if (doneRef.current) return;
+      tryHashLogin();
+    };
+    if (typeof window !== "undefined") {
+      if (document.readyState === "complete") {
+        setTimeout(onLoadOrRetry, 100);
+      } else {
+        window.addEventListener("load", onLoadOrRetry);
+      }
+    }
+    const retryId = setTimeout(onLoadOrRetry, 500);
+    return () => {
+      clearTimeout(retryId);
+      if (typeof window !== "undefined") window.removeEventListener("load", onLoadOrRetry);
+    };
   }, [router]);
+
+  // If still loading after a while, show fallback so user isn't stuck
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setStuck((prev) => {
+        if (prev) return prev;
+        setIsLoading(false);
+        return true;
+      });
+    }, STUCK_FALLBACK_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (stuck) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <p className="text-gray-700 mb-2">Sign-in is taking longer than usual.</p>
+          <p className="text-gray-600 text-sm mb-6">
+            You can go to the homepage and try signing in again.
+          </p>
+          <Link
+            href="/"
+            className="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
+          >
+            Go to homepage
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -211,6 +378,7 @@ export default function AuthCallbackPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto" />
           <p className="mt-4 text-gray-600">Completing sign in...</p>
+          <p className="mt-2 text-sm text-gray-400">If this takes more than 15 seconds, you&apos;ll see a link to continue.</p>
         </div>
       </div>
     );

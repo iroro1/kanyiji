@@ -347,6 +347,7 @@ export async function registerNewVendor({ formData, user }: any) {
         business_type: formData.businessType,
         business_description: formData.businessDescription,
         website_url: formData.website,
+        account_information: formData.account_information || null,
         address: formData.address,
         city: formData.city,
         state: formData.state,
@@ -484,6 +485,7 @@ export async function addNewProduct({
   imagePreviews,
   user,
   slug,
+  sizeGuideFile,
 }: any) {
   // Look up category_id from category name if category is provided
   let categoryId = null;
@@ -552,6 +554,10 @@ export async function addNewProduct({
   }
 
   // 1. Insert the main product
+  const weightNum =
+    newProduct.weight !== "" && newProduct.weight != null
+      ? parseFloat(String(newProduct.weight))
+      : null;
   const productPayload: any = {
     vendor_id: vendor?.id,
     name: newProduct.name,
@@ -562,13 +568,16 @@ export async function addNewProduct({
     stock_quantity: newProduct.quantity,
     description: newProduct.description,
     status: newProduct.status,
-    weight: newProduct.weight,
+    weight: weightNum,
     sub_category: newProduct.type,
     sku: newProduct.sku,
     is_featured: newProduct.isFeatured,
     material: newProduct.material,
     type: newProduct.type,
   };
+  if (newProduct.third_party_return_policy != null && newProduct.third_party_return_policy !== "") {
+    productPayload.third_party_return_policy = newProduct.third_party_return_policy;
+  }
 
   // Add category_id if we found it
   if (categoryId) {
@@ -651,6 +660,29 @@ export async function addNewProduct({
 
     // Wait for all image uploads and DB saves to complete
     await Promise.all(imageUploadPromises);
+  }
+
+  // 3b. Upload size guide (optional) - JPG, PNG or PDF
+  if (sizeGuideFile && productId && user?.id) {
+    try {
+      const ext = sizeGuideFile.name.split(".").pop()?.toLowerCase() || "pdf";
+      const safeExt = ["jpg", "jpeg", "png", "pdf"].includes(ext) ? ext : "pdf";
+      const filePath = `vendors/${user.id}/products/${productId}/size_guide.${safeExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("vendor-product-images")
+        .upload(filePath, sizeGuideFile, { cacheControl: "3600", upsert: true });
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
+          .from("vendor-product-images")
+          .getPublicUrl(filePath);
+        await supabase
+          .from("products")
+          .update({ size_guide_url: urlData.publicUrl })
+          .eq("id", productId);
+      }
+    } catch (err) {
+      console.error("Size guide upload failed:", err);
+    }
   }
 
   // 4. Return the newly created product

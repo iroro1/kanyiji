@@ -433,7 +433,7 @@ export default function VendorOnboardingPage() {
                 </h4>
                 <ul className="space-y-2 text-gray-700 ml-7">
                   <li>
-                    • Automatically deducted from your Vendor Stall account balance
+                    • Automatically deducted from your vendor dashboard account balance
                   </li>
                   <li>• No cash payment required</li>
                 </ul>
@@ -649,7 +649,7 @@ export default function VendorOnboardingPage() {
                         </td>
                         <td className="py-3 px-4 text-gray-700">
                           Max number of orders allowed to remain in 'pending'
-                          status
+                          status per vendor (limit: 25)
                         </td>
                       </tr>
                     </tbody>
@@ -672,7 +672,7 @@ export default function VendorOnboardingPage() {
                       1. Check Orders Frequently
                     </p>
                     <ul className="text-sm text-gray-700 space-y-1 ml-4">
-                      <li>• Log in to Vendor Stall 2x/day</li>
+                      <li>• Log in to your vendor dashboard 2x/day</li>
                       <li>• Go to: Orders &gt; Manage Orders &gt; Pending</li>
                     </ul>
                   </div>
@@ -711,11 +711,11 @@ export default function VendorOnboardingPage() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900 mb-1">
-                      5. Going on Break? Use Holiday Mode
+                      5. Need a break? Request for suspension via email
                     </p>
                     <ul className="text-sm text-gray-700 space-y-1 ml-4">
-                      <li>• Activate 2 working days before the break</li>
-                      <li>• Complete all orders before enabling Holiday Mode</li>
+                      <li>• Email support to request account suspension</li>
+                      <li>• Complete all pending orders before suspension takes effect</li>
                     </ul>
                   </div>
                 </div>
@@ -753,8 +753,7 @@ export default function VendorOnboardingPage() {
           {expandedSection === "earnings" && (
             <div className="px-6 pb-6 space-y-6 border-t border-gray-200">
               <p className="text-gray-700">
-                Track your sales, revenue, and deductions through your Vendor
-                Stall account.
+                Track your sales, revenue, and deductions through your vendor dashboard.
               </p>
 
               <div>
@@ -781,7 +780,7 @@ export default function VendorOnboardingPage() {
                   </li>
                 </ul>
                 <p className="text-sm text-gray-600 mt-3">
-                  Access via: Vendor Stall &gt; Account Statements
+                  Access via: Vendor Dashboard &gt; Account Statements
                 </p>
               </div>
             </div>
@@ -851,7 +850,7 @@ export default function VendorOnboardingPage() {
                 className="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               />
               <span className="text-gray-700 group-hover:text-gray-900">
-                I've explored my Vendor Stall and understand how to track orders &
+                I've explored my vendor dashboard and understand how to track orders &
                 earnings
               </span>
             </label>
@@ -876,8 +875,7 @@ export default function VendorOnboardingPage() {
                   for all concerns or disputes
                 </li>
                 <li>
-                  • Stay informed with updates posted on your Vendor Stall
-                  dashboard
+                  • Stay informed with updates posted on your vendor dashboard
                 </li>
               </ul>
             </div>

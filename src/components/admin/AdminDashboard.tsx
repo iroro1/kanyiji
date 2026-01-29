@@ -577,8 +577,8 @@ export default function AdminDashboard() {
     setVendorActionLoading(vendorId);
     try {
       if (action === "reinstated") {
-        // Reinstated means changing from suspended back to approved
-        await updateVendor(vendorId, "approve");
+        // Reinstated means changing from suspended back to approved; API sends reinstatement email
+        await updateVendor(vendorId, "reinstated");
         toast.success("Vendor reinstated successfully");
       } else if (action === "enable") {
         // Enable means changing from rejected back to pending
@@ -3911,6 +3911,12 @@ export default function AdminDashboard() {
                     <label className="text-xs font-medium text-gray-500 uppercase">Business Description</label>
                     <p className="text-sm text-gray-900 mt-1">{vendorDetailsModal.business_description || "N/A"}</p>
                   </div>
+                  {(vendorDetailsModal as any).account_information && (
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase">Vendor account information</label>
+                      <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{(vendorDetailsModal as any).account_information}</p>
+                    </div>
+                  )}
                   {vendorDetailsModal.website_url && (
                     <div className="md:col-span-2">
                       <label className="text-xs font-medium text-gray-500 uppercase">Website</label>

@@ -27,7 +27,7 @@ export default function FeaturedVendors() {
       // Check sessionStorage first
       const cacheKey = 'featured_vendors';
       const cached = SessionStorage.getWithExpiry<Vendor[]>(cacheKey);
-      if (cached) {
+      if (cached && Array.isArray(cached)) {
         setVendors(cached);
         setLoading(false);
         return;
@@ -49,7 +49,8 @@ export default function FeaturedVendors() {
 
         if (response.ok) {
           const data = await response.json();
-          const dbVendors = data.vendors || [];
+          const raw = data?.vendors ?? data ?? [];
+          const dbVendors = Array.isArray(raw) ? raw : [];
           
           // Map database vendor structure to component interface
           const mappedVendors: Vendor[] = dbVendors.map((vendor: any) => ({
@@ -69,23 +70,14 @@ export default function FeaturedVendors() {
           // Cache in sessionStorage (5 minutes)
           SessionStorage.set(cacheKey, mappedVendors, 5 * 60 * 1000);
         } else {
-          // Try stale cache as fallback
+          // Try stale cache as fallback (ensure it's an array)
           const staleCache = SessionStorage.get<Vendor[]>(cacheKey);
-          if (staleCache) {
-            setVendors(staleCache);
-          } else {
-            setVendors([]);
-          }
+          setVendors(Array.isArray(staleCache) ? staleCache : []);
         }
       } catch (err) {
         console.error("Error fetching vendors:", err);
-        // Try stale cache as fallback
         const staleCache = SessionStorage.get<Vendor[]>(cacheKey);
-        if (staleCache) {
-          setVendors(staleCache);
-        } else {
-          setVendors([]);
-        }
+        setVendors(Array.isArray(staleCache) ? staleCache : []);
       } finally {
         setLoading(false);
       }
@@ -119,7 +111,8 @@ export default function FeaturedVendors() {
     );
   }
 
-  if (vendors.length === 0) {
+  const vendorList = Array.isArray(vendors) ? vendors : [];
+  if (vendorList.length === 0) {
     return (
       <section className="py-12 sm:py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -153,7 +146,7 @@ export default function FeaturedVendors() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {vendors.map((vendor) => (
+          {vendorList.map((vendor) => (
             <Link
               key={vendor.id}
               href={`/vendors/${vendor.id}`}

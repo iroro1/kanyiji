@@ -3,6 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createNotification } from "@/lib/notificationHelpers";
+import {
+  sendVendorApprovalEmail,
+  sendVendorSuspensionEmail,
+  sendVendorReinstatedEmail,
+} from "@/services/emailService";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -221,7 +226,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Validate action
-    const validActions = ["approve", "reject", "suspend", "update"];
+    const validActions = ["approve", "reject", "suspend", "reinstated", "update"];
     if (!validActions.includes(action)) {
       return NextResponse.json(
         { error: "Invalid action" },
@@ -233,7 +238,7 @@ export async function PATCH(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    if (action === "approve") {
+    if (action === "approve" || action === "reinstated") {
       updateData.status = "approved";
       updateData.verification_status = "verified";
     } else if (action === "reject") {
@@ -311,7 +316,50 @@ export async function PATCH(req: NextRequest) {
           recipient_type: "user",
           created_by: adminUser?.id || null,
         });
+      } else if (action === "reinstated") {
+        await createNotification({
+          title: "Vendor Account Reinstated",
+          message: `Your vendor account "${vendorBefore.business_name}" has been reinstated. You can now access your vendor dashboard.`,
+          type: "success",
+          user_id: vendorBefore.user_id,
+          recipient_type: "user",
+          created_by: adminUser?.id || null,
+        });
       }
+    }
+
+    // Send vendor action emails (approval, suspension, reinstatement)
+    try {
+      const { data: profile } = await adminSupabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", vendorBefore?.user_id)
+        .single();
+
+      if (profile?.email && vendorBefore?.business_name) {
+        if (action === "approve") {
+          await sendVendorApprovalEmail({
+            email: profile.email,
+            businessName: vendorBefore.business_name,
+            fullName: profile.full_name || undefined,
+          });
+        } else if (action === "suspend") {
+          await sendVendorSuspensionEmail({
+            email: profile.email,
+            businessName: vendorBefore.business_name,
+            fullName: profile.full_name || undefined,
+          });
+        } else if (action === "reinstated") {
+          await sendVendorReinstatedEmail({
+            email: profile.email,
+            businessName: vendorBefore.business_name,
+            fullName: profile.full_name || undefined,
+          });
+        }
+      }
+    } catch (emailErr: any) {
+      console.error("Vendor action email failed:", emailErr);
+      // Don't fail the request; status update already succeeded
     }
 
     return NextResponse.json({

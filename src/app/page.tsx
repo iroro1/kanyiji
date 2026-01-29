@@ -15,6 +15,10 @@ const FeaturedProducts = dynamic(() => import("@/components/sections/FeaturedPro
   loading: () => <div className="h-96 bg-gray-100 animate-pulse my-8" />,
 });
 
+const NewProducts = dynamic(() => import("@/components/sections/NewProducts"), {
+  loading: () => <div className="h-96 bg-gray-100 animate-pulse my-8" />,
+});
+
 const FeaturedVendors = dynamic(() => import("@/components/sections/FeaturedVendors"), {
   loading: () => <div className="h-64 bg-gray-100 animate-pulse my-8" />,
 });
@@ -34,6 +38,10 @@ export default function HomePage() {
 
       <Suspense fallback={<div className="h-96 bg-gray-100 animate-pulse my-8" />}>
         <FeaturedProducts />
+      </Suspense>
+
+      <Suspense fallback={<div className="h-96 bg-gray-100 animate-pulse my-8" />}>
+        <NewProducts />
       </Suspense>
 
       <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse my-8" />}>

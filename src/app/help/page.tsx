@@ -7,11 +7,11 @@ import Link from 'next/link';
 const faqs = [
   {
     question: "How do I place an order?",
-    answer: "Browse our products, add items to your cart, and proceed to checkout. You can pay securely using Paystack or other available payment methods."
+    answer: "Browse our products, add items to your cart, and proceed to checkout. You can pay securely using our available payment methods."
   },
   {
     question: "What payment methods do you accept?",
-    answer: "We accept various payment methods including Paystack (credit/debit cards), bank transfers, and mobile money. All payments are processed securely."
+    answer: "We accept various payment methods including credit/debit cards, bank transfers, and mobile money. All payments are processed securely."
   },
   {
     question: "How long does shipping take?",
@@ -19,11 +19,11 @@ const faqs = [
   },
   {
     question: "Can I return or exchange items?",
-    answer: "Yes, we offer a 30-day return policy for most items. Products must be unused and in their original packaging. Contact our support team to initiate a return."
+    answer: "Yes, we offer a 48 hours return policy for most items. Products must be unused and in their original packaging. Contact our support team to initiate a return."
   },
   {
     question: "How do I become a vendor?",
-    answer: "Click on 'Become a Vendor' in your profile dropdown or visit the vendor registration page. Complete the application form and provide required documentation."
+    answer: "Click on 'Become a Vendor' in your profile dropdown. Complete the application form and provide required documentation."
   },
   {
     question: "Is my personal information secure?",

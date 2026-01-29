@@ -49,10 +49,10 @@ export interface ProductFormData {
   product_id?: string;
   name: string;
   weight: string;
-
   status: string;
   material: string;
   description: string;
+  third_party_return_policy?: string;
   price: number;
   original_price: number;
   category: string;
@@ -84,6 +84,8 @@ function AddProductPage() {
   // State for image previews with alt text
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sizeGuideFile, setSizeGuideFile] = useState<File | null>(null);
+  const sizeGuideInputRef = useRef<HTMLInputElement>(null);
   // const [productLoading, setProductLoading] = useState<boolean>();
   const [productUploadSuccess, setProductUploadSuccess] =
     useState<boolean>(false);
@@ -108,6 +110,7 @@ function AddProductPage() {
     original_price: 0,
     quantity: "",
     description: "",
+    third_party_return_policy: "",
     category: "",
     status: "active",
     material: "",
@@ -313,6 +316,7 @@ function AddProductPage() {
         imagePreviews,
         slug,
         user,
+        sizeGuideFile: sizeGuideFile || undefined,
       });
       // Don't reset form or show success modal here - wait for mutation to complete
       setErrors({});
@@ -357,11 +361,19 @@ function AddProductPage() {
         />
 
         {isError && (
-          <CustomError
-            statusCode={500}
-            title="Server Error"
-            message="Something went wrong, please try again later"
-          />
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800">
+            <p className="font-medium">Product upload failed</p>
+            <p className="text-sm mt-1">
+              Please check that all required fields are filled (Product name, Description, Price, and at least one Image) and that Weight is a number only (e.g. 5, not 5kg). Then try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => reset()}
+              className="mt-3 text-sm font-medium text-red-600 hover:text-red-700 underline"
+            >
+              Dismiss
+            </button>
+          </div>
         )}
         <form onSubmit={addProduct}>
           <div className="container mx-auto p-4 md:p-8">
@@ -385,7 +397,7 @@ function AddProductPage() {
                       htmlFor="product-name"
                       className="block text-sm font-medium text-gray-600 mb-2"
                     >
-                      Product Name
+                      Product Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -438,7 +450,7 @@ function AddProductPage() {
                     htmlFor="description"
                     className="block text-sm font-medium text-gray-600 mb-2"
                   >
-                    Description
+                    Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="description"
@@ -455,6 +467,25 @@ function AddProductPage() {
                       {errors.description}
                     </p>
                   )}
+                </div>
+
+                {/* Third party return policy (optional) */}
+                <div>
+                  <label
+                    htmlFor="third_party_return_policy"
+                    className="block text-sm font-medium text-gray-600 mb-2"
+                  >
+                    Third party return policy <span className="text-gray-400 text-xs">(optional)</span>
+                  </label>
+                  <textarea
+                    id="third_party_return_policy"
+                    name="third_party_return_policy"
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent"
+                    value={newProduct.third_party_return_policy || ""}
+                    placeholder="e.g. Vendor's own return policy for this product"
+                  />
                 </div>
 
                 {/* Material & Type */}
@@ -508,7 +539,7 @@ function AddProductPage() {
                       htmlFor="sale-price"
                       className="block text-sm font-medium text-gray-600 mb-2"
                     >
-                      Sale Price
+                      Sale Price <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
@@ -711,15 +742,22 @@ function AddProductPage() {
                         htmlFor="weight"
                         className="block text-sm font-medium text-gray-600 mb-2"
                       >
-                        Weight (kg)
+                        Weight (kg) <span className="text-gray-400 text-xs">— numbers only, e.g. 5</span>
                       </label>
                       <input
-                        type="text"
+                        type="number"
                         name="weight"
-                        onChange={handleChange}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                            setNewProduct((prev) => ({ ...prev, weight: v }));
+                          }
+                        }}
                         value={newProduct.weight}
                         id="weight"
-                        placeholder="e.g., 0.5"
+                        placeholder="e.g. 5"
+                        min={0}
+                        step="0.01"
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       />
                     </div>
@@ -761,7 +799,7 @@ function AddProductPage() {
 
                 {/* Product Image */}
                 <div className="bg-white rounded-xl shadow-md p-8">
-                  <h2 className="text-xl font-semibold mb-6">Product Images</h2>
+                  <h2 className="text-xl font-semibold mb-6">Product Images <span className="text-red-500">*</span></h2>
                   <div
                     className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition flex flex-col justify-center items-center h-40"
                     onClick={() => fileInputRef.current?.click()}
@@ -833,6 +871,29 @@ function AddProductPage() {
                       results.
                     </span>
                   </p>
+
+                  {/* Size guide (optional) - jpg, png or pdf */}
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Size guide <span className="text-gray-400 text-xs">(optional, JPG, PNG or PDF)</span>
+                    </label>
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition"
+                      onClick={() => sizeGuideInputRef.current?.click()}
+                    >
+                      <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">
+                        {sizeGuideFile ? sizeGuideFile.name : "Click to upload size guide"}
+                      </p>
+                      <input
+                        ref={sizeGuideInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        className="hidden"
+                        onChange={(e) => setSizeGuideFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

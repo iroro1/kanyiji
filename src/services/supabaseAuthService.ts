@@ -17,6 +17,8 @@ export interface AuthResponse {
   message?: string;
   requiresMFA?: boolean;
   mfaChallenge?: any;
+  /** TOTP factor ID to use with challengeAndVerify when requiresMFA is true */
+  mfaFactorId?: string;
 }
 
 export interface LoginCredentials {
@@ -449,27 +451,6 @@ class SupabaseAuthService {
 
       if (error) {
         console.error("❌ Supabase auth error:", error);
-        
-        // Check if error is related to MFA
-        // Supabase returns MFA challenges in the error response
-        const err = error as { message?: string; status?: number };
-        const isMFAError =
-          err.message?.toLowerCase().includes("mfa") ||
-          err.message?.toLowerCase().includes("multi-factor") ||
-          err.message?.toLowerCase().includes("2fa") ||
-          err.message?.toLowerCase().includes("two-factor") ||
-          err.status === 401; // MFA challenges often return 401
-        
-        if (isMFAError) {
-          console.log("⚠️ MFA challenge detected from error response");
-          return {
-            success: false,
-            error: "Two-factor authentication is enabled. Please verify your identity with the code sent to your email or authenticator app.",
-            requiresMFA: true,
-            mfaChallenge: (error as any).mfa || null, // MFA challenge might be in error object
-          };
-        }
-        
         return {
           success: false,
           error: error.message || "Login failed",
@@ -485,12 +466,32 @@ class SupabaseAuthService {
         });
       }
 
-      if (!data.user) {
-        console.error("❌ No user returned from authentication");
+      if (!data.user || !data.session) {
+        console.error("❌ No user/session returned from authentication");
         return {
           success: false,
           error: "No user returned from authentication",
         };
+      }
+
+      // Check if MFA (AAL2) is required — user has TOTP enrolled and must verify
+      try {
+        const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (!aalError && aalData?.nextLevel === "aal2") {
+          const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+          if (!factorsError && factorsData?.totp?.length) {
+            const factorId = factorsData.totp[0].id;
+            console.log("⚠️ MFA required (AAL2), factorId:", factorId);
+            return {
+              success: false,
+              error: "Two-factor authentication is enabled. Please enter the code from your authenticator app.",
+              requiresMFA: true,
+              mfaFactorId: factorId,
+            };
+          }
+        }
+      } catch (aalErr) {
+        console.warn("AAL check failed, continuing as normal login:", aalErr);
       }
 
       console.log("✅ Auth successful, user ID:", data.user.id);
@@ -707,12 +708,11 @@ class SupabaseAuthService {
   }
 
   /**
-   * Verify MFA code after login challenge
-   * @param code - The MFA verification code from email or authenticator app
-   * @param challengeId - The MFA challenge ID from the login response
-   * @param email - The user's email address (required for email-based MFA)
+   * Verify MFA (TOTP) code after login — uses factorId from login response.
+   * @param code - The 6-digit code from the user's authenticator app
+   * @param factorId - The MFA factor ID returned when login returned requiresMFA
    */
-  async verifyMFA(code: string, challengeId?: string, email?: string): Promise<AuthResponse> {
+  async verifyMFA(code: string, factorId?: string): Promise<AuthResponse> {
     try {
       if (!validateSupabaseConfig()) {
         return {
@@ -722,31 +722,18 @@ class SupabaseAuthService {
         };
       }
 
-      console.log("🔐 Verifying MFA code...");
-      
-      // Try to get email from session if not provided
-      let userEmail = email;
-      if (!userEmail) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        userEmail = sessionData.session?.user?.email || undefined;
-      }
-      
-      if (!userEmail) {
+      if (!factorId || !code.trim()) {
         return {
           success: false,
-          error: "Email address is required for MFA verification. Please try logging in again.",
+          error: "Verification code and factor are required. Please try logging in again.",
         };
       }
-      
-      // Use verifyOtp for email-based MFA verification
-      // Note: TOTP (authenticator app) MFA requires a different flow and is not supported in this version
-      const result = await supabase.auth.verifyOtp({
-        email: userEmail,
-        token: code,
-        type: 'email', // Email-based MFA
-      });
 
-      const { data, error } = result;
+      console.log("🔐 Verifying MFA (TOTP) code...");
+      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId,
+        code: code.trim(),
+      });
 
       if (error) {
         console.error("❌ MFA verification error:", error);
@@ -756,10 +743,10 @@ class SupabaseAuthService {
         };
       }
 
-      if (data?.session && data?.user) {
+      // Supabase MFA verify returns { access_token, refresh_token, user } and updates session internally
+      if (data?.user) {
         console.log("✅ MFA verification successful");
         const currentUser = await this.getCurrentUser();
-        
         return {
           success: true,
           user: currentUser || undefined,
@@ -776,6 +763,145 @@ class SupabaseAuthService {
         success: false,
         error: error?.message || "An unexpected error occurred during MFA verification",
       };
+    }
+  }
+
+  /**
+   * Get current MFA factors (for profile/settings).
+   */
+  async listMFAFactors(): Promise<{ totp: { id: string; friendly_name?: string }[]; error?: string }> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return { totp: [], error: "Supabase not configured." };
+      }
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) return { totp: [], error: error.message };
+      return {
+        totp: (data?.totp ?? []).map((f) => ({ id: f.id, friendly_name: f.friendly_name })),
+      };
+    } catch (e: any) {
+      return { totp: [], error: e?.message ?? "Failed to list factors." };
+    }
+  }
+
+  /**
+   * Get authenticator assurance level (aal1 vs aal2).
+   */
+  async getMFALevel(): Promise<{ currentLevel: "aal1" | "aal2" | null; nextLevel: "aal1" | "aal2" | null; error?: string }> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return { currentLevel: null, nextLevel: null, error: "Supabase not configured." };
+      }
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) return { currentLevel: null, nextLevel: null, error: error.message };
+      return {
+        currentLevel: data?.currentLevel ?? null,
+        nextLevel: data?.nextLevel ?? null,
+      };
+    } catch (e: any) {
+      return { currentLevel: null, nextLevel: null, error: e?.message };
+    }
+  }
+
+  /**
+   * Enroll a new TOTP factor. Returns QR code data and factor id; caller must then verify with verifyMFAEnrollment.
+   * Requires a valid Supabase session; returns a friendly error if session is missing (avoids 403).
+   */
+  async enrollMFA(friendlyName?: string): Promise<{
+    success: boolean;
+    factorId?: string;
+    qrCode?: string;
+    secret?: string;
+    uri?: string;
+    error?: string;
+  }> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return { success: false, error: "Supabase not configured." };
+      }
+      const SESSION_CHECK_MS = 4_000;
+      let sessionPromise = supabase.auth.getSession();
+      let sessionTimeout = new Promise<{ data: { session: null } }>((resolve) =>
+        setTimeout(() => resolve({ data: { session: null } }), SESSION_CHECK_MS)
+      );
+      let { data: sessionData } = await Promise.race([sessionPromise, sessionTimeout]);
+      if (!sessionData?.session?.user) {
+        // Try refreshing the session (e.g. after OAuth callback or expired token)
+        try {
+          const { data: refreshData } = await Promise.race([
+            supabase.auth.refreshSession(),
+            new Promise<{ data: { session: null } }>((r) => setTimeout(() => r({ data: { session: null } }), 3_000)),
+          ]);
+          if (refreshData?.session?.user) {
+            sessionData = { session: refreshData.session };
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!sessionData?.session?.user) {
+        return {
+          success: false,
+          error: "Please sign out and sign in again to set up 2FA.",
+        };
+      }
+      const ENROLL_TIMEOUT_MS = 10_000;
+      const enrollPromise = supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: friendlyName ?? "Kanyiji Authenticator",
+        issuer: typeof window !== "undefined" ? window.location?.hostname ?? "Kanyiji" : "Kanyiji",
+      });
+      const enrollTimeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { message: "Request timed out. Please sign out and sign in again, then try Enable 2FA." } }), ENROLL_TIMEOUT_MS)
+      );
+      const result = await Promise.race([enrollPromise, enrollTimeout]);
+      const { data, error } = result;
+      if (error) return { success: false, error: error.message };
+      if (!data?.id || !data?.totp) return { success: false, error: "Invalid enroll response." };
+      return {
+        success: true,
+        factorId: data.id,
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret,
+        uri: data.totp.uri,
+      };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? "Enrollment failed." };
+    }
+  }
+
+  /**
+   * Verify TOTP enrollment with a code from the authenticator app; completes enrollment.
+   */
+  async verifyMFAEnrollment(factorId: string, code: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return { success: false, error: "Supabase not configured." };
+      }
+      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId,
+        code: code.trim(),
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: !!data };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? "Verification failed." };
+    }
+  }
+
+  /**
+   * Remove a TOTP factor. User must be at AAL2 (e.g. just verified).
+   */
+  async unenrollMFA(factorId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (!validateSupabaseConfig()) {
+        return { success: false, error: "Supabase not configured." };
+      }
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? "Unenroll failed." };
     }
   }
 

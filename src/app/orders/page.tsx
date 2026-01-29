@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFetchUserOrders } from "@/components/http/QueryHttp";
 import OrderTrackingModal from "@/components/orders/OrderTrackingModal";
 import InvoiceModal from "@/components/orders/InvoiceModal";
+import ReviewModal from "@/components/orders/ReviewModal";
 
 interface Order {
   id: string;
@@ -39,7 +40,12 @@ export default function OrdersPage() {
   const { data: orders, isPending, isLoading, error, isError } = useFetchUserOrders(user ? user.id : "");
   const [trackingModalOpen, setTrackingModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [returnForm, setReturnForm] = useState({ itemName: "", reason: "", image: null as File | null });
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnSuccess, setReturnSuccess] = useState(false);
 
   if (!user) {
     return (
@@ -411,9 +417,28 @@ export default function OrdersPage() {
                         View Invoice
                       </button>
                       {order.status === "delivered" && (
-                        <button className="border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium text-sm px-4 py-2 rounded-lg transition-colors">
-                          Leave Review
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setReviewModalOpen(true);
+                            }}
+                            className="border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium text-sm px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Leave Review
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setReturnForm({ itemName: order.order_items?.[0]?.product_name || "", reason: "", image: null });
+                              setReturnSuccess(false);
+                              setReturnModalOpen(true);
+                            }}
+                            className="border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium text-sm px-4 py-2 rounded-lg transition-colors"
+                          >
+                            Request return
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -451,6 +476,119 @@ export default function OrdersPage() {
           trackingNumber={selectedOrder.tracking_number || ""}
           orderId={selectedOrder.order_number || selectedOrder.id}
         />
+      )}
+
+      {/* Review Modal - use first item for delivered order */}
+      {selectedOrder && reviewModalOpen && selectedOrder.order_items?.length > 0 && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          orderId={selectedOrder.id}
+          productId={selectedOrder.order_items[0].product_id || selectedOrder.order_items[0].id}
+          productName={selectedOrder.order_items[0].product_name || "Product"}
+          productImage={selectedOrder.order_items[0].products?.product_images?.[0]?.image_url || "/placeholder-product.png"}
+        />
+      )}
+
+      {/* Request return modal */}
+      {selectedOrder && returnModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Request return</h3>
+              {returnSuccess ? (
+                <p className="text-gray-600 mb-4">Your return request has been submitted. We will email you shortly.</p>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setReturnSubmitting(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append("orderId", selectedOrder.id);
+                      formData.append("orderNumber", selectedOrder.order_number || selectedOrder.id);
+                      formData.append("itemName", returnForm.itemName);
+                      formData.append("reason", returnForm.reason);
+                      formData.append("customerEmail", user?.email || "");
+                      formData.append("customerName", user?.full_name || user?.email || "");
+                      if (returnForm.image) formData.append("image", returnForm.image);
+                      const res = await fetch("/api/orders/request-return", { method: "POST", body: formData });
+                      if (res.ok) {
+                        setReturnSuccess(true);
+                        setTimeout(() => {
+                          setReturnModalOpen(false);
+                          setSelectedOrder(null);
+                          setReturnForm({ itemName: "", reason: "", image: null });
+                        }, 2000);
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        alert(err.error || "Failed to submit return request");
+                      }
+                    } catch {
+                      alert("Failed to submit return request");
+                    } finally {
+                      setReturnSubmitting(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
+                    <input
+                      type="text"
+                      value={returnForm.itemName}
+                      onChange={(e) => setReturnForm((f) => ({ ...f, itemName: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Reason for return</label>
+                    <textarea
+                      value={returnForm.reason}
+                      onChange={(e) => setReturnForm((f) => ({ ...f, reason: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Attach image (optional)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setReturnForm((f) => ({ ...f, image: e.target.files?.[0] || null }))}
+                      className="w-full text-sm text-gray-600"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReturnModalOpen(false);
+                        setSelectedOrder(null);
+                        setReturnForm({ itemName: "", reason: "", image: null });
+                      }}
+                      className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={returnSubmitting}
+                      className="flex-1 bg-primary-500 hover:bg-primary-600 text-white rounded-lg py-2 disabled:opacity-50"
+                    >
+                      {returnSubmitting ? "Submitting..." : "Submit"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Invoice Modal */}

@@ -404,3 +404,192 @@ export async function sendWelcomeEmail({
   }
 }
 
+export interface SendVendorApprovalEmailParams {
+  email: string;
+  businessName: string;
+  fullName?: string;
+}
+
+export async function sendVendorApprovalEmail({
+  email,
+  businessName,
+  fullName,
+}: SendVendorApprovalEmailParams) {
+  try {
+    const resend = getResend();
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Your Kanyiji Vendor Account Has Been Approved",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Kanyiji Marketplace</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Vendor Account Approved</h2>
+              ${fullName ? `<p>Hello ${fullName},</p>` : "<p>Hello,</p>"}
+              <p>Great news! Your vendor application for <strong>${businessName}</strong> has been approved.</p>
+              <p>You can now log in to your vendor dashboard and start listing your products on Kanyiji.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://kanyiji.ng/vendor/dashboard" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Go to Vendor Dashboard</a>
+              </div>
+              <p style="color: #6b7280; font-size: 12px;">If you have any questions, contact our support team.</p>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send vendor approval email error:", error);
+    throw error;
+  }
+}
+
+export interface SendVendorSuspensionEmailParams {
+  email: string;
+  businessName: string;
+  fullName?: string;
+}
+
+export async function sendVendorSuspensionEmail({
+  email,
+  businessName,
+  fullName,
+}: SendVendorSuspensionEmailParams) {
+  try {
+    const resend = getResend();
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Your Kanyiji Vendor Account Has Been Suspended",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Kanyiji Marketplace</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Vendor Account Suspended</h2>
+              ${fullName ? `<p>Hello ${fullName},</p>` : "<p>Hello,</p>"}
+              <p>Your vendor account for <strong>${businessName}</strong> has been suspended.</p>
+              <p>Please contact our support team for more information and to resolve this matter.</p>
+              <p style="color: #6b7280; font-size: 12px;">Email: support@kanyiji.ng</p>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send vendor suspension email error:", error);
+    throw error;
+  }
+}
+
+export interface SendVendorReinstatedEmailParams {
+  email: string;
+  businessName: string;
+  fullName?: string;
+}
+
+export async function sendVendorReinstatedEmail({
+  email,
+  businessName,
+  fullName,
+}: SendVendorReinstatedEmailParams) {
+  try {
+    const resend = getResend();
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Your Kanyiji Vendor Account Has Been Reinstated",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Kanyiji Marketplace</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Vendor Account Reinstated</h2>
+              ${fullName ? `<p>Hello ${fullName},</p>` : "<p>Hello,</p>"}
+              <p>Your vendor account for <strong>${businessName}</strong> has been reinstated. You can now access your vendor dashboard and continue selling on Kanyiji.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://kanyiji.ng/vendor/dashboard" style="background: #D4AF37; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Go to Vendor Dashboard</a>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send vendor reinstated email error:", error);
+    throw error;
+  }
+}
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.RESEND_ADMIN_EMAIL || "support@kanyiji.ng";
+
+export interface SendReturnRequestToAdminParams {
+  adminEmail: string;
+  customerName: string;
+  customerEmail: string;
+  orderId: string;
+  orderNumber: string;
+  itemName: string;
+  reason: string;
+  imageUrl?: string;
+}
+
+export async function sendReturnRequestToAdmin(params: SendReturnRequestToAdminParams) {
+  try {
+    const resend = getResend();
+    const { adminEmail, customerName, customerEmail, orderId, orderNumber, itemName, reason, imageUrl } = params;
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [adminEmail],
+      subject: `Return request: Order ${orderNumber} - ${itemName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Return Request</h1>
+            </div>
+            <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Customer details</h2>
+              <p><strong>Name:</strong> ${customerName}</p>
+              <p><strong>Email:</strong> ${customerEmail}</p>
+              <h2 style="color: #1f2937; margin-top: 24px;">Order & item</h2>
+              <p><strong>Order ID:</strong> ${orderId}</p>
+              <p><strong>Order number:</strong> ${orderNumber}</p>
+              <p><strong>Item:</strong> ${itemName}</p>
+              <h2 style="color: #1f2937; margin-top: 24px;">Reason for return</h2>
+              <p style="white-space: pre-wrap;">${reason}</p>
+              ${imageUrl ? `<p><strong>Attached image:</strong> <a href="${imageUrl}">View</a></p>` : ""}
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send return request to admin error:", error);
+    throw error;
+  }
+}
+

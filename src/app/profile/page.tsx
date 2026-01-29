@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { useFetchVendorDetails, useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
@@ -35,6 +36,10 @@ const PrivacySettings = dynamic(
 );
 const DeleteAccountModal = dynamic(
   () => import("@/components/settings/DeleteAccountModal"),
+  { ssr: false, loading: () => null }
+);
+const MFAEnrollModal = dynamic(
+  () => import("@/components/settings/MFAEnrollModal"),
   { ssr: false, loading: () => null }
 );
 
@@ -101,6 +106,9 @@ export default function ProfilePage() {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showMfaEnrollModal, setShowMfaEnrollModal] = useState(false);
+  const [mfaFactors, setMfaFactors] = useState<{ id: string; friendly_name?: string }[]>([]);
+  const [mfaFactorsLoading, setMfaFactorsLoading] = useState(false);
 
   // User data from database
   const [userData, setUserData] = useState({
@@ -144,6 +152,52 @@ export default function ProfilePage() {
       checkGoogleUser();
     }
   }, [user]);
+
+  // Fetch MFA factors when user is present (for 2FA status)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setMfaFactorsLoading(true);
+    const MFA_CHECK_TIMEOUT_MS = 6_000;
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setMfaFactorsLoading(false);
+      }
+    }, MFA_CHECK_TIMEOUT_MS);
+    supabaseAuthService.listMFAFactors().then((res) => {
+      if (!cancelled) {
+        if (!res.error) setMfaFactors(res.totp);
+        setMfaFactorsLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setMfaFactors([]);
+        setMfaFactorsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [user]);
+
+  const refreshMfaFactors = () => {
+    supabaseAuthService.listMFAFactors().then((res) => {
+      if (!res.error) setMfaFactors(res.totp);
+    });
+  };
+
+  const handleDisable2FA = async () => {
+    if (mfaFactors.length === 0) return;
+    if (typeof window !== "undefined" && !window.confirm("Are you sure you want to disable two-factor authentication? Your account will be less secure.")) return;
+    const result = await supabaseAuthService.unenrollMFA(mfaFactors[0].id);
+    if (result.success) {
+      toast.success("Two-factor authentication has been disabled.");
+      setMfaFactors([]);
+    } else {
+      toast.error(result.error || "Failed to disable 2FA. You may need to sign in again with your authenticator code first.");
+    }
+  };
 
   const [formData, setFormData] = useState({
     ...userData,
@@ -227,21 +281,48 @@ export default function ProfilePage() {
       setIsLoading(true);
     }
 
+    const fillFromAuthUser = () => {
+      const name = (user as any)?.name ?? (currentUser as any)?.name ?? (user as any)?.user_metadata?.full_name ?? (user as any)?.email?.split("@")[0] ?? "";
+      const nameParts = (typeof name === "string" ? name : "").split(" ") || ["", ""];
+      const fallback = {
+        firstName: nameParts[0] || "",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: (user as any)?.email ?? (currentUser as any)?.email ?? "",
+        phone: "",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "Nigeria",
+        avatar_url: (user as any)?.user_metadata?.picture ?? (user as any)?.user_metadata?.avatar_url ?? "",
+      };
+      setUserData(fallback);
+      setFormData(fallback);
+    };
+
+    const PROFILE_FETCH_TIMEOUT_MS = 5_000;
+
     const fetchProfileData = async () => {
       try {
-        const { data: profile, error } = await supabase
+        const fetchPromise = supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
           .single();
+        const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: { message: "Timeout" } }), PROFILE_FETCH_TIMEOUT_MS)
+        );
+        const result = await Promise.race([fetchPromise, timeoutPromise]);
+        const { data: profile, error } = result as { data: any; error: any };
 
         if (error) {
           console.error("❌ Error fetching profile:", error);
           if (isMounted) {
-            toast.error("Failed to load profile data");
+            fillFromAuthUser();
+            if (error?.message !== "Timeout") toast.error("Failed to load profile data");
             setIsLoading(false);
-            setHasLoadedProfile(true); // Mark as loaded even on error to prevent retry loops
-            hasInitialLoadRef.current = true; // Mark initial load as complete even on error
+            setHasLoadedProfile(true);
+            hasInitialLoadRef.current = true;
           }
           return;
         }
@@ -480,8 +561,9 @@ export default function ProfilePage() {
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  // Wait for auth to finish before deciding — never show "Please Sign In" while auth is still loading
-  if (authLoading) {
+  // If we have user from context, show profile (don't block on auth loading forever)
+  const hasUser = !!user?.id;
+  if (authLoading && !hasUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -1107,8 +1189,8 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {/* Two-Factor Authentication - Only for Vendors */}
-                      {vendor && (
+                      {/* Two-Factor Authentication - for email/password accounts */}
+                      {!isGoogleUser && (
                         <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                             <div className="flex-1">
@@ -1116,17 +1198,30 @@ export default function ProfilePage() {
                                 Two-Factor Authentication (2FA)
                               </h4>
                               <p className="text-gray-600 text-xs sm:text-sm">
-                                Add an extra layer of security to your vendor account
+                                {mfaFactors.length > 0
+                                  ? "Your account is protected with an authenticator app."
+                                  : "Add an extra layer of security with an authenticator app (Google Authenticator, Authy, etc.)."}
                               </p>
                             </div>
-                            <button
-                              onClick={() => {
-                                notify("2FA setup coming soon. This feature will allow you to secure your vendor account with an authenticator app.", "info");
-                              }}
-                              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
-                            >
-                              Enable 2FA
-                            </button>
+                            {mfaFactorsLoading ? (
+                              <span className="text-sm text-gray-500">Checking...</span>
+                            ) : mfaFactors.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={handleDisable2FA}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
+                              >
+                                Disable 2FA
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setShowMfaEnrollModal(true)}
+                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
+                              >
+                                Enable 2FA
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1216,6 +1311,12 @@ export default function ProfilePage() {
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         user={user}
+      />
+
+      <MFAEnrollModal
+        isOpen={showMfaEnrollModal}
+        onClose={() => setShowMfaEnrollModal(false)}
+        onSuccess={refreshMfaFactors}
       />
 
       <NotificationsSettings

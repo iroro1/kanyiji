@@ -37,6 +37,7 @@ export default function VendorRegistrationPage() {
     businessType: "",
     businessDescription: "",
     website: "",
+    account_information: "",
 
     // Address Information
     address: "",
@@ -527,6 +528,21 @@ export default function VendorRegistrationPage() {
                     placeholder="https://yourwebsite.com"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vendor account information <span className="text-gray-400 text-xs">(optional)</span>
+                  </label>
+                  <textarea
+                    value={formData.account_information}
+                    onChange={(e) =>
+                      handleInputChange("account_information", e.target.value)
+                    }
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g. bank account details, payment preferences, or other account notes"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -740,7 +756,7 @@ export default function VendorRegistrationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bank Statement (Last 1 month) *
+                    Bank statement for one month or utility bill *
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
                     <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
@@ -812,7 +828,8 @@ export default function VendorRegistrationPage() {
                       className="mt-1 mr-3 flex-shrink-0"
                     />
                     <span className="text-xs sm:text-sm text-gray-700">
-                      I agree to the Kanyiji Marketplace Terms and Conditions *
+                      I agree to the{" "}
+                      <a href="/policies/terms" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Terms and Conditions</a> *
                     </span>
                   </label>
                   {errors.agreeToTerms && (
@@ -841,7 +858,8 @@ export default function VendorRegistrationPage() {
                       className="mt-1 mr-3 flex-shrink-0"
                     />
                     <span className="text-xs sm:text-sm text-gray-700">
-                      I agree to the Privacy Policy *
+                      I agree to the{" "}
+                      <a href="/policies/privacy" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Privacy Policy</a> *
                     </span>
                   </label>
                   {errors.agreeToPrivacy && (

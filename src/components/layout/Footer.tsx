@@ -7,20 +7,19 @@ import {
   MapPin,
   Facebook,
   Instagram,
-  // Twitter,
-  // Linkedin,
-  // Youtube,
+  Twitter,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-// import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "../auth/AuthModal";
 import kanyiyi from "../../assets/Kanyiji-dark.png";
 
 export default function Footer() {
-  // const { user } = useAuth();
+  const { user } = useAuth();
+  const isVendor = user?.role === "vendor" || user?.role === "admin";
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
@@ -135,9 +134,7 @@ export default function Footer() {
   const socialLinks = [
     { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/share/182dVkCGtT/?mibextid=wwXIfr" },
     { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/kanyiji.ng?igsh=MXBrMHhuNWwyZ3h3Nw%3D%3D&utm_source=qr" },
-    // { name: "Twitter", icon: Twitter, href: "https://twitter.com" },
-    // { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
-    // { name: "YouTube", icon: Youtube, href: "https://youtube.com" },
+    { name: "Twitter", icon: Twitter, href: "https://twitter.com/kanyijiafrica" },
   ];
 
   return (
@@ -212,7 +209,9 @@ export default function Footer() {
           </div>
 
           {/* Footer Sections */}
-          {footerSections.map((section) => (
+          {footerSections
+            .filter((section) => section.title !== "For Vendors" || isVendor)
+            .map((section) => (
             <div key={section.title}>
               <h3 className="text-lg font-semibold mb-4 text-white">
                 {section.title}

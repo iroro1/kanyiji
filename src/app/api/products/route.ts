@@ -79,6 +79,8 @@ export async function GET(request: NextRequest) {
       "sub_category",
       "rating",
       "review_count",
+      "size_guide_url",
+      "third_party_return_policy",
     ];
     const baseFieldsSet = new Set(baseFields);
 
