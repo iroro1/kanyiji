@@ -21,7 +21,7 @@ interface Order {
   id: string;
   orderNumber: string;
   date: string;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "delivered" | "completed" | "cancelled";
   total: number;
   items: Array<{
     id: string;
@@ -416,7 +416,7 @@ export default function OrdersPage() {
                       >
                         View Invoice
                       </button>
-                      {order.status === "delivered" && (
+                      {(order.status === "delivered" || order.status === "completed") && (
                         <>
                           <button
                             onClick={() => {

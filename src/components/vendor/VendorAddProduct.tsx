@@ -182,19 +182,30 @@ function AddProductPage() {
       description?: string;
       price?: string;
       category?: string;
-      // sku?: string;
       stock?: string;
       salePercentage?: string;
+      weight?: string;
     } = {};
 
     if (!newProduct.name.trim()) newErrors.name = "Product name is required";
     if (!newProduct.description.trim())
       newErrors.description = "Description is required";
-    if (newProduct.price <= 0) newErrors.price = "Price must be greater than 0";
+    if (newProduct.price <= 0) newErrors.price = "Price is required and must be greater than 0";
     if (newProduct.price > newProduct.original_price)
       newErrors.price = "Sale Price must be lower than original price";
     if (!newProduct.category) newErrors.category = "Category is required";
-    // if (!newProduct.sku.trim()) newErrors.sku = "SKU is required";
+    // Weight: numbers only (e.g. 5). Reject text like "5kg"
+    const weightStr = String(newProduct.weight ?? "").trim();
+    if (weightStr && !/^\d*\.?\d*$/.test(weightStr)) {
+      newErrors.weight = "Weight must be a number only (e.g. 5), not text like 5kg";
+    }
+    if (imagePreviews.length === 0) {
+      // Show as name error area or a general message - we don't have image in errors; toast is used elsewhere
+      // Require at least one image: block submit by returning false if no images
+      toast.error("At least one product image is required.");
+      setErrors(newErrors);
+      return false;
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -397,7 +408,7 @@ function AddProductPage() {
                       htmlFor="product-name"
                       className="block text-sm font-medium text-gray-600 mb-2"
                     >
-                      Product Name <span className="text-red-500">*</span>
+                      Product Name <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(required)</span>
                     </label>
                     <input
                       type="text"
@@ -450,7 +461,7 @@ function AddProductPage() {
                     htmlFor="description"
                     className="block text-sm font-medium text-gray-600 mb-2"
                   >
-                    Description <span className="text-red-500">*</span>
+                    Description <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(required)</span>
                   </label>
                   <textarea
                     id="description"
@@ -539,7 +550,7 @@ function AddProductPage() {
                       htmlFor="sale-price"
                       className="block text-sm font-medium text-gray-600 mb-2"
                     >
-                      Sale Price <span className="text-red-500">*</span>
+                      Sale Price <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(required)</span>
                     </label>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
@@ -758,8 +769,11 @@ function AddProductPage() {
                         placeholder="e.g. 5"
                         min={0}
                         step="0.01"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${errors.weight ? "border-red-300" : "border-gray-300"}`}
                       />
+                      {errors.weight && (
+                        <p className="text-red-500 text-sm mt-1">{errors.weight}</p>
+                      )}
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-600 mb-2">

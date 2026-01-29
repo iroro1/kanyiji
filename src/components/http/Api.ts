@@ -347,6 +347,7 @@ export async function registerNewVendor({ formData, user }: any) {
         business_type: formData.businessType,
         business_description: formData.businessDescription,
         website_url: formData.website,
+        twitter_handle: formData.twitterHandle || null,
         account_information: formData.account_information || null,
         address: formData.address,
         city: formData.city,
@@ -553,11 +554,19 @@ export async function addNewProduct({
     }
   }
 
-  // 1. Insert the main product
-  const weightNum =
-    newProduct.weight !== "" && newProduct.weight != null
-      ? parseFloat(String(newProduct.weight))
-      : null;
+  // 1. Insert the main product — weight must be numbers only (e.g. 5), not "5kg"
+  const weightStr = String(newProduct.weight ?? "").trim();
+  let weightNum: number | null = null;
+  if (weightStr) {
+    if (!/^\d*\.?\d*$/.test(weightStr)) {
+      throw new Error("Weight must be a number only (e.g. 5), not text like 5kg.");
+    }
+    const n = parseFloat(weightStr);
+    if (Number.isNaN(n) || n < 0) {
+      throw new Error("Weight must be a number only (e.g. 5).");
+    }
+    weightNum = n;
+  }
   const productPayload: any = {
     vendor_id: vendor?.id,
     name: newProduct.name,

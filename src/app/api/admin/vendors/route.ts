@@ -249,10 +249,10 @@ export async function PATCH(req: NextRequest) {
       updateData = { ...updateData, ...updates };
     }
 
-    // Get vendor details before update
+    // Get vendor details before update (include business_email for email fallback)
     const { data: vendorBefore, error: fetchError } = await adminSupabase
       .from("vendors")
-      .select("user_id, business_name, status")
+      .select("user_id, business_name, business_email, status")
       .eq("id", vendorId)
       .single();
 
@@ -265,6 +265,14 @@ export async function PATCH(req: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    // When approving or reinstating, set profiles.role to "vendor" so Navbar and getCurrentUser show Vendor Dashboard
+    if ((action === "approve" || action === "reinstated") && vendorBefore?.user_id) {
+      await adminSupabase
+        .from("profiles")
+        .update({ role: "vendor" })
+        .eq("id", vendorBefore.user_id);
     }
 
     // Create notification for vendor based on action
@@ -329,6 +337,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Send vendor action emails (approval, suspension, reinstatement)
+    // Use profile email first; fallback to vendor business_email so emails are received
     try {
       const { data: profile } = await adminSupabase
         .from("profiles")
@@ -336,24 +345,25 @@ export async function PATCH(req: NextRequest) {
         .eq("id", vendorBefore?.user_id)
         .single();
 
-      if (profile?.email && vendorBefore?.business_name) {
+      const toEmail = profile?.email || (vendorBefore as any)?.business_email;
+      if (toEmail && vendorBefore?.business_name) {
         if (action === "approve") {
           await sendVendorApprovalEmail({
-            email: profile.email,
+            email: toEmail,
             businessName: vendorBefore.business_name,
-            fullName: profile.full_name || undefined,
+            fullName: profile?.full_name || undefined,
           });
         } else if (action === "suspend") {
           await sendVendorSuspensionEmail({
-            email: profile.email,
+            email: toEmail,
             businessName: vendorBefore.business_name,
-            fullName: profile.full_name || undefined,
+            fullName: profile?.full_name || undefined,
           });
         } else if (action === "reinstated") {
           await sendVendorReinstatedEmail({
-            email: profile.email,
+            email: toEmail,
             businessName: vendorBefore.business_name,
-            fullName: profile.full_name || undefined,
+            fullName: profile?.full_name || undefined,
           });
         }
       }

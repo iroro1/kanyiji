@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Menu,
   X,
@@ -528,7 +528,7 @@ const AuthButtons = ({
                     </>
                   )}
 
-                  {/* Vendor Dashboard Link */}
+                  {/* Vendor Dashboard Link - only when user is a vendor */}
                   {user.isVendor && (
                     <>
                       <div className="border-t border-gray-100 my-2" />
@@ -648,18 +648,48 @@ export default function Navbar() {
 
   const { vendor } = useFetchVendorDetails(userId);
 
-  // Server-side source of truth: /api/vendor/me returns isVendor from DB (bypasses RLS/client cache issues)
+  // Server-side source of truth: /api/vendor/me returns isVendor from DB.
+  // Pass session token (from getSession or localStorage) so server can recognize vendor when session is client-only.
   const [apiIsVendor, setApiIsVendor] = useState(false);
-  useEffect(() => {
+  const runVendorCheck = useCallback(async () => {
     if (!isAuthenticated || !userId) {
       setApiIsVendor(false);
       return;
     }
-    fetch("/api/vendor/me", { credentials: "include" })
-      .then((r) => r.json())
-      .then((body) => setApiIsVendor(!!body?.isVendor))
-      .catch(() => setApiIsVendor(false));
+    try {
+      let accessToken: string | null = null;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        accessToken = session.access_token;
+      }
+      // Fallback: read from localStorage (e.g. after OAuth callback wrote session here)
+      if (!accessToken && typeof window !== "undefined") {
+        try {
+          const raw = localStorage.getItem("supabase.auth.token");
+          const stored = raw ? JSON.parse(raw) : null;
+          accessToken = stored?.access_token ?? null;
+        } catch {
+          // ignore
+        }
+      }
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+      const r = await fetch("/api/vendor/me", { credentials: "include", headers });
+      const body = await r.json();
+      setApiIsVendor(!!body?.isVendor);
+    } catch {
+      setApiIsVendor(false);
+    }
   }, [isAuthenticated, userId]);
+
+  useEffect(() => {
+    runVendorCheck();
+    // Retry once after a short delay (session may not be in storage yet on first paint)
+    const t = setTimeout(runVendorCheck, 1500);
+    return () => clearTimeout(t);
+  }, [runVendorCheck]);
 
   // Fallback: treat as vendor if we've stored that in localStorage for this user (avoids "Become a Vendor" when already vendor)
   const [storedIsVendor, setStoredIsVendor] = useState(false);
@@ -693,6 +723,23 @@ export default function Navbar() {
     didRefreshForVendor.current = true;
     refreshUser();
   }, [vendor, userId, refreshUser, displayUser?.role, (authUser as { role?: string })?.role]);
+
+  // When API says user is vendor, persist role to localStorage so "Vendor Dashboard" shows on next load without waiting for API
+  useEffect(() => {
+    if (!apiIsVendor || typeof window === "undefined" || !authUser?.id) return;
+    try {
+      const raw = localStorage.getItem("kanyiji_auth_user");
+      const stored = raw ? JSON.parse(raw) : null;
+      if (stored?.id === authUser.id && stored?.role !== "vendor") {
+        localStorage.setItem(
+          "kanyiji_auth_user",
+          JSON.stringify({ ...stored, role: "vendor" })
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }, [apiIsVendor, authUser?.id]);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -1331,7 +1378,7 @@ const MobileMenu = ({
                 </Link>
               )}
 
-              {/* Vendor Dashboard Link */}
+              {/* Vendor Dashboard Link - only when user is a vendor */}
               {user.isVendor && (
                 <Link
                   href="/vendor/dashboard"

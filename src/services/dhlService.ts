@@ -2,10 +2,10 @@
  * DHL Express (MyDHL API) integration for international shipping.
  * Used for addresses outside Nigeria.
  *
- * Env vars (use test keys from DHL dashboard; replace with live keys for production):
- *   DHL_APIKey=
- *   DHL_APISecret=
- *   DHL_APP_NAME=KANYIJI GLOBAL RESOURCES LTD - NG (optional)
+ * Set in .env (test keys from DHL; replace with live keys for production):
+ *   DHL_APIKey=       (e.g. test key from MyDHL API - KANYIJI GLOBAL RESOURCES LTD - NG)
+ *   DHL_APISecret=    (e.g. test secret)
+ *   DHL_API_BASE_URL= (optional; defaults to https://express.api.dhl.com/mydhlapi)
  */
 
 const DHL_API_KEY = process.env.DHL_APIKey;

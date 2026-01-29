@@ -1189,9 +1189,8 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {/* Two-Factor Authentication - for email/password accounts */}
-                      {!isGoogleUser && (
-                        <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      {/* Two-Factor Authentication - available for all sign-in methods (email and Google) */}
+                      <div className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                             <div className="flex-1">
                               <h4 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
@@ -1224,7 +1223,6 @@ export default function ProfilePage() {
                             )}
                           </div>
                         </div>
-                      )}
                     </div>
                   </div>
 
