@@ -6,12 +6,17 @@ import { supabaseAuthService, AuthUser } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
 import { validateSupabaseConfig, supabase } from "@/lib/supabase";
 import { SessionStorage } from "@/utils/sessionStorage";
+import MFABlockingOverlay from "@/components/auth/MFABlockingOverlay";
 
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isConfigValid: boolean;
+  /** When true, session is AAL1 but 2FA is enabled — app is blocked until OTP is entered */
+  mfaRequiredForSession: boolean;
+  mfaFactorId: string | null;
+  clearMFARequired: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; requiresMFA?: boolean; mfaFactorId?: string; error?: string }>;
   verifyMFA: (code: string, factorId: string) => Promise<boolean>;
   register: (
@@ -75,7 +80,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // CRITICAL: Start with false if we have cached user, true only if no cache
   const [isLoading, setIsLoading] = useState(!getInitialUser());
   const [isConfigValid, setIsConfigValid] = useState(true);
+  const [mfaRequiredForSession, setMfaRequiredForSession] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const router = useRouter();
+
+  const clearMFARequired = () => {
+    setMfaRequiredForSession(false);
+    setMfaFactorId(null);
+  };
+
+  /** If session exists but AAL2 is required, set mfaRequiredForSession so app shows blocking OTP overlay */
+  const checkAALAndRequireMFAIfNeeded = async () => {
+    try {
+      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError || aalData?.nextLevel !== "aal2") {
+        setMfaRequiredForSession(false);
+        setMfaFactorId(null);
+        return;
+      }
+      const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError || !factorsData?.totp?.length) {
+        setMfaRequiredForSession(false);
+        setMfaFactorId(null);
+        return;
+      }
+      setMfaRequiredForSession(true);
+      setMfaFactorId(factorsData.totp[0].id);
+    } catch {
+      setMfaRequiredForSession(false);
+      setMfaFactorId(null);
+    }
+  };
 
   // Check authentication status on mount
   useEffect(() => {
@@ -147,6 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   if (typeof window !== "undefined") {
                     localStorage.setItem("kanyiji_auth_user", JSON.stringify(currentUser));
                   }
+                  void checkAALAndRequireMFAIfNeeded();
                 } else {
                   // Fallback: use session data if getCurrentUser fails
                   console.log("Using session data as fallback");
@@ -163,6 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   if (typeof window !== "undefined") {
                     localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
                   }
+                  await checkAALAndRequireMFAIfNeeded();
                 }
                 setIsLoading(false);
               }
@@ -183,6 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 if (typeof window !== "undefined") {
                   localStorage.setItem("kanyiji_auth_user", JSON.stringify(fallbackUser));
                 }
+                void checkAALAndRequireMFAIfNeeded();
               } else if (isMounted) {
                 setUser(null);
               }
@@ -229,6 +267,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   const { data: { session: verifySession } } = await supabase.auth.getSession();
                   if (verifySession) {
                     console.log("Session verified, restoring from backup");
+                    void checkAALAndRequireMFAIfNeeded();
                   } else {
                     console.log("Restoring user from backup (getSession was null)");
                   }
@@ -324,6 +363,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log("User signed out");
           if (isMounted) {
             setUser(null);
+            setMfaRequiredForSession(false);
+            setMfaFactorId(null);
             // Clear localStorage backup
             if (typeof window !== "undefined") {
               localStorage.removeItem("kanyiji_auth_user");
@@ -474,7 +515,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; requiresMFA?: boolean; mfaChallenge?: any; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; requiresMFA?: boolean; mfaFactorId?: string; error?: string }> => {
     try {
       console.log("🔐 AuthContext: Starting login for:", email);
       setIsLoading(true);
@@ -487,14 +528,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: response.error,
       });
 
-      // Check if MFA is required
+      // Check if MFA is required (pass mfaFactorId so LoginForm can show OTP step)
       if (response.requiresMFA) {
-        console.log("⚠️ MFA required for login");
+        console.log("⚠️ MFA required for login, factorId:", response.mfaFactorId);
         setIsLoading(false);
         return {
           success: false,
           requiresMFA: true,
-          mfaChallenge: response.mfaChallenge,
+          mfaFactorId: response.mfaFactorId,
           error: response.error,
         };
       }
@@ -532,6 +573,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.user) {
         console.log("✅ AuthContext: MFA verification successful, setting user");
         setUser(response.user);
+        clearMFARequired();
         SessionStorage.remove("currentUser");
         if (typeof window !== "undefined") {
           localStorage.setItem("kanyiji_auth_user", JSON.stringify(response.user));
@@ -714,6 +756,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     isAuthenticated: !!user,
     isConfigValid,
+    mfaRequiredForSession,
+    mfaFactorId,
+    clearMFARequired,
     login,
     verifyMFA,
     register,
@@ -722,5 +767,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshSession,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <MFABlockingOverlay />
+    </AuthContext.Provider>
+  );
 };

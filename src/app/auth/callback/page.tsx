@@ -62,6 +62,10 @@ export default function AuthCallbackPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [stuck, setStuck] = useState(false);
+  const [requiresMFA, setRequiresMFA] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -79,6 +83,19 @@ export default function AuthCallbackPage() {
       toast.success("Successfully signed in!");
       window.history.replaceState(null, "", window.location.pathname);
       window.location.href = "/";
+    };
+
+    /** If user has 2FA enabled (AAL2), return factorId so we show OTP; else return null and caller can redirect. */
+    const checkAALAndGetMFAFactorId = async (): Promise<string | null> => {
+      try {
+        const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aalError || aalData?.nextLevel !== "aal2") return null;
+        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
+        if (factorsError || !factorsData?.totp?.length) return null;
+        return factorsData.totp[0].id;
+      } catch {
+        return null;
+      }
     };
 
     const tryHashLogin = async (): Promise<boolean> => {
@@ -132,6 +149,13 @@ export default function AuthCallbackPage() {
 
       const user = sessionData?.session?.user;
       if (user && typeof window !== "undefined") {
+        const factorId = await checkAALAndGetMFAFactorId();
+        if (factorId) {
+          setRequiresMFA(true);
+          setMfaFactorId(factorId);
+          setIsLoading(false);
+          return true;
+        }
         const authUser = {
           id: user.id,
           email: user.email ?? "",
@@ -180,6 +204,13 @@ export default function AuthCallbackPage() {
             }
 
             if (data?.session) {
+              const factorId = await checkAALAndGetMFAFactorId();
+              if (factorId) {
+                setRequiresMFA(true);
+                setMfaFactorId(factorId);
+                setIsLoading(false);
+                return;
+              }
               doneRef.current = true;
               console.log("Session created successfully from code");
               toast.success("Successfully signed in!");
@@ -209,6 +240,13 @@ export default function AuthCallbackPage() {
         // No code and no hash: maybe session was set by detectSessionInUrl
         const { data: existingSession } = await supabase.auth.getSession();
         if (existingSession?.session?.user) {
+          const factorId = await checkAALAndGetMFAFactorId();
+          if (factorId) {
+            setRequiresMFA(true);
+            setMfaFactorId(factorId);
+            setIsLoading(false);
+            return;
+          }
           toast.success("Successfully signed in!");
           window.location.href = "/";
           return;
@@ -228,6 +266,14 @@ export default function AuthCallbackPage() {
 
         if (data.session) {
           const user = data.session.user;
+
+          const factorId = await checkAALAndGetMFAFactorId();
+          if (factorId) {
+            setRequiresMFA(true);
+            setMfaFactorId(factorId);
+            setIsLoading(false);
+            return;
+          }
           
           // Check if this is a new user (created within the last 2 minutes)
           // This helps detect new Google OAuth signups
@@ -341,6 +387,48 @@ export default function AuthCallbackPage() {
     };
   }, [router]);
 
+  const handleMFAVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaFactorId || !mfaCode.trim() || mfaCode.trim().length !== 6) {
+      toast.error("Please enter the 6-digit code from your authenticator app");
+      return;
+    }
+    setMfaVerifying(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId: mfaFactorId,
+        code: mfaCode.trim(),
+      });
+      if (error) {
+        toast.error(error.message || "Invalid code. Please try again.");
+        setMfaVerifying(false);
+        return;
+      }
+      if (data?.user) {
+        doneRef.current = true;
+        const user = data.user;
+        const authUser = {
+          id: user.id,
+          email: user.email ?? "",
+          name: (user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split("@")[0] ?? "User") as string,
+          role: (user.user_metadata?.role as "customer" | "vendor" | "admin") ?? "customer",
+          isEmailVerified: !!user.email_confirmed_at,
+          createdAt: user.created_at ?? new Date().toISOString(),
+        };
+        localStorage.setItem("kanyiji_auth_user", JSON.stringify(authUser));
+        toast.success("Successfully signed in!");
+        window.history.replaceState(null, "", window.location.pathname);
+        window.location.href = "/";
+      } else {
+        toast.error("Verification failed. Please try again.");
+        setMfaVerifying(false);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Verification failed. Please try again.");
+      setMfaVerifying(false);
+    }
+  };
+
   // If still loading after a while, show fallback so user isn't stuck
   useEffect(() => {
     const t = setTimeout(() => {
@@ -352,6 +440,54 @@ export default function AuthCallbackPage() {
     }, STUCK_FALLBACK_MS);
     return () => clearTimeout(t);
   }, []);
+
+  if (requiresMFA && mfaFactorId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6">
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-6">
+            <p className="text-sm font-medium text-amber-800 text-center">
+              Two-factor authentication is required. Enter the code from your authenticator app to continue.
+            </p>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">Enter verification code</h2>
+          <form onSubmit={handleMFAVerify} className="space-y-4">
+            <div>
+              <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700 mb-2">
+                Verification code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                id="mfaCode"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center text-2xl tracking-widest"
+                placeholder="000000"
+                maxLength={6}
+                autoFocus
+                disabled={mfaVerifying}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={mfaVerifying || mfaCode.trim().length !== 6}
+              className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+            >
+              {mfaVerifying ? "Verifying..." : "Verify and continue"}
+            </button>
+          </form>
+          <Link
+            href="/"
+            className="block mt-4 text-center text-sm text-gray-600 hover:text-gray-800"
+          >
+            ← Back to homepage
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (stuck) {
     return (

@@ -5,6 +5,7 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseAuthService } from "@/services/supabaseAuthService";
 import { toast } from "react-hot-toast";
@@ -55,12 +56,12 @@ export default function LoginForm({
       const result = await login(data.email, data.password);
       console.log("Login result:", result);
       
-      // Check if MFA is required (TOTP — enter code from authenticator app)
+      // Check if MFA is required — show OTP step; do NOT call onLoginEnd so modal stays open and user cannot proceed without verifying
       if (result.requiresMFA && result.mfaFactorId) {
         console.log("MFA required, showing verification form");
         setRequiresMFA(true);
         setMfaFactorId(result.mfaFactorId);
-        onLoginEnd?.(false); // Don't close modal yet
+        // Don't call onLoginEnd here — keeps modal non-closable until they enter OTP or click Back
         setIsLoading(false);
         return;
       }
@@ -109,6 +110,7 @@ export default function LoginForm({
         setMfaCode("");
         setMfaFactorId(null);
         onSuccess?.();
+        router.push("/");
       } else {
         console.log("MFA verification failed");
       }
@@ -139,13 +141,18 @@ export default function LoginForm({
     }
   };
 
-  // Show MFA verification form if MFA is required
+  // When 2FA is required: show blocking OTP screen — user cannot proceed without entering code
   if (requiresMFA) {
     return (
       <div className="w-full max-w-md mx-auto">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Identity</h2>
-          <p className="text-gray-600">Enter the verification code sent to your email or authenticator app</p>
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-6">
+          <p className="text-sm font-medium text-amber-800 text-center">
+            Two-factor authentication is required. Enter the code from your authenticator app to continue.
+          </p>
+        </div>
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Enter verification code</h2>
+          <p className="text-gray-600">You cannot sign in without this code. Open your authenticator app and enter the 6-digit code.</p>
         </div>
 
         <form onSubmit={handleMFAVerification} className="space-y-6">
@@ -154,29 +161,31 @@ export default function LoginForm({
               htmlFor="mfaCode"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Verification Code
+              Verification code
             </label>
             <input
               type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
               id="mfaCode"
               value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value)}
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-center text-2xl tracking-widest"
               placeholder="000000"
               maxLength={6}
               autoFocus
             />
             <p className="mt-2 text-sm text-gray-500 text-center">
-              Open your authenticator app (Google Authenticator, Authy, etc.) and enter the code
+              Google Authenticator, Authy, or another TOTP app
             </p>
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || !mfaCode.trim()}
-            className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
+            disabled={isLoading || mfaCode.trim().length !== 6}
+            className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
           >
-            {isLoading ? "Verifying..." : "Verify Code"}
+            {isLoading ? "Verifying..." : "Verify and sign in"}
           </button>
 
           <button
@@ -185,6 +194,7 @@ export default function LoginForm({
               setRequiresMFA(false);
               setMfaCode("");
               setMfaFactorId(null);
+              onLoginEnd?.(false); // Allow closing modal again
             }}
             className="w-full text-sm text-gray-600 hover:text-gray-800 font-medium"
           >

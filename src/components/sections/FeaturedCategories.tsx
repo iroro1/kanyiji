@@ -143,6 +143,8 @@ export default function FeaturedCategories() {
                         <img
                           src={category.image_url}
                           alt={category.name}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-20 sm:h-24 md:h-28 lg:h-32 object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={(e) => {
                             // Fallback to gradient background if image fails

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { getActiveCategories, type Category } from "@/data/categories";
 
 export default function CategoriesPage() {
@@ -57,14 +56,33 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  // Loading spinner disabled - show content immediately
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <LoadingSpinner />
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="animate-pulse">
+              <div className="bg-gray-200 rounded h-8 w-64 mb-2"></div>
+              <div className="bg-gray-200 rounded h-4 w-96"></div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="aspect-square bg-gray-200"></div>
+                <div className="p-4 space-y-2">
+                  <div className="bg-gray-200 rounded h-5 w-3/4"></div>
+                  <div className="bg-gray-200 rounded h-4 w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -127,6 +145,8 @@ export default function CategoriesPage() {
                     <img
                       src={category.image_url}
                       alt={category.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       onError={(e) => {
                         // Fallback to gradient background if image fails
