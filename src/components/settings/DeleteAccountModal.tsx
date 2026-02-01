@@ -28,45 +28,38 @@ export default function DeleteAccountModal({
       toast.error("Please type the confirmation text exactly as shown");
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     try {
-      // Delete user profile first
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .delete()
-          .eq("id", user.id);
-
-        if (profileError) {
-          console.error("Error deleting profile:", profileError);
-          // Continue with account deletion even if profile deletion fails
-        }
-      }
-
-      // Delete the user account
-      const { error } = await supabase.auth.admin.deleteUser(
-        user?.id || ""
-      );
-
-      if (error) {
-        console.error("Account deletion error:", error);
-        toast.error("Failed to delete account. Please contact support.");
+  
+      if (!user) {
+        toast.error("User not found");
         return;
       }
-
+  
+      const response = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Failed to delete account");
+      }
+  
       toast.success("Account deleted successfully");
+      await supabase.auth.signOut();
       router.push("/");
     } catch (error) {
-      console.error("Account deletion error:", error);
+      console.error(error);
       toast.error("An error occurred while deleting your account");
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   const handleClose = () => {
     if (!isLoading) {
