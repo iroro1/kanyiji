@@ -62,25 +62,24 @@ export default function CheckoutPage() {
     return total;
   }, [items]);
 
+  const location: ShippingLocation = useMemo(() => ({
+    country: shippingData.country || "Nigeria",
+    state: shippingData.state,
+    city: shippingData.city,
+  }), [shippingData.country, shippingData.state, shippingData.city]);
+
+  const standardShippingFee = useMemo(() => {
+    if (!shippingData.state && !shippingData.city) return null;
+    const result = calculateShippingFee(totalWeight, location, "standard");
+    return result ? result.price : null;
+  }, [shippingData.state, shippingData.city, totalWeight, location]);
+
   const shippingFee = useMemo(() => {
-    // Don't calculate shipping until at least state or city is provided
-    if (!shippingData.state && !shippingData.city) {
-      return null; // Return null to indicate shipping not calculated yet
-    }
-
-    const location: ShippingLocation = {
-      country: shippingData.country || "Nigeria",
-      state: shippingData.state,
-      city: shippingData.city,
-    };
-
-    // Convert shipping method string to ShippingMethod type
+    if (!shippingData.state && !shippingData.city) return null;
     const method: ShippingMethod = shippingMethod === "Express Delivery" ? "express" : "standard";
-    
-    // Calculate shipping fee using totalWeight which includes the extra 1kg per item
     const result = calculateShippingFee(totalWeight, location, method);
-    return result ? result.price : null; // Return null if calculation fails
-  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight, shippingMethod]);
+    return result ? result.price : null;
+  }, [shippingData.state, shippingData.city, shippingData.country, totalWeight, shippingMethod, location]);
 
   const shipping = shippingFee ?? 0; // Use nullish coalescing to handle null
   const handlePlaceOrder = async () => {
@@ -531,7 +530,7 @@ export default function CheckoutPage() {
                     Shipping Method
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 bg-primary-50 border-primary-200">
+                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${shippingMethod === "Standard Delivery" ? "bg-primary-50 border-primary-200 border-2" : "border-gray-200"}`}>
                       <input
                         type="radio"
                         name="shipping"
@@ -549,10 +548,10 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <div className="font-semibold">
-                        {shippingFee === null 
+                        {standardShippingFee === null 
                           ? "Enter destination" 
-                          : shippingFee > 0 
-                            ? formatPrice(shippingFee) 
+                          : standardShippingFee > 0 
+                            ? formatPrice(standardShippingFee) 
                             : "Free"}
                       </div>
                     </label>
@@ -565,7 +564,7 @@ export default function CheckoutPage() {
                       shippingData.country.toLowerCase() === "usa" ||
                       shippingData.country.toLowerCase() === "united states" ||
                       shippingData.country.toLowerCase() === "canada") && (
-                      <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${shippingMethod === "Express Delivery" ? "bg-primary-50 border-primary-200 border-2" : "border-gray-200"}`}>
                         <input
                           type="radio"
                           name="shipping"
@@ -581,7 +580,7 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         <div className="font-semibold">
-                          {shippingMethod === "Express Delivery" ? "₦62,000" : "Select"}
+                          ₦62,000
                         </div>
                       </label>
                     )}

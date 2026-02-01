@@ -137,7 +137,7 @@ export default function CategoryPage() {
   //   );
   // }
 
-  if (error || !category) {
+  if (!loading && (error || !category)) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -167,7 +167,9 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+     {
+      !loading && category && (
+        <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Link
             href="/categories"
@@ -198,6 +200,15 @@ export default function CategoryPage() {
           </div>
         </div>
       </div>
+
+      )
+     }
+      {/* Loading spinner */}
+      {loading && (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      )}
 
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

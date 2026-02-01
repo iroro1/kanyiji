@@ -217,7 +217,9 @@ export default function Footer() {
                 {section.title}
               </h3>
               <ul className="space-y-2">
-                {section.links.map((link) => (
+                {section.links
+                  .filter((link) => !(section.title === "For Vendors" && link.name === "Become a Vendor"))
+                  .map((link) => (
                   <li key={link.name}>
                     {link.action === "openAuthModal" ? (
                       <button

@@ -36,6 +36,8 @@ export default function VendorRegistrationPage() {
     businessName: "",
     businessType: "",
     businessDescription: "",
+    businessRegistrationNumber: "",
+    taxId: "",
     website: "",
     twitterHandle: "",
     account_information: "",
@@ -84,6 +86,8 @@ export default function VendorRegistrationPage() {
         newErrors.businessType = "Business type is required";
       if (!formData.businessDescription)
         newErrors.businessDescription = "Business description is required";
+      if (!formData.businessRegistrationNumber?.trim())
+        newErrors.businessRegistrationNumber = "Business registration number is required";
     }
 
     if (currentStep === 2) {
@@ -96,8 +100,6 @@ export default function VendorRegistrationPage() {
     if (currentStep === 3) {
       if (!formData.businessLicense)
         newErrors.businessLicense = "Business license is required";
-      if (!formData.taxCertificate)
-        newErrors.taxCertificate = "Tax certificate is required";
       if (!formData.bankStatement)
         newErrors.bankStatement = "Bank statement is required";
     }
@@ -517,6 +519,43 @@ export default function VendorRegistrationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Registration Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.businessRegistrationNumber}
+                    onChange={(e) =>
+                      handleInputChange("businessRegistrationNumber", e.target.value)
+                    }
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      errors.businessRegistrationNumber ? "border-red-300" : "border-gray-300"
+                    }`}
+                    placeholder="e.g. RC123456"
+                  />
+                  {errors.businessRegistrationNumber && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.businessRegistrationNumber}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tax ID <span className="text-gray-400 text-xs">(optional – for future tax remittance)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.taxId}
+                    onChange={(e) =>
+                      handleInputChange("taxId", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g. TIN or VAT number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Website (Optional)
                   </label>
                   <input
@@ -726,7 +765,7 @@ export default function VendorRegistrationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tax Certificate *
+                    Tax Certificate <span className="text-gray-400 text-xs">(optional – for future tax remittance)</span>
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
                     <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />

@@ -144,11 +144,7 @@ export default function InvoiceModal({
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(75, 85, 99); // text-gray-600
-    doc.text("123 Market Street", leftColX, yPos);
-    yPos += 6;
-    doc.text("Lagos, Nigeria", leftColX, yPos);
-    yPos += 6;
-    doc.text("support@kanyiji.com", leftColX, yPos);
+    doc.text("support@kanyiji.ng", leftColX, yPos);
     
     // Invoice Details (Right Column) - better alignment
     const invoiceYStart = margin;
@@ -494,9 +490,7 @@ export default function InvoiceModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Kanyiji Marketplace</h4>
-                <p className="text-sm text-gray-600">123 Market Street</p>
-                <p className="text-sm text-gray-600">Lagos, Nigeria</p>
-                <p className="text-sm text-gray-600">support@kanyiji.com</p>
+                <p className="text-sm text-gray-600">support@kanyiji.ng</p>
               </div>
               <div className="text-right">
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Invoice Details</h4>

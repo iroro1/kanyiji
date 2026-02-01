@@ -516,6 +516,10 @@ export default function ProfilePage() {
       notify("Vendor information not loaded. Please refresh the page.", "error");
       return;
     }
+    if (!vendorFormData.business_registration_number?.trim()) {
+      notify("Business registration number is required.", "error");
+      return;
+    }
 
     setIsSavingVendor(true);
     try {
@@ -962,7 +966,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Business Registration Number
+                            Business Registration Number *
                           </label>
                           <input
                             type="text"
@@ -973,7 +977,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Tax ID
+                            Tax ID <span className="text-gray-400 text-xs">(optional – for future tax remittance)</span>
                           </label>
                           <input
                             type="text"

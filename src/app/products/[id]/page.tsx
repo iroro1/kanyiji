@@ -13,7 +13,6 @@ import {
   Building2,
   MapPin,
   Users,
-  Clock,
   Package,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,10 +24,6 @@ import CustomError from "@/app/error";
 import { useFetchSingleProduct } from "@/components/http/QueryHttp";
 import { calculateProductStock } from "@/utils/stockCalculator";
 import { useCart } from "@/contexts/CartContext";
-import {
-  calculateShippingFee,
-  type ShippingLocation,
-} from "@/utils/shippingCalculator";
 import { useMemo } from "react";
 import { SessionStorage } from "@/utils/sessionStorage";
 import { getProductImageUrl, PLACEHOLDER_IMAGE } from "@/utils/helpers";
@@ -254,68 +249,6 @@ export default function ProductDetailPage() {
       fetchVendor();
     }
   }, [activeTab, productWithStock, vendor]);
-
-  // Calculate shipping options matching the policy page format
-  const shippingOptions = useMemo(() => {
-    if (!productWithStock) return [];
-
-    const product = productWithStock;
-    // Use product weight or default to 1kg (add 1kg for packaging)
-    const productWeight = product.weight
-      ? parseFloat(product.weight.toString())
-      : 1;
-    const totalWeight = productWeight + 1; // Add 1kg for packaging
-
-    // Calculate example prices for each shipping type
-    // Standard Delivery - Lagos example (domestic)
-    const standardLocation: ShippingLocation = {
-      country: "Nigeria",
-      state: "Lagos",
-      city: "Lagos",
-    };
-    const standardResult = calculateShippingFee(totalWeight, standardLocation);
-
-    // Express Delivery - Lagos example (same location, but faster service)
-    const expressResult = standardResult; // Same calculation, different timeframe
-
-    // International Delivery - UK example
-    const internationalLocation: ShippingLocation = { country: "UK" };
-    const internationalResult = calculateShippingFee(
-      totalWeight,
-      internationalLocation
-    );
-
-    return [
-      {
-        name: "Standard Delivery",
-        deliveryDays: "3-7 business days",
-        description: "Available for all Nigerian destinations",
-        price: standardResult?.price || 0,
-        icon: Truck,
-        bgColor: "bg-green-50",
-        iconColor: "text-green-600",
-      },
-      {
-        name: "Express Delivery",
-        deliveryDays: "2-4 business days",
-        description: "Available for major cities",
-        price: expressResult ? expressResult.price * 1.5 : 0, // Express is typically more expensive
-        icon: Clock,
-        bgColor: "bg-blue-50",
-        iconColor: "text-blue-600",
-      },
-      {
-        name: "International Delivery",
-        deliveryDays: "7-14 business days",
-        description:
-          "Available for UK, US, Canada, and other international destinations",
-        price: internationalResult?.price || 0,
-        icon: Package,
-        bgColor: "bg-purple-50",
-        iconColor: "text-purple-600",
-      },
-    ];
-  }, [productWithStock]);
 
   const stillLoading = (isLoading || isPending) && !productWithStock;
 
@@ -822,63 +755,6 @@ export default function ProductDetailPage() {
                 />
               </div>
 
-              {/* Shipping Info */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Shipping Options
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  We offer multiple delivery options based on your location and
-                  preference:
-                </p>
-                {shippingOptions.length > 0 ? (
-                  <div className="space-y-3">
-                    {shippingOptions.map((option) => {
-                      const IconComponent = option.icon;
-                      return (
-                        <div
-                          key={option.name}
-                          className={`flex items-start gap-3 p-4 ${option.bgColor} rounded-lg`}
-                        >
-                          <IconComponent
-                            className={`w-5 h-5 ${option.iconColor} mt-0.5 flex-shrink-0`}
-                          />
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-1">
-                              {option.name}
-                            </h4>
-                            <p className="text-sm text-gray-700 mb-2">
-                              {option.deliveryDays}
-                            </p>
-                            <p className="text-xs text-gray-600 mb-2">
-                              {option.description}
-                            </p>
-                            {option.price > 0 && (
-                              <p className="text-sm font-semibold text-gray-900 mt-2">
-                                From ₦{option.price.toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500">
-                    Shipping rates will be calculated at checkout based on your
-                    destination.
-                  </div>
-                )}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                  <p className="text-sm text-gray-700 mb-2">
-                    <strong>Note:</strong> Shipping costs vary based on
-                    destination, package weight, and selected shipping method.
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    Exact rates are displayed at checkout before payment.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 

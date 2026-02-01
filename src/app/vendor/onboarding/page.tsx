@@ -724,7 +724,7 @@ export default function VendorOnboardingPage() {
           )}
         </div>
 
-        {/* Section 7: Vendor Earnings & Account Statement */}
+        {/* Section 7: Vendor Earnings and Payouts */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
           <button
             onClick={() => toggleSection("earnings")}
@@ -736,7 +736,7 @@ export default function VendorOnboardingPage() {
               </div>
               <div className="text-left">
                 <h3 className="text-xl font-semibold text-gray-900">
-                  Section 7: Vendor Earnings & Account Statement
+                  Vendor Earnings and Payouts
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Understanding your Vendor Dashboard
@@ -780,7 +780,7 @@ export default function VendorOnboardingPage() {
                   </li>
                 </ul>
                 <p className="text-sm text-gray-600 mt-3">
-                  Access via: Vendor Dashboard &gt; Account Statements
+                  Access via: Vendor Dashboard &gt; Payouts
                 </p>
               </div>
             </div>

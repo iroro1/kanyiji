@@ -322,18 +322,17 @@ export async function registerNewVendor({ formData, user }: any) {
   }
 
   try {
-    // 1. Upload all files in parallel for performance
+    // 1. Upload files in parallel (tax certificate is optional)
     console.log("Uploading files in parallel...");
-    const [businessLicenseUrl, taxCertificateUrl, bankStatementUrl] =
-      await Promise.all([
-        uploadFile(formData.businessLicense, user.id),
-        uploadFile(formData.taxCertificate, user.id),
-        uploadFile(formData.bankStatement, user.id),
-      ]);
+    const uploads = await Promise.all([
+      uploadFile(formData.businessLicense, user.id),
+      formData.taxCertificate ? uploadFile(formData.taxCertificate, user.id) : Promise.resolve(null),
+      uploadFile(formData.bankStatement, user.id),
+    ]);
+    const [businessLicenseUrl, taxCertificateUrl, bankStatementUrl] = uploads;
 
-    // This check is robust in case Promise.all succeeds but URLs are falsy
-    if (!businessLicenseUrl || !taxCertificateUrl || !bankStatementUrl) {
-      throw new Error("One or more file uploads failed to return a URL.");
+    if (!businessLicenseUrl || !bankStatementUrl) {
+      throw new Error("Business license and bank statement uploads are required.");
     }
 
     console.log("Files uploaded. Inserting vendor data...");
@@ -346,6 +345,8 @@ export async function registerNewVendor({ formData, user }: any) {
         business_name: formData.businessName,
         business_type: formData.businessType,
         business_description: formData.businessDescription,
+        business_registration_number: formData.businessRegistrationNumber?.trim() || null,
+        tax_id: formData.taxId?.trim() || null,
         website_url: formData.website,
         twitter_handle: formData.twitterHandle || null,
         account_information: formData.account_information || null,
@@ -357,7 +358,7 @@ export async function registerNewVendor({ formData, user }: any) {
         kyc_documents: [
           {
             business_license_url: businessLicenseUrl,
-            tax_certificate_url: taxCertificateUrl,
+            tax_certificate_url: taxCertificateUrl || null,
             bank_statement_url: bankStatementUrl,
           },
         ],

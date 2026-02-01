@@ -422,6 +422,10 @@ export default function VendorDashboard() {
       notify('Vendor information not loaded. Please refresh the page.', 'error');
       return;
     }
+    if (!vendorFormData.business_registration_number?.trim()) {
+      notify('Business registration number is required.', 'error');
+      return;
+    }
 
     setIsSavingVendor(true);
     try {
@@ -1974,31 +1978,6 @@ export default function VendorDashboard() {
                 </div>
               ) : vendor ? (
                 <div className="space-y-6">
-                  {/* Vendor ID Section */}
-                  <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendor Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Vendor ID</label>
-                        <input
-                          type="text"
-                          value={vendor.id || ""}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-mono text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">User ID</label>
-                        <input
-                          type="text"
-                          value={vendor.user_id || ""}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-mono text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Cover Image Only (Logo removed) */}
                   {vendor.cover_image_url && (
                     <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -2067,7 +2046,7 @@ export default function VendorDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Registration Number</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Registration Number *</label>
                         <input
                           type="text"
                           value={vendorFormData.business_registration_number || ""}
@@ -2076,7 +2055,7 @@ export default function VendorDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Tax ID</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tax ID <span className="text-gray-400 text-xs">(optional – for future tax remittance)</span></label>
                         <input
                           type="text"
                           value={vendorFormData.tax_id || ""}
