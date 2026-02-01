@@ -174,11 +174,12 @@ export async function GET(req: NextRequest) {
 
       let productCount = 0;
       if (!productsError && allProducts) {
-        // Normalize category names for matching
+        // Normalize category names for matching (hyphen->space so "home-decor" matches "Home Decor")
         const normalizeCategoryName = (name: string) => {
           return name
             .toLowerCase()
             .trim()
+            .replace(/-/g, " ")
             .replace(/[&]/g, "and")
             .replace(/[^a-z0-9\s]/g, "")
             .replace(/\s+/g, " ")
@@ -303,11 +304,12 @@ export async function GET(req: NextRequest) {
         .select("id, category_id, category, sub_category, status");
 
       if (!productsError && allProducts) {
-        // Normalize category names for matching
+        // Normalize category names for matching (hyphen->space so "home-decor" matches "Home Decor")
         const normalizeCategoryName = (name: string) => {
           return name
             .toLowerCase()
             .trim()
+            .replace(/-/g, " ")
             .replace(/[&]/g, "and")
             .replace(/[^a-z0-9\s]/g, "")
             .replace(/\s+/g, " ")

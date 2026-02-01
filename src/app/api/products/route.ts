@@ -105,6 +105,11 @@ export async function GET(request: NextRequest) {
       query = query.eq("is_on_sale", true);
     }
 
+    // Apply category filter at database level - critical for /categories/[slug] to work
+    if (categoryId) {
+      query = query.eq("category_id", categoryId);
+    }
+
     // Apply sorting - CRITICAL: must be done before range() and after all filters
     // Supabase requires order() to be called before range() for proper sorting
     query = applySort(query, sortParam, baseFieldsSet);
@@ -141,13 +146,11 @@ export async function GET(request: NextRequest) {
       table: "products",
     });
 
-    // Filter by category if provided
-    // We'll filter client-side to check both category_id and category name
+    // useCategoryFilter: when categoryId is provided, we also run client-side fallback
+    // (by category name) if DB filter returns 0 products (e.g. products use text category field)
     let useCategoryFilter = false;
     if (categoryId) {
       useCategoryFilter = true;
-      // Don't filter in the query - we'll filter client-side to handle both category_id and category name
-      // This ensures we get all products and can match by either field
     }
 
     const { data: products, error: productsError } = await query;
@@ -244,7 +247,16 @@ export async function GET(request: NextRequest) {
         const { data: retryProducts, error: retryError } = await retryQuery;
 
         if (!retryError && retryProducts) {
-          const list = retryProducts as any[];
+          let list = retryProducts as any[];
+          if (categoryId) {
+            const { data: cat } = await supabase.from("categories").select("id, name, slug").eq("id", categoryId).single();
+            if (cat) {
+              const norm = (s: string) => (s || "").toLowerCase().trim().replace(/-/g, " ").replace(/[&]/g, "and").replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+              const terms = [norm(cat.name), norm(cat.slug)].filter((t) => t && t.length >= 2);
+              const match = (val: string) => val && terms.some((t) => norm(val) === t);
+              list = list.filter((p: any) => p.category_id === categoryId || (p.category && match(p.category)) || (p.sub_category && match(p.sub_category)));
+            }
+          }
           console.log("Retry successful, found products:", list.length);
           const productIds = list.map((p) => p.id);
           let productImages: Record<string, string[]> = {};
@@ -306,7 +318,16 @@ export async function GET(request: NextRequest) {
         const { data: minimalProducts, error: minimalError } = await minimalQuery;
 
         if (!minimalError && minimalProducts) {
-          const minimalList = minimalProducts as any[];
+          let minimalList = minimalProducts as any[];
+          if (categoryId) {
+            const { data: cat } = await supabase.from("categories").select("id, name, slug").eq("id", categoryId).single();
+            if (cat) {
+              const norm = (s: string) => (s || "").toLowerCase().trim().replace(/-/g, " ").replace(/[&]/g, "and").replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+              const terms = [norm(cat.name), norm(cat.slug)].filter((t) => t && t.length >= 2);
+              const match = (val: string) => val && terms.some((t) => norm(val) === t);
+              minimalList = minimalList.filter((p: any) => p.category_id === categoryId || (p.category && match(p.category)) || (p.sub_category && match(p.sub_category)));
+            }
+          }
           const productIds = minimalList.map((p) => p.id);
           let productImages: Record<string, string[]> = {};
 
@@ -382,23 +403,54 @@ export async function GET(request: NextRequest) {
       let finalProducts = publicProducts;
       if (useCategoryFilter && categoryId) {
         // First try exact category_id match
-        finalProducts = publicProducts.filter((p: any) => p.category_id === categoryId);
+        let byCategoryId = publicProducts.filter((p: any) => p.category_id === categoryId);
         
-        // If no results and we have a categoryId, try to find category by ID and match by name
-        if (finalProducts.length === 0) {
-          try {
-            const { data: categoryData } = await supabase
-              .from("categories")
-              .select("id, name, slug")
-              .eq("id", categoryId)
-              .single();
-            
-            if (categoryData) {
+        // Fetch category info for name validation (catches wrong category_id assignments)
+        let categoryData: { id: string; name: string; slug: string } | null = null;
+        try {
+          const { data } = await supabase
+            .from("categories")
+            .select("id, name, slug")
+            .eq("id", categoryId)
+            .single();
+          categoryData = data;
+        } catch {
+          categoryData = null;
+        }
+        
+        const validateProductBelongsToCategory = (p: any): boolean => {
+          if (p.category_id !== categoryId) return false;
+          if (!categoryData) return true;
+          const norm = (s: string) =>
+            (s || "")
+              .toLowerCase()
+              .trim()
+              .replace(/-/g, " ")
+              .replace(/[&]/g, "and")
+              .replace(/[^a-z0-9\s]/g, "")
+              .replace(/\s+/g, " ")
+              .trim();
+          const expectedTerms = [norm(categoryData.name), norm(categoryData.slug)].filter((t) => t && t.length >= 2);
+          const productCat = p.category ? norm(p.category) : "";
+          const productSub = p.sub_category ? norm(p.sub_category) : "";
+          if (!productCat && !productSub) return true;
+          const matches = (val: string) => val && expectedTerms.some((t) => val === t);
+          if (productCat && !matches(productCat)) return false;
+          if (productSub && !matches(productSub)) return false;
+          return true;
+        };
+        
+        finalProducts = byCategoryId.filter(validateProductBelongsToCategory);
+        
+        // If no results, try matching by category name (products may use text field only)
+        if (finalProducts.length === 0 && categoryData) {
+          {
               // Normalize category names for better matching (remove special chars, normalize spaces)
               const normalizeCategoryName = (name: string) => {
                 return name
                   .toLowerCase()
                   .trim()
+                  .replace(/-/g, " ") // "home-decor" -> "home decor" for slug matching
                   .replace(/[&]/g, "and") // Replace & with "and"
                   .replace(/[^a-z0-9\s]/g, "") // Remove special characters
                   .replace(/\s+/g, " ") // Normalize whitespace
@@ -407,86 +459,30 @@ export async function GET(request: NextRequest) {
               
               const normalizedCategoryName = normalizeCategoryName(categoryData.name);
               const normalizedCategorySlug = normalizeCategoryName(categoryData.slug);
+              const categoryTerms = [normalizedCategoryName, normalizedCategorySlug].filter((t) => t && t.length >= 2);
+              
+              // Use EXACT match only - prevents "Accessories" matching "Jewelry & Accessories"
+              // or "Fashion" matching "Fashion & Textiles" incorrectly
+              const productMatchesCategory = (productCategory: string) => {
+                if (!productCategory || productCategory.length < 2) return false;
+                const norm = normalizeCategoryName(productCategory);
+                return categoryTerms.some((term) => norm === term);
+              };
               
               // Try matching by category name or slug (for products that only have category name, not category_id)
-              // Use flexible matching to handle variations like "Fashion & Textiles" vs "Fashion and Textiles"
-              // Also check sub_category field
               finalProducts = publicProducts.filter((p: any) => {
-                // First check category_id match
                 if (p.category_id === categoryId) return true;
-                
-                // Then check category name match with normalization
-                if (p.category) {
-                  const normalizedProductCategory = normalizeCategoryName(p.category);
-                  if (
-                    normalizedProductCategory === normalizedCategoryName ||
-                    normalizedProductCategory === normalizedCategorySlug ||
-                    normalizedProductCategory.includes(normalizedCategoryName) ||
-                    normalizedCategoryName.includes(normalizedProductCategory)
-                  ) {
-                    return true;
-                  }
-                }
-                
-                // Also check sub_category field
-                if (p.sub_category) {
-                  const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
-                  if (
-                    normalizedProductSubCategory === normalizedCategoryName ||
-                    normalizedProductSubCategory === normalizedCategorySlug ||
-                    normalizedProductSubCategory.includes(normalizedCategoryName) ||
-                    normalizedCategoryName.includes(normalizedProductSubCategory)
-                  ) {
-                    return true;
-                  }
-                }
-                
+                if (p.category && productMatchesCategory(p.category)) return true;
+                if (p.sub_category && productMatchesCategory(p.sub_category)) return true;
                 return false;
               });
               
               console.log("Products API: Category name fallback filter:", {
                 categoryId,
                 categoryName: categoryData.name,
-                categorySlug: categoryData.slug,
-                normalizedCategoryName,
-                normalizedCategorySlug,
                 totalProducts: publicProducts.length,
                 filteredProducts: finalProducts.length,
-                allProductsWithCategories: publicProducts.map((p: any) => ({
-                  id: p.id,
-                  name: p.name,
-                  category: p.category,
-                  sub_category: p.sub_category,
-                  normalizedCategory: p.category ? normalizeCategoryName(p.category) : null,
-                  normalizedSubCategory: p.sub_category ? normalizeCategoryName(p.sub_category) : null,
-                  category_id: p.category_id,
-                  status: p.status,
-                  matches: p.category_id === categoryId || 
-                    (p.category && (
-                      normalizeCategoryName(p.category) === normalizedCategoryName ||
-                      normalizeCategoryName(p.category) === normalizedCategorySlug ||
-                      normalizeCategoryName(p.category).includes(normalizedCategoryName) ||
-                      normalizedCategoryName.includes(normalizeCategoryName(p.category))
-                    )) ||
-                    (p.sub_category && (
-                      normalizeCategoryName(p.sub_category) === normalizedCategoryName ||
-                      normalizeCategoryName(p.sub_category) === normalizedCategorySlug ||
-                      normalizeCategoryName(p.sub_category).includes(normalizedCategoryName) ||
-                      normalizedCategoryName.includes(normalizeCategoryName(p.sub_category))
-                    )),
-                })),
-                sampleMatches: finalProducts.slice(0, 5).map((p: any) => ({
-                  id: p.id,
-                  name: p.name,
-                  category: p.category,
-                  category_id: p.category_id,
-                })),
               });
-            }
-          } catch (err) {
-            console.error("Error fetching category for fallback:", err);
-            // Fallback: just return all products if category lookup fails
-            finalProducts = publicProducts;
           }
         }
       }
@@ -537,7 +533,7 @@ export async function GET(request: NextRequest) {
         productsFound: (products as any[])?.length || 0,
       });
       
-      // Fetch all products without category filter (no status filter)
+      // Fetch products for client-side category filter (no category_id in query)
       let allProductsQuery = supabase
         .from("products")
         .select(`
@@ -558,7 +554,8 @@ export async function GET(request: NextRequest) {
           category,
           sub_category,
           product_attributes( id, size, color, quantity )
-        `);
+        `)
+        .or("status.eq.active,status.eq.approved,status.eq.published");
       
       // Apply the same sorting logic as main query
       if (sortParam === "trending") {
@@ -573,7 +570,13 @@ export async function GET(request: NextRequest) {
         allProductsQuery = allProductsQuery.order("created_at", { ascending: false });
       }
       
-      allProductsQuery = allProductsQuery.range(offset, offset + limit - 1);
+      // When filtering by category, fetch all products for client-side filter (no pagination)
+      // so we don't miss matches outside the first 50
+      if (!categoryId) {
+        allProductsQuery = allProductsQuery.range(offset, offset + limit - 1);
+      } else {
+        allProductsQuery = allProductsQuery.limit(1000);
+      }
       
       const { data: allProducts, error: allProductsError } = await allProductsQuery;
       
@@ -619,6 +622,7 @@ export async function GET(request: NextRequest) {
                 return name
                   .toLowerCase()
                   .trim()
+                  .replace(/-/g, " ") // "home-decor" -> "home decor" for slug matching
                   .replace(/[&]/g, "and")
                   .replace(/[^a-z0-9\s]/g, "")
                   .replace(/\s+/g, " ")
@@ -627,37 +631,16 @@ export async function GET(request: NextRequest) {
               
               const normalizedCategoryName = normalizeCategoryName(categoryData.name);
               const normalizedCategorySlug = normalizeCategoryName(categoryData.slug);
+              const categoryTerms = [normalizedCategoryName, normalizedCategorySlug].filter((t) => t && t.length >= 2);
               
-              // Filter by category name or slug as fallback with flexible matching
-              // Also check sub_category field
+              const productMatchesCategory = (productCategory: string) => {
+                if (!productCategory || productCategory.length < 2) return false;
+                return categoryTerms.some((t) => normalizeCategoryName(productCategory) === t);
+              };
               filteredProducts = publicProducts.filter((p: any) => {
                 if (p.category_id === categoryId) return true;
-                
-                if (p.category) {
-                  const normalizedProductCategory = normalizeCategoryName(p.category);
-                  if (
-                    normalizedProductCategory === normalizedCategoryName ||
-                    normalizedProductCategory === normalizedCategorySlug ||
-                    normalizedProductCategory.includes(normalizedCategoryName) ||
-                    normalizedCategoryName.includes(normalizedProductCategory)
-                  ) {
-                    return true;
-                  }
-                }
-                
-                // Also check sub_category field
-                if (p.sub_category) {
-                  const normalizedProductSubCategory = normalizeCategoryName(p.sub_category);
-                  if (
-                    normalizedProductSubCategory === normalizedCategoryName ||
-                    normalizedProductSubCategory === normalizedCategorySlug ||
-                    normalizedProductSubCategory.includes(normalizedCategoryName) ||
-                    normalizedCategoryName.includes(normalizedProductSubCategory)
-                  ) {
-                    return true;
-                  }
-                }
-                
+                if (p.category && productMatchesCategory(p.category)) return true;
+                if (p.sub_category && productMatchesCategory(p.sub_category)) return true;
                 return false;
               });
             }
@@ -738,9 +721,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // TEMPORARILY: Show all products regardless of status for debugging
+    // Final fallback - when categoryId is provided, never return unfiltered products
+    if (categoryId) {
+      return NextResponse.json({ products: [], count: 0 });
+    }
     const publicProducts = (products || []) as any[];
-    
     console.log("Products API: Final fallback - all products:", {
       totalFetched: publicProducts.length,
       statusesFound: Array.from(new Set(publicProducts.map((p: any) => p.status))),
