@@ -149,12 +149,23 @@ class SupabaseAuthService {
             phone: userData.phone || "",
           },
           // After user clicks confirmation link in email, Supabase redirects here with tokens in URL hash.
-          // /auth/callback handles the hash and establishes the session.
-          emailRedirectTo: typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : process.env.NEXT_PUBLIC_APP_URL
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-            : `https://kanyiji.ng/auth/callback`,
+          // Never use localhost - causes email delivery issues in production.
+          emailRedirectTo: (() => {
+            const base =
+              typeof window !== "undefined"
+                ? window.location.origin
+                : process.env.NEXT_PUBLIC_APP_URL ||
+                  (process.env.VERCEL_URL
+                    ? `https://${process.env.VERCEL_URL}`
+                    : null) ||
+                  "https://kanyiji.ng";
+            if (base.includes("localhost")) {
+              return process.env.VERCEL_URL
+                ? `https://${process.env.VERCEL_URL}/auth/callback`
+                : "https://kanyiji.ng/auth/callback";
+            }
+            return `${base.replace(/\/$/, "")}/auth/callback`;
+          })(),
         },
       });
       
@@ -312,37 +323,14 @@ class SupabaseAuthService {
                 email: userData.email,
               }),
             });
-          } catch (apiError) {
-            console.error("Error sending verification email via API fallback:", apiError);
+        } catch (apiError) {
+          console.error("Error sending verification email via API fallback:", apiError);
           }
         }
         
-        // Send welcome email after registration (even if verification is required)
-        // Don't wait for it to complete - send asynchronously
-        fetch("/api/auth/send-welcome-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: userData.email,
-            fullName: userData.fullName,
-            includeVerificationLink: true,
-          }),
-        })
-        .then((response) => {
-          if (response.ok) {
-            console.log("Welcome email sent successfully for email/password signup");
-          } else {
-            console.error("Failed to send welcome email:", response.statusText);
-          }
-        })
-        .catch((emailError) => {
-          console.error("Error sending welcome email:", emailError);
-          // Don't fail signup if welcome email fails
-        });
+        // OTP email sent by Supabase. Welcome email sent only after OTP verification.
         
-        // Ensure no session is active until user clicks the confirmation link
+        // Ensure no session is active until user verifies via OTP
         await supabase.auth.signOut();
 
         return {
@@ -357,7 +345,7 @@ class SupabaseAuthService {
           },
           requiresVerification: true,
           message:
-            "Please check your email and click the confirmation link to activate your account.",
+            "Please check your email and enter the verification code to activate your account.",
         };
       }
 
@@ -611,12 +599,20 @@ class SupabaseAuthService {
       // The email template in Supabase must be configured to include {{ .Token }} for OTP
       // Make sure the "Reset Password" email template includes the OTP token
       const getRedirectUrl = () => {
-        if (typeof window !== "undefined") {
-          return `${window.location.origin}/reset-password`;
+        const base =
+          typeof window !== "undefined"
+            ? window.location.origin
+            : process.env.NEXT_PUBLIC_APP_URL ||
+              (process.env.VERCEL_URL
+                ? `https://${process.env.VERCEL_URL}`
+                : null) ||
+              "https://kanyiji.ng";
+        if (base.includes("localhost")) {
+          return process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}/reset-password`
+            : "https://kanyiji.ng/reset-password";
         }
-        return process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`
-          : "https://kanyiji.ng/reset-password";
+        return `${base.replace(/\/$/, "")}/reset-password`;
       };
 
       const { data, error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
@@ -922,16 +918,22 @@ class SupabaseAuthService {
         };
       }
 
-      // Get the redirect URL dynamically based on the current environment
+      // Get the redirect URL - never use localhost in production (causes issues)
       const getRedirectUrl = () => {
-        if (typeof window !== "undefined") {
-          // Use current origin for local development
-          return `${window.location.origin}/auth/callback`;
+        const base =
+          typeof window !== "undefined"
+            ? window.location.origin
+            : process.env.NEXT_PUBLIC_APP_URL ||
+              (process.env.VERCEL_URL
+                ? `https://${process.env.VERCEL_URL}`
+                : null) ||
+              "https://kanyiji.ng";
+        if (base.includes("localhost")) {
+          return process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}/auth/callback`
+            : "https://kanyiji.ng/auth/callback";
         }
-        // Fallback to environment variable or production URL
-        return process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
-          : "https://kanyiji.ng/auth/callback";
+        return `${base.replace(/\/$/, "")}/auth/callback`;
       };
 
       const redirectTo = getRedirectUrl();
