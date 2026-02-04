@@ -148,11 +148,13 @@ class SupabaseAuthService {
             role: userData.role,
             phone: userData.phone || "",
           },
+          // After user clicks confirmation link in email, Supabase redirects here with tokens in URL hash.
+          // /auth/callback handles the hash and establishes the session.
           emailRedirectTo: typeof window !== "undefined"
-            ? `${window.location.origin}/verify-email?email=${encodeURIComponent(userData.email)}`
+            ? `${window.location.origin}/auth/callback`
             : process.env.NEXT_PUBLIC_APP_URL
-            ? `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?email=${encodeURIComponent(userData.email)}`
-            : `https://kanyiji.ng/verify-email?email=${encodeURIComponent(userData.email)}`,
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+            : `https://kanyiji.ng/auth/callback`,
         },
       });
       
@@ -325,6 +327,7 @@ class SupabaseAuthService {
           body: JSON.stringify({
             email: userData.email,
             fullName: userData.fullName,
+            includeVerificationLink: true,
           }),
         })
         .then((response) => {
@@ -339,6 +342,9 @@ class SupabaseAuthService {
           // Don't fail signup if welcome email fails
         });
         
+        // Ensure no session is active until user clicks the confirmation link
+        await supabase.auth.signOut();
+
         return {
           success: true,
           user: {
@@ -351,7 +357,7 @@ class SupabaseAuthService {
           },
           requiresVerification: true,
           message:
-            "Please check your email and verify your account to continue.",
+            "Please check your email and click the confirmation link to activate your account.",
         };
       }
 
