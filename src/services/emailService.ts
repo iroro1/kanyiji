@@ -307,6 +307,8 @@ export async function sendVendorConfirmationEmail({
 export interface SendWelcomeEmailParams {
   email: string;
   fullName?: string;
+  /** When provided, adds a prominent "Verify your email" button to activate the account */
+  verificationLink?: string;
 }
 
 /**
@@ -315,10 +317,21 @@ export interface SendWelcomeEmailParams {
 export async function sendWelcomeEmail({
   email,
   fullName,
+  verificationLink,
 }: SendWelcomeEmailParams) {
   try {
     const resend = getResend();
     
+    const verifySection = verificationLink
+      ? `
+              <div style="background: #fef3c7; border: 2px solid #D4AF37; padding: 24px; margin: 24px 0; border-radius: 8px; text-align: center;">
+                <h3 style="color: #92400e; margin-top: 0;">✓ Verify your email to activate your account</h3>
+                <p style="color: #78350f; margin-bottom: 16px;">Click the button below to confirm your email and start shopping.</p>
+                <a href="${verificationLink}" style="background: #D4AF37; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Verify Email Address</a>
+              </div>
+      `
+      : "";
+
     const { data, error } = await resend.emails.send({
       from: `${FROM_NAME} <${FROM_EMAIL}>`,
       to: [email],
@@ -338,7 +351,7 @@ export async function sendWelcomeEmail({
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
               <h2 style="color: #1f2937; margin-top: 0;">🎉 Welcome, ${fullName || 'there'}!</h2>
               <p>Thank you for joining Kanyiji Marketplace! We're thrilled to have you as part of our community of African entrepreneurs and shoppers.</p>
-              
+              ${verifySection}
               <div style="background: #f0f9ff; border-left: 4px solid #D4AF37; padding: 20px; margin: 30px 0; border-radius: 4px;">
                 <h3 style="color: #1E3A8A; margin-top: 0;">What You Can Do:</h3>
                 <ul style="color: #4b5563; padding-left: 20px;">
@@ -375,7 +388,9 @@ export async function sendWelcomeEmail({
         ${fullName ? `Hello ${fullName},` : 'Hello,'}
         
         Thank you for joining Kanyiji Marketplace! We're thrilled to have you as part of our community of African entrepreneurs and shoppers.
-        
+        ${verificationLink ? `
+        Verify your email to activate your account: ${verificationLink}
+        ` : ""}
         What You Can Do:
         - Browse and shop from thousands of products
         - Start your own store and sell products

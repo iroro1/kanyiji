@@ -2,10 +2,30 @@
 
 This doc describes what to configure or create in **Supabase** so the following can be implemented in the app:
 
+0. **Email confirmation (required for signup)** – accounts must verify email before they are active
 1. **2FA for email signup**
 2. **Vendor account information field**
 3. **Vendor payouts and account statement**
 4. **Email marketing and analytics** (optional Supabase part only)
+
+---
+
+## 0. Email confirmation (required for signup)
+
+**Goal:** Users who sign up with email must click a confirmation link in their email before the account is active. No session is created until they verify.
+
+### In Supabase Dashboard
+
+1. Go to **Authentication** → **Providers** → **Email**.
+2. Enable **Confirm email**.
+3. Go to **Authentication** → **URL Configuration**.
+4. Add your redirect URLs to the allow list (if not already present), including:
+   - `https://yourdomain.com/auth/callback`
+   - `http://localhost:3000/auth/callback` (for local dev)
+
+When "Confirm email" is enabled, Supabase sends a confirmation email with a link. Users click the link, are redirected to `/auth/callback` with tokens, and their session is established. Until they click the link, they cannot sign in.
+
+Supabase docs: [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls), [Email Templates](https://supabase.com/docs/guides/auth/auth-email-templates).
 
 ---
 
@@ -116,6 +136,7 @@ So for “what to fix in Supabase” for this item: **nothing** unless you decid
 
 | Feature                      | In Supabase                                                                 | In the app (after Supabase) |
 |-----------------------------|-----------------------------------------------------------------------------|-----------------------------|
+| **Email confirmation**      | Auth → Providers → Email: enable "Confirm email". Add `/auth/callback` to redirect URLs. | Already implemented. |
 | **2FA for email signup**    | Auth → MFA: enable TOTP. No new tables.                                    | MFA enroll + verify + login UI. |
 | **Vendor account info**     | Add `vendors.account_information` (migration).                             | Signup field, profile + admin read/update. |
 | **Payouts & statement**     | Ensure `vendor_earnings`, `vendor_payouts`, `vendor_bank_accounts` exist; RLS. | Wire vendor/admin dashboards to existing APIs. |
