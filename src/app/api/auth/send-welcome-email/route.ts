@@ -25,8 +25,9 @@ export async function POST(req: NextRequest) {
 
     if (includeVerificationLink) {
       try {
+        // Use magiclink type - no password required, works for unconfirmed signups
         const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-          type: "signup",
+          type: "magiclink",
           email: normalizedEmail,
           options: {
             redirectTo: `${siteUrl}/auth/callback`,
