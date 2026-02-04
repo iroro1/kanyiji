@@ -37,7 +37,7 @@ export async function POST(request: Request) {
           amount, // amount must be in kobo
           metadata: body.metadata || {},
           channels: channels || ['card', 'bank', 'bank_transfer'], // Include bank_transfer for Titan
-          callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment-success`,
+          callback_url: `${process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://kanyiji.ng")}/payment-success`,
         }),
       }
     );

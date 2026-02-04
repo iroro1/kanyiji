@@ -238,6 +238,16 @@ export default function VerifyEmailPage() {
       setVerificationStatus("success");
       toast.success("Email verified successfully!");
 
+      // Send welcome email after successful verification
+      fetch("/api/auth/send-welcome-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: verifiedUser.email || email,
+          fullName: verifiedUser.user_metadata?.full_name,
+        }),
+      }).catch((err) => console.error("Welcome email failed:", err));
+
       // Redirect to home page after 2 seconds
       setTimeout(() => {
         router.push("/");
