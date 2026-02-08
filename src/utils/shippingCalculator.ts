@@ -211,10 +211,14 @@ export function calculateShippingFee(
      location.country.toLowerCase() === "canada");
   
   if (shippingMethod === "express" && isInternational) {
-    // Express international shipping: 62,000 (flat rate, not per KG)
+    // Express international shipping: same per-kg rate as standard, so price scales with weight
+    const expressPricePerKg = pricePerKg; // 14500 for UK/US/Canada
+    const expressTotal = Math.round(expressPricePerKg * weight);
+    const expressMinimum = 62000; // minimum charge for express international
+    const finalExpressPrice = Math.max(expressTotal, expressMinimum);
     return {
-      price: 62000,
-      pricePerKg: 62000, // For display purposes
+      price: finalExpressPrice,
+      pricePerKg: expressPricePerKg,
       weight,
       location: locationString,
       shippingMethod: "express",

@@ -578,7 +578,7 @@ export default function SettingsPage() {
                         </label>
                         <input
                           type="text"
-                          value={vendor.commission_rate ? `${parseFloat(vendor.commission_rate).toFixed(2)}%` : '10.00%'}
+                          value={(() => { const r = vendor.commission_rate != null ? parseFloat(vendor.commission_rate) : null; return (r === 5 || r === null) ? '10.00%' : `${Number(r).toFixed(2)}%`; })()}
                           readOnly
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                         />

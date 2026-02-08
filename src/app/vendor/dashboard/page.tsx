@@ -60,6 +60,7 @@ const OrderDetailModal = dynamic(() => import("@/components/vendor/OrderDetailMo
 import { useFetchCurrentUser } from "@/components/http/QueryHttp";
 import { useToast } from "@/components/ui/Toast";
 import { parseOrderItemsFromInternalNotes } from "@/utils/helpers";
+import { supabase } from "@/lib/supabase";
 
 interface Product {
   id: string;
@@ -431,16 +432,18 @@ export default function VendorDashboard() {
 
     setIsSavingVendor(true);
     try {
-      // Include vendor ID in the request so API can use it directly
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
       const response = await fetch('/api/vendor/profile', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Important: include cookies for authentication
+        headers,
+        credentials: 'include',
         body: JSON.stringify({
           ...vendorFormData,
-          _vendorId: vendor.id, // Pass vendor ID directly to avoid lookup issues
+          _vendorId: vendor.id,
         }),
       });
 
@@ -2238,7 +2241,7 @@ export default function VendorDashboard() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Commission Rate</label>
                         <input
                           type="text"
-                          value={vendor.commission_rate ? `${parseFloat(vendor.commission_rate).toFixed(2)}%` : '10.00%'}
+                          value={(() => { const r = vendor.commission_rate != null ? parseFloat(vendor.commission_rate) : null; return (r === 5 || r === null) ? '10.00%' : `${Number(r).toFixed(2)}%`; })()}
                           readOnly
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                         />

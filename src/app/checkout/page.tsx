@@ -601,11 +601,13 @@ export default function CheckoutPage() {
                         <div className="flex-1">
                           <div className="font-medium">Express International Shipping</div>
                           <div className="text-sm text-gray-600">
-                            5-7 business days • From ₦62,000
+                            5-7 business days • {totalWeight.toFixed(1)} kg
                           </div>
                         </div>
                         <div className="font-semibold">
-                          ₦62,000
+                          {shippingMethod === "Express Delivery" && shippingFee !== null
+                            ? formatPrice(shippingFee)
+                            : "From " + formatPrice(62000)}
                         </div>
                       </label>
                     )}

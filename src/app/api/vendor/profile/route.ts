@@ -7,8 +7,25 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-async function getAuthenticatedUser() {
+async function getAuthenticatedUser(req: NextRequest) {
   try {
+    // 1) Try Bearer token first (works when cookies aren't sent, e.g. some deploy envs)
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.replace(/^Bearer\s+/i, "").trim();
+    if (bearerToken) {
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const {
+        data: { user },
+        error: tokenError,
+      } = await supabaseAuth.auth.getUser(bearerToken);
+      if (!tokenError && user) {
+        return { user, supabase: supabaseAuth };
+      }
+    }
+
+    // 2) Fallback: session from cookies
     const cookieStore = await cookies();
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -27,7 +44,6 @@ async function getAuthenticatedUser() {
       },
     });
 
-    // Get session first to ensure authentication
     const {
       data: { session },
       error: sessionError,
@@ -38,7 +54,6 @@ async function getAuthenticatedUser() {
       return { user: null, supabase: null };
     }
 
-    // Prefer user from session to avoid extra round-trip; fallback to getUser() if session.user missing
     let user = session.user;
     if (!user) {
       const {
@@ -61,7 +76,7 @@ async function getAuthenticatedUser() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { user, supabase } = await getAuthenticatedUser();
+    const { user, supabase } = await getAuthenticatedUser(req);
 
     if (!user || !supabase) {
       console.error("Vendor profile update: User not authenticated");
