@@ -120,7 +120,9 @@ export default function Cart({ isOpen, onClose }: CartProps) {
             ) : (
               <div className="space-y-4">
                 {state.items.map((item) => {
-                  const primaryImageUrl = item.product_images?.[0]?.image_url;
+                  const primaryImageUrl =
+                    item.product_images?.[0]?.image_url ||
+                    (Array.isArray((item as any).images) ? (item as any).images[0] : null);
                   return (
                   <div
                     key={item.id}
@@ -133,6 +135,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                         width={64}
                         height={64}
                         className="w-16 h-16 object-cover rounded-lg"
+                        unoptimized={primaryImageUrl.startsWith("https://via.placeholder.com")}
                       />
                     ) : (
                       <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">

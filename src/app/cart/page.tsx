@@ -7,6 +7,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 
+// Cart items can have product_images (from product detail) or images (from products list API)
+function getCartItemImageUrl(item: any): string {
+  const fromProductImages = item?.product_images?.[0]?.image_url;
+  if (fromProductImages) return fromProductImages;
+  const fromImagesArray = Array.isArray(item?.images) ? item.images[0] : undefined;
+  if (typeof fromImagesArray === "string") return fromImagesArray;
+  return "https://via.placeholder.com/200x200/e5e7eb/9ca3af?text=Product";
+}
+
 export default function CartPage() {
   const { state, dispatch } = useCart();
   const { isAuthenticated } = useAuth();
@@ -52,8 +61,6 @@ export default function CartPage() {
 
     fetchVendorNames();
   }, [state.items]);
-
-  console.log(state.items);
 
   if (state.items.length === 0) {
     return (
@@ -110,14 +117,12 @@ export default function CartPage() {
                     <div className="flex items-center gap-4">
                       {/* Product Image */}
                       <Image
-                        width={500}
-                        height={200}
-                        src={
-                          item?.product_images?.[0]?.image_url ||
-                          "/placeholder-product.png"
-                        }
+                        width={80}
+                        height={80}
+                        src={getCartItemImageUrl(item)}
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg"
+                        unoptimized={getCartItemImageUrl(item).startsWith("https://via.placeholder.com")}
                       />
 
                       {/* Product Details */}
