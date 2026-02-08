@@ -7,6 +7,7 @@ import {
   sendVendorApprovalEmail,
   sendVendorSuspensionEmail,
   sendVendorReinstatedEmail,
+  sendVendorRejectionEmail,
 } from "@/services/emailService";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -361,6 +362,12 @@ export async function PATCH(req: NextRequest) {
           });
         } else if (action === "reinstated") {
           await sendVendorReinstatedEmail({
+            email: toEmail,
+            businessName: vendorBefore.business_name,
+            fullName: profile?.full_name || undefined,
+          });
+        } else if (action === "reject") {
+          await sendVendorRejectionEmail({
             email: toEmail,
             businessName: vendorBefore.business_name,
             fullName: profile?.full_name || undefined,

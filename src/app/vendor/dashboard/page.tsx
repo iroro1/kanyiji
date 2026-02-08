@@ -221,14 +221,16 @@ export default function VendorDashboard() {
     };
   }, []);
 
-  // Initialize form data when vendor loads
+  // Initialize form data when vendor loads (pre-fill email/phone from user profile when not on vendor)
   useEffect(() => {
     if (vendor && isMounted) {
+      const userEmail = (user as any)?.email ?? "";
+      const userPhone = (user as any)?.phone ?? (user as any)?.user_metadata?.phone ?? "";
       setVendorFormData({
         business_name: vendor.business_name || "",
         business_type: vendor.business_type || "",
-        business_email: vendor.business_email || "",
-        phone: vendor.phone || "",
+        business_email: vendor.business_email || userEmail,
+        phone: vendor.phone || userPhone,
         business_registration_number: vendor.business_registration_number || "",
         tax_id: vendor.tax_id || "",
         address: vendor.address || "",
@@ -242,7 +244,7 @@ export default function VendorDashboard() {
         social_media: vendor.social_media || {},
       });
     }
-  }, [vendor, isMounted]);
+  }, [vendor, isMounted, user]);
 
   // Fetch signed URL for document viewing
   const getDocumentUrl = async (originalUrl: string, docKey: string): Promise<string | null> => {
@@ -2236,7 +2238,7 @@ export default function VendorDashboard() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Commission Rate</label>
                         <input
                           type="text"
-                          value={vendor.commission_rate ? `${parseFloat(vendor.commission_rate).toFixed(2)}%` : '5.00%'}
+                          value={vendor.commission_rate ? `${parseFloat(vendor.commission_rate).toFixed(2)}%` : '10.00%'}
                           readOnly
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
                         />

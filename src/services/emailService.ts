@@ -553,6 +553,51 @@ export async function sendVendorReinstatedEmail({
   }
 }
 
+export interface SendVendorRejectionEmailParams {
+  email: string;
+  businessName: string;
+  fullName?: string;
+}
+
+export async function sendVendorRejectionEmail({
+  email,
+  businessName,
+  fullName,
+}: SendVendorRejectionEmailParams) {
+  try {
+    const resend = getResend();
+    const { data, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Update on Your Kanyiji Vendor Application",
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #D4AF37 0%, #1E3A8A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Kanyiji Marketplace</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Vendor Application Update</h2>
+              ${fullName ? `<p>Hello ${fullName},</p>` : "<p>Hello,</p>"}
+              <p>Thank you for your interest in selling on Kanyiji.</p>
+              <p>After reviewing your vendor application for <strong>${businessName}</strong>, we are unable to approve it at this time.</p>
+              <p>If you have questions or would like to reapply in the future, please contact our support team.</p>
+              <p style="color: #6b7280; font-size: 12px;">Email: support@kanyiji.ng</p>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Send vendor rejection email error:", error);
+    throw error;
+  }
+}
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.RESEND_ADMIN_EMAIL || "support@kanyiji.ng";
 
 export interface SendReturnRequestToAdminParams {

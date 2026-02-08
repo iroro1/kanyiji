@@ -5,8 +5,11 @@
 
 -- 1. Vendor account information (for signup, profile, admin)
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS account_information TEXT;
--- Twitter handle (optional)
+-- Twitter/Instagram handle (optional)
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS twitter_handle TEXT;
+-- Contact info (pre-filled from signup, editable in vendor profile)
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS business_email TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS phone TEXT;
 
 -- 2. Vendor earnings (per-order or aggregated; used for statement & balance)
 CREATE TABLE IF NOT EXISTS vendor_earnings (

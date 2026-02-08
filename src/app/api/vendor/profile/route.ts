@@ -38,15 +38,18 @@ async function getAuthenticatedUser() {
       return { user: null, supabase: null };
     }
 
-    // Get user from session
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error("Vendor profile API: Error getting user", userError);
-      return { user: null, supabase: null };
+    // Prefer user from session to avoid extra round-trip; fallback to getUser() if session.user missing
+    let user = session.user;
+    if (!user) {
+      const {
+        data: { user: fetchedUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !fetchedUser) {
+        console.error("Vendor profile API: Error getting user", userError);
+        return { user: null, supabase: null };
+      }
+      user = fetchedUser;
     }
 
     return { user, supabase };

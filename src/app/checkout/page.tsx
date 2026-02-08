@@ -82,9 +82,25 @@ export default function CheckoutPage() {
   }, [shippingData.state, shippingData.city, shippingData.country, totalWeight, shippingMethod, location]);
 
   const shipping = shippingFee ?? 0; // Use nullish coalescing to handle null
+
+  const isInternational = useMemo(() => {
+    const c = (shippingData.country || "").toLowerCase();
+    return c === "uk" || c === "united kingdom" || c === "us" || c === "usa" || c === "united states" || c === "canada";
+  }, [shippingData.country]);
+
+  // Auto-switch from Standard to Express when cart is under 10kg (Standard/DHL minimum)
+  useEffect(() => {
+    if (totalWeight < 10 && shippingMethod === "Standard Delivery") {
+      setShippingMethod(isInternational ? "Express Delivery" : "Standard Delivery");
+    }
+  }, [totalWeight, isInternational]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePlaceOrder = async () => {
     const validationErrors = validateSignupForm(shippingData);
 
+    if (totalWeight < 10 && shippingMethod === "Standard Delivery") {
+      validationErrors.general = "Standard shipping (DHL) requires a minimum of 10 kg. Add more items or choose Express for international orders.";
+    }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return; // Stop submit if there are errors
@@ -530,31 +546,40 @@ export default function CheckoutPage() {
                     Shipping Method
                   </label>
                   <div className="space-y-3">
-                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${shippingMethod === "Standard Delivery" ? "bg-primary-50 border-primary-200 border-2" : "border-gray-200"}`}>
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="standard"
-                        className="mr-3"
-                        checked={shippingMethod === "Standard Delivery"}
-                        onChange={() => setShippingMethod("Standard Delivery")}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">Kanyiji Standard Shipping</div>
-                        <div className="text-sm text-gray-600">
-                          {shippingData.state || shippingData.city 
-                            ? `3-7 business days • ${totalWeight.toFixed(1)} kg`
-                            : "Enter destination to calculate shipping"}
+                    {/* Standard (DHL) shipping: only shown when cart weight >= 10kg */}
+                    {totalWeight >= 10 && (
+                      <label className={`flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${shippingMethod === "Standard Delivery" ? "bg-primary-50 border-primary-200 border-2" : "border-gray-200"}`}>
+                        <input
+                          type="radio"
+                          name="shipping"
+                          value="standard"
+                          className="mr-3"
+                          checked={shippingMethod === "Standard Delivery"}
+                          onChange={() => setShippingMethod("Standard Delivery")}
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">Kanyiji Standard Shipping</div>
+                          <div className="text-sm text-gray-600">
+                            {shippingData.state || shippingData.city 
+                              ? `3-7 business days • ${totalWeight.toFixed(1)} kg`
+                              : "Enter destination to calculate shipping"}
+                          </div>
                         </div>
+                        <div className="font-semibold">
+                          {standardShippingFee === null 
+                            ? "Enter destination" 
+                            : standardShippingFee > 0 
+                              ? formatPrice(standardShippingFee) 
+                              : "Free"}
+                        </div>
+                      </label>
+                    )}
+                    {totalWeight > 0 && totalWeight < 10 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                        <p className="font-medium mb-1">Standard shipping (DHL) requires a minimum of 10 kg.</p>
+                        <p>Your cart is currently <strong>{totalWeight.toFixed(1)} kg</strong>. Add more items to use standard shipping.</p>
                       </div>
-                      <div className="font-semibold">
-                        {standardShippingFee === null 
-                          ? "Enter destination" 
-                          : standardShippingFee > 0 
-                            ? formatPrice(standardShippingFee) 
-                            : "Free"}
-                      </div>
-                    </label>
+                    )}
                     
                     {/* Express Delivery - Only for International (UK, US, Canada) */}
                     {shippingData.country && 

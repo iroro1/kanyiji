@@ -571,7 +571,7 @@ export default function VendorRegistrationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Twitter handle <span className="text-gray-400 text-xs">(optional)</span>
+                    Instagram handle <span className="text-gray-400 text-xs">(optional)</span>
                   </label>
                   <input
                     type="text"

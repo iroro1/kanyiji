@@ -350,6 +350,8 @@ export async function registerNewVendor({ formData, user }: any) {
         website_url: formData.website,
         twitter_handle: formData.twitterHandle || null,
         account_information: formData.account_information || null,
+        business_email: (formData as any).email || user.email || null,
+        phone: (formData as any).phone || null,
         address: formData.address,
         city: formData.city,
         state: formData.state,
