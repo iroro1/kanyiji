@@ -970,13 +970,15 @@ export default function ProductDetailPage() {
                       </div>
 
                       <div className="pt-4 border-t border-gray-200">
-                        <Link
-                          href={`/vendors/${vendor.id}`}
-                          className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          View Vendor Store
-                          <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-                        </Link>
+                        {vendor && vendor.id && productWithStock?.vendor_id && (
+                          <Link
+                            href={`/vendors/${vendor.id}`}
+                            className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+                          >
+                            View Vendor Store
+                            <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                          </Link>
+                        )}
                       </div>
                     </div>
                   ) : (
