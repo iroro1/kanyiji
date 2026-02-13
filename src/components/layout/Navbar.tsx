@@ -311,7 +311,7 @@ const AuthButtons = ({
           </button>
           {!user.isVendor && (
             <button
-              onClick={onSignIn}
+              onClick={onBecomeVendor}
               className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm px-4 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg border border-primary-500 hover:border-primary-600 hover:scale-105"
             >
               Become a Vendor
@@ -860,7 +860,12 @@ export default function Navbar() {
   };
 
   const handleBecomeVendor = () => {
-    window.location.href = "/vendor/register";
+    if (!isAuthenticated) {
+      setAuthModalMode("signup");
+      setShowAuthModal(true);
+    } else {
+      window.location.href = "/vendor/register";
+    }
   };
 
   const handleLogout = async () => {
