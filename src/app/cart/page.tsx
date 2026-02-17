@@ -275,7 +275,7 @@ export default function CartPage() {
                   Shipping fees are calculated based on weight and destination at checkout.
                 </p>
                 <p className="text-xs text-gray-500">
-                  Rates: ₦3,000-₦6,000/kg (Nigeria) • From ₦14,500/kg (International)
+                  Rates: From ₦3,000-₦6,000/kg (Nigeria) • From ₦14,500/kg (International)
                 </p>
               </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Trash2, Plus, Minus, ShoppingBag, X } from "lucide-react";
+import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
 import Image from "next/image";
 
@@ -128,21 +129,31 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                     key={item.id}
                     className="flex items-center space-x-4 border-b border-gray-100 pb-4"
                   >
-                    {primaryImageUrl ? (
-                      <Image
-                        src={primaryImageUrl}
-                        alt={item.name}
-                        width={64}
-                        height={64}
-                        className="w-16 h-16 object-cover rounded-lg"
-                        unoptimized={primaryImageUrl.startsWith("https://via.placeholder.com")}
-                      />
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <ShoppingBag className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/products/${item.id}`}
+                      className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {primaryImageUrl ? (
+                        <Image
+                          src={primaryImageUrl}
+                          alt={item.name}
+                          width={64}
+                          height={64}
+                          className="w-16 h-16 object-cover rounded-lg cursor-pointer"
+                          unoptimized={primaryImageUrl.startsWith("https://via.placeholder.com")}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <ShoppingBag className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </Link>
+                    <Link
+                      href={`/products/${item.id}`}
+                      className="flex-1 min-w-0 cursor-pointer hover:text-primary-600 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <h3 className="text-sm font-medium text-gray-900 truncate">
                         {item.name}
                       </h3>
@@ -152,7 +163,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                       <p className="text-sm font-medium text-gray-900">
                         ₦{(item.price * item.quantity).toLocaleString()}
                       </p>
-                    </div>
+                    </Link>
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() =>

@@ -46,6 +46,8 @@ const nextConfig = {
     return [
       // Fix typo: /vendor/dashboard. → /vendor/dashboard
       { source: '/vendor/dashboard.', destination: '/vendor/dashboard', permanent: false },
+      // /signin doesn't exist – redirect to correct login route
+      { source: '/signin', destination: '/auth/login', permanent: false },
     ];
   },
 };

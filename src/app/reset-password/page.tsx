@@ -140,7 +140,7 @@ export default function ResetPasswordPage() {
       toast.success(
         "Password updated successfully! You can now sign in with your new password."
       );
-      router.push("/signin");
+      router.push("/auth/login");
     } catch (error: any) {
       console.error("Password update error:", error);
       toast.error("An error occurred. Please try again.");
