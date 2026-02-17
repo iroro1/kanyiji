@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image, Info, Shirt, Tag, Trash2, X } from "lucide-react";
+import { Plus, Image, Info, Shirt, Tag, Trash2, X, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadProductImage } from "@/utils/supabase-images";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +34,7 @@ export type ProductToEdit = ProductFormData & {
   stock_quantity: string; // Add fields from DB schema if missing in ProductFormData
   is_featured: boolean;
   slug: string;
+  size_guide_url?: string | null;
 };
 
 interface EditProductModalProps {
@@ -53,6 +54,7 @@ function EditProductModal({
   // The vendor ID is already associated with the product.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sizeGuideInputRef = useRef<HTMLInputElement>(null);
   const [productLoading, setProductLoading] = useState<boolean>(false);
   const [productUploadSuccess, setProductUploadSuccess] =
     useState<boolean>(false);
@@ -71,6 +73,7 @@ function EditProductModal({
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]); // Keep track of image IDs to delete
 
   const [slug, setSlug] = useState("");
+  const [sizeGuideFile, setSizeGuideFile] = useState<File | null>(null);
   const [productForm, setProductForm] = useState<ProductFormData>({
     name: "",
     price: 0,
@@ -137,6 +140,7 @@ function EditProductModal({
       // Reset action-specific states every time the modal opens
       setNewImagePreviews([]);
       setImagesToDelete([]);
+      setSizeGuideFile(null);
       setErrors({});
       setProductError(false);
       setProductLoading(false);
@@ -381,6 +385,32 @@ function EditProductModal({
             .from("product_images")
             .upsert(altTextUpdates, { onConflict: "id" });
           if (altUpdateError) throw altUpdateError;
+        }
+
+        // 6. Upload size guide (optional) - JPG, PNG or PDF
+        if (sizeGuideFile && user?.id) {
+          try {
+            const ext = sizeGuideFile.name.split(".").pop()?.toLowerCase() || "pdf";
+            const safeExt = ["jpg", "jpeg", "png", "pdf"].includes(ext) ? ext : "pdf";
+            const filePath = `vendors/${user.id}/products/${productId}/size_guide.${safeExt}`;
+            const { error: uploadError } = await supabase.storage
+              .from("vendor-product-images")
+              .upload(filePath, sizeGuideFile, { cacheControl: "3600", upsert: true });
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage
+                .from("vendor-product-images")
+                .getPublicUrl(filePath);
+              const { error: sgUpdateError } = await supabase
+                .from("products")
+                .update({ size_guide_url: urlData.publicUrl })
+                .eq("id", productId);
+              if (sgUpdateError) {
+                console.error("Failed to save size_guide_url:", sgUpdateError);
+              }
+            }
+          } catch (err) {
+            console.error("Size guide upload failed:", err);
+          }
         }
 
         // --- Success ---
@@ -955,6 +985,35 @@ function EditProductModal({
                       results.
                     </span>
                   </p>
+                </div>
+
+                {/* Size guide (optional) */}
+                <div className="bg-white rounded-xl shadow-md p-8">
+                  <h2 className="text-xl font-semibold mb-6">Size Guide</h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Add or replace the size guide (JPG, PNG or PDF). Shown to customers on the product page.
+                  </p>
+                  {(productToEdit as any).size_guide_url && (
+                    <p className="text-xs text-gray-500 mb-4">
+                      Current: <a href={(productToEdit as any).size_guide_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">View current size guide</a>
+                    </p>
+                  )}
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500 transition"
+                    onClick={() => sizeGuideInputRef.current?.click()}
+                  >
+                    <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      {sizeGuideFile ? sizeGuideFile.name : "Click to upload size guide"}
+                    </p>
+                    <input
+                      ref={sizeGuideInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      className="hidden"
+                      onChange={(e) => setSizeGuideFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

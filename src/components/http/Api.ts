@@ -461,15 +461,17 @@ export async function fetchVendorDetails(userId: string) {
 }
 
 // DELETE VENDOR PRODUCT  AND IMAGES
-export async function deleteVendorProductImages(imagePath: any[]) {
-  console.log(imagePath);
-  const { data, error } = await supabase.storage
+export async function deleteVendorProductImages(imagePath: any[] | undefined) {
+  const paths = Array.isArray(imagePath) ? imagePath.filter((p) => p && typeof p === "string") : [];
+  if (paths.length === 0) return null;
+
+  const { error } = await supabase.storage
     .from("vendor-product-images")
-    .remove(imagePath);
+    .remove(paths);
 
-  if (error) throw error;
-
-  return data;
+  // Don't throw on storage errors - product may have no images or files may already be gone
+  if (error) console.warn("Storage delete warning (product will still be removed):", error);
+  return null;
 }
 export async function deleteVendorProduct(productId: string, userId: string) {
   console.log(productId, userId);
@@ -646,14 +648,12 @@ export async function addNewProduct({
 
   // 3. Upload images and save URLs in parallel
   if (imagePreviews.length > 0) {
-    const imageUploadPromises = imagePreviews.map(async (preview: any) => {
+    const imageUploadPromises = imagePreviews.map(async (preview: any, index: number) => {
       const file = preview.file;
       const vendorId = user ? user.id : "";
 
-      console.log("from vendorID for buckets", vendorId);
-
-      // A. Upload image
-      const publicUrl = await uploadProductImage(vendorId, productId, file);
+      // A. Upload image (pass index for unique filenames on mobile - photo libraries reuse names)
+      const publicUrl = await uploadProductImage(vendorId, productId, file, index);
 
       // B. Save image record to DB
       const { error: imageError } = await supabase

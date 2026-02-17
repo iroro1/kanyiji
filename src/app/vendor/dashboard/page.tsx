@@ -478,12 +478,23 @@ export default function VendorDashboard() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  function handleConfirmDelete(productId: string, imageName: any[]) {
-    const paths = imageName?.map(
-      (image) => image.image_url.split("/vendor-product-images/")[1]
-    );
+  async function handleConfirmDelete(productId: string, imageName: any[] | undefined) {
+    const paths = (imageName ?? [])
+      .map((img) => {
+        const url = img?.image_url ?? img;
+        if (typeof url !== "string") return null;
+        const match = url.split("/vendor-product-images/")[1];
+        if (!match) return null;
+        try {
+          return decodeURIComponent(match.split("?")[0]);
+        } catch {
+          return match.split("?")[0];
+        }
+      })
+      .filter((p): p is string => !!p);
 
-    deleteProduct({ productId, userId, imagePath: paths });
+    await deleteProduct({ productId, userId, imagePath: paths });
+    refetchVendor();
   }
 
   function EditProduct(productId: string) {

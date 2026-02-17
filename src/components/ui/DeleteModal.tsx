@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AlertTriangle, Trash2 } from "lucide-react";
 
 interface DeleteConfirmationModalProps {
@@ -21,12 +22,19 @@ export default function DeleteConfirmationModal({
   itemName,
   itemType,
 }: DeleteConfirmationModalProps) {
-  if (!isOpen) return null;
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await Promise.resolve(onConfirm());
+      onClose();
+    } finally {
+      setIsDeleting(false);
+    }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -70,9 +78,10 @@ export default function DeleteConfirmationModal({
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+            disabled={isDeleting}
+            className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Delete {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
+            {isDeleting ? "Deleting..." : `Delete ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`}
           </button>
         </div>
       </div>
