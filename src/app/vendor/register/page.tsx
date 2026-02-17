@@ -200,13 +200,13 @@ export default function VendorRegistrationPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/auth/login"
+                href="/auth/login?redirect=/vendor/register"
                 className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
               >
                 Sign In
               </Link>
               <Link
-                href="/auth/signup"
+                href="/auth/signup?redirect=/vendor/register"
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg transition-colors"
               >
                 Create Account

@@ -113,79 +113,94 @@ export default function CartPage() {
               {/* Cart Items List */}
               <div className="divide-y divide-gray-200">
                 {state.items.map((item) => (
-                  <div key={item.id} className="p-6">
+                  <div key={item.id} className="p-6 group">
                     <div className="flex items-center gap-4">
-                      {/* Product Image */}
-                      <Image
-                        width={80}
-                        height={80}
-                        src={getCartItemImageUrl(item)}
-                        alt={item.name}
-                        className="w-20 h-20 object-cover rounded-lg"
-                        unoptimized={getCartItemImageUrl(item).startsWith("https://via.placeholder.com")}
-                      />
+                      {/* Product Image - Clickable */}
+                      <Link
+                        href={`/products/${item.id}`}
+                        className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Image
+                          width={80}
+                          height={80}
+                          src={getCartItemImageUrl(item)}
+                          alt={item.name}
+                          className="w-20 h-20 object-cover rounded-lg cursor-pointer"
+                          unoptimized={getCartItemImageUrl(item).startsWith("https://via.placeholder.com")}
+                        />
+                      </Link>
 
-                      {/* Product Details */}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">
+                      {/* Product Details - Clickable */}
+                      <Link
+                        href={`/products/${item.id}`}
+                        className="flex-1 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">
                           {item.name}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
                           Vendor: {vendorNames[(item as any).vendor_id] || "Unknown Vendor"}
                         </p>
                         <div className="flex items-center gap-4">
-                          {/* Quantity Controls */}
-                          <div className="flex items-center border border-gray-300 rounded-lg">
-                            <button
-                              onClick={() =>
-                                dispatch({
-                                  type: "DECREASE_QUANTITY",
-                                  id: item.id,
-                                })
-                              }
-                              disabled={item.quantity <= 1}
-                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <span className="px-3 py-2 text-gray-900 font-medium">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() =>
-                                dispatch({
-                                  type: "INCREASE_QUANTITY",
-                                  id: item.id,
-                                })
-                              }
-                              disabled={!item.stock_quantity || item.quantity >= (item.stock_quantity || 0)}
-                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {/* Price */}
+                          <span className="font-semibold text-gray-900">
+                            ₦{(item.price * item.quantity).toLocaleString()}
+                          </span>
                           {item.stock_quantity && (
                             <span className="text-xs text-gray-500">
                               {item.stock_quantity} available
                             </span>
                           )}
+                        </div>
+                      </Link>
 
-                          {/* Price */}
-                          <span className="font-semibold text-gray-900">
-                            ₦{(item.price * item.quantity).toLocaleString()}
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center border border-gray-300 rounded-lg">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dispatch({
+                                type: "DECREASE_QUANTITY",
+                                id: item.id,
+                              });
+                            }}
+                            disabled={item.quantity <= 1}
+                            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="px-3 py-2 text-gray-900 font-medium">
+                            {item.quantity}
                           </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dispatch({
+                                type: "INCREASE_QUANTITY",
+                                id: item.id,
+                              });
+                            }}
+                            disabled={!item.stock_quantity || item.quantity >= (item.stock_quantity || 0)}
+                            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
                       {/* Remove Button */}
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           dispatch({
                             type: "REMOVE_FROM_CART",
                             id: item.id,
-                          })
-                        }
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          });
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -260,7 +275,7 @@ export default function CartPage() {
                   Shipping fees are calculated based on weight and destination at checkout.
                 </p>
                 <p className="text-xs text-gray-500">
-                  Rates: ₦3,000-₦6,000/kg (Nigeria) • ₦14,500/kg (International)
+                  Rates: From ₦3,000-₦6,000/kg (Nigeria) • From ₦14,500/kg (International)
                 </p>
               </div>
 

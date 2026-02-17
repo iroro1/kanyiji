@@ -56,11 +56,13 @@ type SignupFormData = z.infer<typeof signupSchema>;
 interface SignupFormProps {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
+  skipReload?: boolean; // If true, don't reload page after signup (for dedicated signup pages)
 }
 
 export default function SignupForm({
   onSuccess,
   onSwitchToLogin,
+  skipReload = false,
 }: SignupFormProps) {
   const { register: registerUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -117,12 +119,17 @@ export default function SignupForm({
         // If verification is required, the AuthContext will handle the redirect
         // If no verification is required, refresh data and close the modal
         if (!result.requiresVerification) {
-          // Force a page reload to fetch new user data
-          // This ensures all user data is properly loaded
-          setTimeout(() => {
-            window.location.reload();
-          }, 500);
-          onSuccess?.();
+          if (skipReload) {
+            // For dedicated signup pages, don't reload - let onSuccess handle redirect
+            onSuccess?.();
+          } else {
+            // Force a page reload to fetch new user data (for modal usage)
+            // This ensures all user data is properly loaded
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+            onSuccess?.();
+          }
         }
       } else {
         // If signup failed, show error message

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
@@ -22,6 +22,13 @@ export default function AuthModal({
   onLoginEnd,
 }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
+
+  // When modal opens or initialMode changes, show the requested mode (so "Become a vendor" opens signup)
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);

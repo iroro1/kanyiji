@@ -40,12 +40,12 @@ export default function NotificationsPage() {
         setUnreadCount(data.unreadCount || 0);
       } else if (response.status === 401) {
         // User not authenticated, redirect to login
-        window.location.href = "/signin";
+        window.location.href = "/auth/login";
       }
     } catch (error: any) {
       console.error("Error fetching notifications:", error);
       if (error.message?.includes("Unauthorized")) {
-        window.location.href = "/signin";
+        window.location.href = "/auth/login";
       }
     } finally {
       setLoading(false);

@@ -99,7 +99,7 @@ export default function CheckoutPage() {
     const validationErrors = validateSignupForm(shippingData);
 
     if (totalWeight < 10 && shippingMethod === "Standard Delivery") {
-      validationErrors.general = "Standard shipping (DHL) requires a minimum of 10 kg. Add more items or choose Express for international orders.";
+      validationErrors.general = "Standard shipping requires a minimum of 10 kg. Add more items or choose Express for international orders.";
     }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -576,7 +576,7 @@ export default function CheckoutPage() {
                     )}
                     {totalWeight > 0 && totalWeight < 10 && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                        <p className="font-medium mb-1">Standard shipping (DHL) requires a minimum of 10 kg.</p>
+                        <p className="font-medium mb-1">Standard shipping requires a minimum of 10 kg.</p>
                         <p>Your cart is currently <strong>{totalWeight.toFixed(1)} kg</strong>. Add more items to use standard shipping.</p>
                       </div>
                     )}
