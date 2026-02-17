@@ -270,19 +270,27 @@ function AddProductPage() {
   };
 
   // --- Image Management ---
-  const handleFileSelect = (selectedFiles: FileList | null) => {
+  // Use FileReader for previews - more reliable on mobile than createObjectURL
+  const handleFileSelect = async (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
     const files = Array.from(selectedFiles);
-    const newPreviews: ImagePreview[] = files.map((file) => ({
-      url: URL.createObjectURL(file),
-      file: file,
-      alt: "", // Initialize with empty alt text
-    }));
+    const newPreviews: ImagePreview[] = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<ImagePreview>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({ url: reader.result as string, file, alt: "" });
+            reader.readAsDataURL(file);
+          })
+      )
+    );
     setImagePreviews((prev) => [...prev, ...newPreviews]);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFileSelect(e.target.files);
+    e.target.value = ""; // Reset so same file can be selected again on mobile
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -299,8 +307,8 @@ function AddProductPage() {
   };
 
   const removeImage = (indexToRemove: number) => {
-    // Revoke the object URL to prevent memory leaks
-    URL.revokeObjectURL(imagePreviews[indexToRemove].url);
+    const url = imagePreviews[indexToRemove].url;
+    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
     setImagePreviews((prev) =>
       prev.filter((_, index) => index !== indexToRemove)
     );
@@ -357,9 +365,9 @@ function AddProductPage() {
       {isCreating && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 sm:p-8 flex flex-col items-center gap-4">
-            <LoadingSpinner />
+            <LoadingSpinner timeout={0} />
             <p className="text-center text-slate-700 font-medium text-sm sm:text-base">
-              Creating product...
+              Product uploading...
             </p>
           </div>
         </div>
@@ -815,28 +823,29 @@ function AddProductPage() {
                 {/* Product Image */}
                 <div className="bg-white rounded-xl shadow-md p-8">
                   <h2 className="text-xl font-semibold mb-6">Product Images <span className="text-red-500">*</span></h2>
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition flex flex-col justify-center items-center h-40"
-                    onClick={() => fileInputRef.current?.click()}
+                  <label
+                    htmlFor="product-image-input"
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition flex flex-col justify-center items-center h-40 min-h-[140px]"
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
                   >
-                    <Image className="text-gray-400" />
+                    <Image className="w-10 h-10 text-gray-400" aria-hidden />
                     <p className="text-sm text-gray-600 mt-2">
-                      Drop your images or{" "}
+                      Tap to add photos or{" "}
                       <span className="font-semibold text-blue-600">
-                        click to browse
+                        drop images here
                       </span>
                     </p>
                     <input
                       ref={fileInputRef}
+                      id="product-image-input"
                       type="file"
                       multiple
                       accept="image/*"
-                      className="hidden"
+                      className="sr-only"
                       onChange={handleImageChange}
                     />
-                  </div>
+                  </label>
 
                   {/* Image Previews & Alt Text Inputs */}
                   <div className="mt-4 space-y-4 max-h-80 overflow-y-auto pr-2">
