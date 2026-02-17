@@ -293,7 +293,7 @@ function AddProductPage() {
     e.target.value = ""; // Reset so same file can be selected again on mobile
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     handleFileSelect(e.dataTransfer.files);
   };
