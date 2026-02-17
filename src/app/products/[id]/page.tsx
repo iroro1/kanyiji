@@ -198,8 +198,8 @@ export default function ProductDetailPage() {
           return;
         }
 
-        // Check sessionStorage first
-        const cacheKey = `vendor_${productWithStock.vendor_id}`;
+        // Check sessionStorage first (use product_vendor_ prefix to avoid conflict with vendor page cache)
+        const cacheKey = `product_vendor_${productWithStock.vendor_id}`;
         const cached = SessionStorage.getWithExpiry<any>(cacheKey);
         if (cached) {
           setVendor(cached);
@@ -226,7 +226,7 @@ export default function ProductDetailPage() {
           if (response.ok) {
             const vendorData = await response.json();
             setVendor(vendorData.vendor);
-            // Cache in sessionStorage (5 minutes)
+            // Cache in sessionStorage (5 minutes) - product_vendor_ prefix avoids conflict with vendor page
             SessionStorage.set(cacheKey, vendorData.vendor, 5 * 60 * 1000);
           } else {
             // Try stale cache as fallback
@@ -656,6 +656,24 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
+              {/* Size guide link - show when product has size_guide_url or size variants (API will try to find file) */}
+              {((productWithStock as any).size_guide_url || (productWithStock?.product_attributes?.length ?? 0) > 0) && (
+                <div className="mb-6">
+                  <a
+                    href={
+                      (productWithStock as any).size_guide_url
+                        ? `/api/products/size-guide?url=${encodeURIComponent((productWithStock as any).size_guide_url)}`
+                        : `/api/products/${productWithStock.id}/size-guide`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
+                  >
+                    View size guide
+                  </a>
+                </div>
+              )}
+
               {/* Quantity */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -846,6 +864,23 @@ export default function ProductDetailPage() {
                     )}
                   </div>
 
+                  {((productWithStock as any).size_guide_url || (productWithStock?.product_attributes?.length ?? 0) > 0) && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <a
+                        href={
+                          (productWithStock as any).size_guide_url
+                            ? `/api/products/size-guide?url=${encodeURIComponent((productWithStock as any).size_guide_url)}`
+                            : `/api/products/${productWithStock.id}/size-guide`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        View size guide
+                      </a>
+                    </div>
+                  )}
+
                   {productWithStock.description && (
                     <div className="mt-6 pt-6 border-t border-gray-200">
                       <h3 className="font-semibold text-gray-900 mb-3">
@@ -865,19 +900,6 @@ export default function ProductDetailPage() {
                       <p className="text-gray-600 whitespace-pre-wrap">
                         {(productWithStock as any).third_party_return_policy}
                       </p>
-                    </div>
-                  )}
-
-                  {(productWithStock as any).size_guide_url && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <a
-                        href={(productWithStock as any).size_guide_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-                      >
-                        View size guide
-                      </a>
                     </div>
                   )}
                 </div>
@@ -970,9 +992,9 @@ export default function ProductDetailPage() {
                       </div>
 
                       <div className="pt-4 border-t border-gray-200">
-                        {vendor && vendor.id && productWithStock?.vendor_id && (
+                        {productWithStock?.vendor_id && (
                           <Link
-                            href={`/vendors/${vendor.id}`}
+                            href={`/vendors/${productWithStock.vendor_id}`}
                             className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
                           >
                             View Vendor Store

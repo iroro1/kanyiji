@@ -674,7 +674,8 @@ export async function addNewProduct({
     await Promise.all(imageUploadPromises);
   }
 
-  // 3b. Upload size guide (optional) - JPG, PNG or PDF
+  // 3b. Upload size guide / style guide (optional) - JPG, PNG or PDF
+  // Saves URL to products.size_guide_url so product page can link to it
   if (sizeGuideFile && productId && user?.id) {
     try {
       const ext = sizeGuideFile.name.split(".").pop()?.toLowerCase() || "pdf";
@@ -687,10 +688,15 @@ export async function addNewProduct({
         const { data: urlData } = supabase.storage
           .from("vendor-product-images")
           .getPublicUrl(filePath);
-        await supabase
+        const { error: updateError } = await supabase
           .from("products")
           .update({ size_guide_url: urlData.publicUrl })
           .eq("id", productId);
+        if (updateError) {
+          console.error("Failed to save size_guide_url to product:", updateError);
+        }
+      } else {
+        console.error("Size guide storage upload failed:", uploadError);
       }
     } catch (err) {
       console.error("Size guide upload failed:", err);

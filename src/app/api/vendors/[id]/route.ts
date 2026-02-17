@@ -55,16 +55,25 @@ export async function GET(
 
     // Check if identifier is a UUID or a slug/name
     if (isUUID(identifier)) {
-      // Fetch vendor by ID - only approved vendors for public view
-      // Explicitly select logo_url to ensure it's included
+      // Fetch vendor by ID - no status filter so product links work (products can reference any vendor)
       const result = await supabase
         .from("vendors")
         .select("*, logo_url")
         .eq("id", identifier)
-        .eq("status", "approved")
         .single();
       vendor = result.data;
       vendorError = result.error;
+
+      // Fallback: if not found by id, try user_id (products may store user_id as vendor_id)
+      if ((vendorError?.code === "PGRST116" || !vendor) && isUUID(identifier)) {
+        const byUserId = await supabase
+          .from("vendors")
+          .select("*, logo_url")
+          .eq("user_id", identifier)
+          .maybeSingle();
+        vendor = byUserId.data;
+        vendorError = byUserId.error;
+      }
       
       // Debug: Log raw vendor data from database
       console.log("Vendor API: Raw vendor data from DB (UUID lookup):", {
@@ -86,12 +95,12 @@ export async function GET(
         normalizedSlug,
       });
       
-      // Fetch all approved vendors and filter by normalized business name
-      // Explicitly select logo_url to ensure it's included
+      // Fetch all approved/active vendors and filter by normalized business name
+      // Include "active" in case some vendors use that status
       const { data: allVendors, error: fetchError } = await supabase
         .from("vendors")
         .select("*, logo_url")
-        .eq("status", "approved");
+        .in("status", ["approved", "active"]);
 
       if (fetchError) {
         vendorError = fetchError;
