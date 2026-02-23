@@ -515,7 +515,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; requiresMFA?: boolean; mfaFactorId?: string; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; requiresMFA?: boolean; mfaFactorId?: string; requiresVerification?: boolean; error?: string }> => {
     try {
       console.log("🔐 AuthContext: Starting login for:", email);
       setIsLoading(true);
@@ -525,8 +525,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         success: response.success,
         hasUser: !!response.user,
         requiresMFA: response.requiresMFA,
+        requiresVerification: response.requiresVerification,
         error: response.error,
       });
+
+      // Unconfirmed email: send code and redirect to verify-email
+      if (response.requiresVerification) {
+        toast.success(response.error || "Verification code sent. Please check your email.");
+        if (typeof window !== "undefined") {
+          window.location.href = `/verify-email?email=${encodeURIComponent(email)}&from=login`;
+        }
+        setIsLoading(false);
+        return { success: false, requiresVerification: true, error: response.error };
+      }
 
       // Check if MFA is required (pass mfaFactorId so LoginForm can show OTP step)
       if (response.requiresMFA) {
@@ -612,10 +623,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             response.message ||
               "Please check your email to verify your account."
           );
-          // Redirect to verification page
+          // Preserve redirect from signup URL (e.g. /vendor/register) so we can send user there after verify
+          const redirect =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("redirect")
+              : null;
+          const redirectParam =
+            redirect && redirect.startsWith("/")
+              ? `&redirect=${encodeURIComponent(redirect)}`
+              : "";
           window.location.href = `/verify-email?email=${encodeURIComponent(
             userData.email
-          )}`;
+          )}${redirectParam}`;
           return { success: true, requiresVerification: true };
         }
 

@@ -276,55 +276,42 @@ class SupabaseAuthService {
         console.log(
           "Email confirmation required, sending verification email..."
         );
-        
-        // Explicitly resend verification email using Supabase's resend method
-        // This ensures the OTP email is sent even if Supabase didn't send it automatically
+
+        // Always send OTP via our API (Resend + email_otp_tokens) so the code is delivered reliably.
+        // Supabase's built-in resend is optional and often rate-limited or misconfigured.
+        let emailSent = false;
         try {
-          const { error: resendError } = await supabase.auth.resend({
-            type: "signup",
-            email: userData.email,
+          const response = await fetch("/api/auth/send-verification-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userData.email }),
           });
-
-          if (resendError) {
-            console.error("Failed to resend verification email:", resendError);
-            // Also try the custom API as fallback
-            try {
-              const response = await fetch("/api/auth/send-verification-email", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  email: userData.email,
-                }),
-              });
-
-              if (!response.ok) {
-                console.error("Failed to send verification email via API fallback");
-              } else {
-                console.log("Verification email sent successfully via API fallback");
-              }
-            } catch (apiError) {
-              console.error("Error sending verification email via API:", apiError);
+          if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (data.success) {
+              emailSent = true;
+              console.log("Verification email sent via API");
             }
-          } else {
-            console.log("Verification email sent successfully via Supabase resend");
           }
-        } catch (emailError) {
-          console.error("Error sending verification email:", emailError);
-          // Try the custom API as fallback
+        } catch (apiErr) {
+          console.error("Send verification email API error:", apiErr);
+        }
+
+        if (!emailSent) {
+          // Fallback: try Supabase resend
           try {
-            await fetch("/api/auth/send-verification-email", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                email: userData.email,
-              }),
+            const { error: resendError } = await supabase.auth.resend({
+              type: "signup",
+              email: userData.email,
             });
-        } catch (apiError) {
-          console.error("Error sending verification email via API fallback:", apiError);
+            if (!resendError) {
+              emailSent = true;
+              console.log("Verification email sent via Supabase resend");
+            } else {
+              console.error("Supabase resend failed:", resendError);
+            }
+          } catch (resendErr) {
+            console.error("Supabase resend error:", resendErr);
           }
         }
         
@@ -445,9 +432,42 @@ class SupabaseAuthService {
 
       if (error) {
         console.error("❌ Supabase auth error:", error);
+        const err = error as { message?: string; code?: string; status?: number };
+        const msg = err.message ?? "";
+        // When "Confirm email" is enabled, Supabase rejects sign-in for unconfirmed users.
+        // Check error code (email_not_confirmed, provider_email_needs_verification) or message.
+        const isEmailNotConfirmed =
+          err.code === "email_not_confirmed" ||
+          err.code === "provider_email_needs_verification" ||
+          /email.*(not )?confirm|confirm.*email|verification.*required|email.*verif/i.test(msg) ||
+          err.status === 422;
+        if (isEmailNotConfirmed) {
+          let emailSent = false;
+          try {
+            const response = await fetch("/api/auth/send-verification-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: credentials.email }),
+            });
+            if (response.ok) {
+              const body = await response.json().catch(() => ({}));
+              if (body.success) emailSent = true;
+            }
+          } catch (e) {
+            console.error("Send verification email on login error:", e);
+          }
+          return {
+            success: false,
+            requiresVerification: true,
+            error: emailSent
+              ? "Please verify your email. We've sent a new verification code."
+              : "Please verify your email. Use the button below to request a new code.",
+            message: "Please verify your email to continue.",
+          };
+        }
         return {
           success: false,
-          error: error.message || "Login failed",
+          error: msg || "Login failed",
         };
       }
 
@@ -486,6 +506,34 @@ class SupabaseAuthService {
         }
       } catch (aalErr) {
         console.warn("AAL check failed, continuing as normal login:", aalErr);
+      }
+
+      // If email is not confirmed, don't allow login — send verification code and require verify-email
+      if (data.user.email_confirmed_at == null) {
+        console.log("⚠️ Email not confirmed, sending verification code and redirecting to verify-email");
+        await supabase.auth.signOut();
+        let emailSent = false;
+        try {
+          const response = await fetch("/api/auth/send-verification-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: credentials.email }),
+          });
+          if (response.ok) {
+            const body = await response.json().catch(() => ({}));
+            if (body.success) emailSent = true;
+          }
+        } catch (e) {
+          console.error("Send verification email on login error:", e);
+        }
+        return {
+          success: false,
+          requiresVerification: true,
+          error: emailSent
+            ? "Please verify your email. We've sent a new verification code."
+            : "Please verify your email. Use the button below to request a new code.",
+          message: "Please verify your email to continue.",
+        };
       }
 
       console.log("✅ Auth successful, user ID:", data.user.id);
