@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Mail,
@@ -54,6 +54,7 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds (Supabase OTP expires quickly)
   const [resendCooldown, setResendCooldown] = useState(0); // Cooldown in seconds between resends
+  const hasAutoSentRef = useRef(false);
 
   useEffect(() => {
     // Get email from URL params or session
@@ -72,6 +73,32 @@ export default function VerifyEmailPage() {
       };
       getCurrentUser();
     }
+  }, [searchParams]);
+
+  // When user lands on verify-email with an email (e.g. after "Become a vendor" signup), send OTP once
+  // so they get the code even if the signup flow didn't deliver it. Skip if from=login (we already sent).
+  useEffect(() => {
+    if (searchParams.get("from") === "login") return;
+    const emailParam = searchParams.get("email");
+    if (!emailParam || !emailParam.includes("@") || hasAutoSentRef.current) return;
+    hasAutoSentRef.current = true;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/auth/send-verification-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: emailParam.trim() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          toast.success("Verification code sent to your email.");
+          setTimeLeft(600); // 10 min for our API token
+        }
+      } catch {
+        // ignore; user can use Resend button
+      }
+    }, 800);
+    return () => clearTimeout(t);
   }, [searchParams]);
 
   // Timer countdown
@@ -122,8 +149,13 @@ export default function VerifyEmailPage() {
         if (confirmRes.ok && confirmData.success) {
           setVerificationStatus("success");
           toast.success("Email verified! Redirecting to sign in...");
+          const redirect = searchParams.get("redirect");
+          const loginRedirect =
+            redirect && redirect.startsWith("/")
+              ? `&redirect=${encodeURIComponent(redirect)}`
+              : "";
           setTimeout(() => {
-            router.push("/auth/login?verified=1");
+            router.push(`/auth/login?verified=1${loginRedirect}`);
           }, 1500);
           return;
         }
@@ -262,9 +294,12 @@ export default function VerifyEmailPage() {
         }),
       }).catch((err) => console.error("Welcome email failed:", err));
 
-      // Redirect to home page after 2 seconds
+      // Redirect to intended destination (e.g. /vendor/register) or home after 2 seconds
+      const redirect = searchParams.get("redirect");
+      const destination =
+        redirect && redirect.startsWith("/") ? redirect : "/";
       setTimeout(() => {
-        router.push("/");
+        router.push(destination);
       }, 2000);
     } catch (error: any) {
       console.error("OTP verification error:", error);
@@ -335,8 +370,13 @@ export default function VerifyEmailPage() {
             setError("");
             return;
           }
+          // Surface API error so user knows why resend failed
+          const apiMsg = data.error || (res.status === 500 ? "Server error sending email. Try again later." : "Could not send code.");
+          setError(apiMsg);
+          return;
         } catch (apiErr) {
           console.error("API send-verification-email fallback failed:", apiErr);
+          setError("Could not send verification email. Check your connection and try again.");
         }
         // Both failed: show Supabase error
         if (error.message?.includes("rate limit")) {
