@@ -112,9 +112,23 @@ export default function VerifyEmailPage() {
       });
 
       if (authError) {
+        // Try custom OTP verification (from send-verification-email API fallback)
+        const confirmRes = await fetch("/api/auth/confirm-email-with-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), token: otp }),
+        });
+        const confirmData = await confirmRes.json().catch(() => ({}));
+        if (confirmRes.ok && confirmData.success) {
+          setVerificationStatus("success");
+          toast.success("Email verified! Redirecting to sign in...");
+          setTimeout(() => {
+            router.push("/auth/login?verified=1");
+          }, 1500);
+          return;
+        }
+
         console.error("OTP verification error:", authError);
-        
-        // Handle specific error cases
         if (
           authError.message?.includes("expired") ||
           authError.message?.includes("invalid")
@@ -303,9 +317,28 @@ export default function VerifyEmailPage() {
       });
 
       if (error) {
-        console.error("Resend OTP error:", error);
-        
-        // Handle specific error cases
+        console.warn("Supabase resend failed, trying API fallback:", error.message);
+        // Fallback: send OTP via our API (custom email_otp_tokens flow) so user can still get a code
+        try {
+          const res = await fetch("/api/auth/send-verification-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim() }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            toast.success("OTP sent successfully! Check your email.");
+            setVerificationStatus("pending");
+            setOtp("");
+            setTimeLeft(600); // 10 minutes for API token
+            setResendCooldown(60);
+            setError("");
+            return;
+          }
+        } catch (apiErr) {
+          console.error("API send-verification-email fallback failed:", apiErr);
+        }
+        // Both failed: show Supabase error
         if (error.message?.includes("rate limit")) {
           const timeUntilReset = rateLimitCheck.timeUntilReset;
           setError(
