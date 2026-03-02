@@ -17,6 +17,7 @@ import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/lib/supabase";
+import { getWishlist } from "@/components/http/Api";
 import kanyiyi from "../../assets/Kanyiji-light.png";
 import { useFetchCurrentUser, useFetchVendorDetails } from "../http/QueryHttp";
 import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
@@ -781,32 +782,38 @@ export default function Navbar() {
       
       const fetchWishlistCount = async () => {
         try {
-          const { count, error } = await supabase
-            .from("wishlist_items")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", userId);
-          
-          if (!error && count !== null) {
-            setWishlistCount(count || 0);
-          } else if (error) {
-            console.error("Error fetching wishlist count:", error);
-            setWishlistCount(0);
-          }
+          const list = await getWishlist(userId);
+          setWishlistCount(Array.isArray(list) ? list.length : 0);
         } catch (error) {
           console.error("Error fetching wishlist count:", error);
           setWishlistCount(0);
         }
       };
-      
+
+      const onWishlistUpdated = (e: Event) => {
+        const customEvent = e as CustomEvent<{ delta?: number }>;
+        const delta = customEvent.detail?.delta;
+        if (typeof delta === "number") {
+          setWishlistCount((prev) => Math.max(0, prev + delta));
+        } else {
+          fetchWishlistCount();
+        }
+      };
+
       fetchUnreadCount();
       fetchWishlistCount();
+
+      window.addEventListener("wishlist-updated", onWishlistUpdated);
 
       // Poll for updates every 30 seconds
       const interval = setInterval(() => {
         fetchUnreadCount();
         fetchWishlistCount();
       }, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener("wishlist-updated", onWishlistUpdated);
+      };
     } else {
       setUnreadNotificationCount(0);
       setWishlistCount(0);

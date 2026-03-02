@@ -59,6 +59,7 @@ export default function WishlistButton({
         } else {
           setIsWishlisted(false);
           notify("Product removed from wishlist", "success");
+          window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: -1 } }));
         }
       } else {
         // ❤️ Add to wishlist
@@ -71,6 +72,7 @@ export default function WishlistButton({
         } else {
           setIsWishlisted(true);
           notify("Product added to wishlist", "success");
+          window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: 1 } }));
         }
       }
     } catch (err) {
