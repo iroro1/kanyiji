@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { ArrowLeft, Heart, ShoppingCart, Trash2, Star } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useFetchWishlist } from "@/components/http/QueryHttp";
+import { SessionStorage } from "@/utils/sessionStorage";
 
 export default function WishlistPage() {
   const { user } = useAuth();
   const userId = user ? user.id : "";
   const [refresh, setRefresh] = useState(0); // <-- trigger refetch
+  const [quickActionLoading, setQuickActionLoading] = useState<"add-all" | "clear" | null>(null);
   const { data, isError, isLoading, error } = useFetchWishlist(userId, refresh);
 
   const { dispatch } = useCart();
@@ -26,7 +29,6 @@ export default function WishlistPage() {
   };
 
   async function deleteWishlistProduct(id: string) {
-    console.log(id);
     const { error } = await supabase
       .from("wishlist_items")
       .delete()
@@ -36,6 +38,77 @@ export default function WishlistPage() {
       console.error("Error removing from wishlist:", error.message);
     } else {
       setRefresh((prev) => prev + 1);
+      window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: -1 } }));
+    }
+  }
+
+  function handleAddAllToCart() {
+    if (!data?.length) return;
+    setQuickActionLoading("add-all");
+    try {
+      data.forEach((item) => {
+        const stockQty = item.stock_quantity;
+        dispatch({
+          type: "ADD_TO_CART",
+          product: {
+            id: String(item.id),
+            name: item.name ?? "Unnamed Product",
+            price: Number(item.price) || 0,
+            stock_quantity: stockQty != null && stockQty > 0 ? stockQty : undefined,
+            weight: item.weight ?? undefined,
+            vendor_id: item.vendor_id,
+            title: "",
+            product_images: Array.isArray(item.product_images) && item.product_images[0]?.image_url
+              ? [{ id: String(item.product_images[0].id ?? item.id), image_url: item.product_images[0].image_url }]
+              : [],
+          },
+        });
+      });
+      toast.success(`${data.length} item${data.length !== 1 ? "s" : ""} added to cart`);
+    } catch (err) {
+      console.error("Add all to cart error:", err);
+      toast.error("Could not add some items to cart");
+    } finally {
+      setQuickActionLoading(null);
+    }
+  }
+
+  async function handleClearWishlist() {
+    if (!userId || !data?.length) return;
+    setQuickActionLoading("clear");
+    const count = data.length;
+    try {
+      let error = null;
+
+      const { error: bulkError } = await supabase
+        .from("wishlist_items")
+        .delete()
+        .eq("user_id", userId);
+
+      if (bulkError) {
+        // Fallback: delete each item one by one (some RLS setups require this)
+        error = null;
+        for (const item of data) {
+          const { error: rowError } = await supabase
+            .from("wishlist_items")
+            .delete()
+            .eq("user_id", userId)
+            .eq("product_id", item.id);
+          if (rowError) error = rowError;
+        }
+      }
+
+      if (error) {
+        toast.error("Could not clear wishlist");
+        console.error("Error clearing wishlist:", error.message);
+      } else {
+        SessionStorage.remove(`wishlist_${userId}`);
+        setRefresh((prev) => prev + 1);
+        window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: -count } }));
+        toast.success("Wishlist cleared");
+      }
+    } finally {
+      setQuickActionLoading(null);
     }
   }
 
@@ -185,26 +258,29 @@ export default function WishlistPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        const stockQty = item.stock_quantity;
                         dispatch({
                           type: "ADD_TO_CART",
                           product: {
                             ...item,
                             id: String(item.id),
-                            price: Number(item.price),
-                            stock_quantity: item.stock_quantity || 0,
+                            name: item.name ?? "Unnamed Product",
+                            price: Number(item.price) || 0,
+                            stock_quantity: stockQty != null && stockQty > 0 ? stockQty : undefined,
                             weight: item.weight || undefined,
                             vendor_id: item.vendor_id,
                             title: "",
-                            product_images: item.product_images?.[0]?.image_url
+                            product_images: Array.isArray(item.product_images) && item.product_images[0]?.image_url
                               ? [
                                   {
-                                    id: item.id,
-                                    image_url: item.product_images?.[0]?.image_url,
+                                    id: String(item.product_images[0]?.id ?? item.id),
+                                    image_url: item.product_images[0].image_url,
                                   },
                                 ]
                               : [],
                           },
                         });
+                        toast.success("Added to cart");
                       }}
                       className="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                     >
@@ -240,11 +316,21 @@ export default function WishlistPage() {
           <div className="mt-12 text-center">
             <div className="inline-flex items-center space-x-4 bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4">
               <span className="text-gray-700">Quick actions:</span>
-              <button className="text-primary-600 hover:text-primary-700 underline">
+              <button
+                type="button"
+                onClick={handleAddAllToCart}
+                disabled={quickActionLoading !== null}
+                className="text-primary-600 hover:text-primary-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Add all to cart
               </button>
               <span className="text-gray-300">|</span>
-              <button className="text-red-600 hover:text-red-700 underline">
+              <button
+                type="button"
+                onClick={handleClearWishlist}
+                disabled={quickActionLoading !== null}
+                className="text-red-600 hover:text-red-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Clear wishlist
               </button>
             </div>

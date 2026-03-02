@@ -3,9 +3,13 @@
 import { useState, useEffect } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
 import { getCategoryById } from "@/data/categories";
 import { SessionStorage } from "@/utils/sessionStorage";
 import { getProductImageUrl } from "@/utils/helpers";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 interface Product {
   id: string;
@@ -23,6 +27,76 @@ interface Product {
 export default function NewProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wishlistedIds, setWishlistedIds] = useState<string[]>([]);
+  const { dispatch } = useCart();
+  const { user } = useAuth();
+
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch({
+      type: "ADD_TO_CART",
+      product: {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        product_images: [{ id: product.id, image_url: product.image_url }],
+      },
+    });
+    toast.success("Added to cart");
+  };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setWishlistedIds([]);
+      return;
+    }
+    const fetchWishlistedIds = async () => {
+      const { data, error } = await supabase
+        .from("wishlist_items")
+        .select("product_id")
+        .eq("user_id", user.id);
+      if (!error && data) {
+        setWishlistedIds(data.map((row) => row.product_id));
+      }
+    };
+    fetchWishlistedIds();
+  }, [user?.id]);
+
+  const handleToggleWishlist = async (e: React.MouseEvent, productId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user?.id) {
+      toast.error("Sign in to add items to your wishlist");
+      return;
+    }
+    const isWishlisted = wishlistedIds.includes(productId);
+    if (isWishlisted) {
+      const { error } = await supabase
+        .from("wishlist_items")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("product_id", productId);
+      if (error) {
+        toast.error(error.message || "Could not remove from wishlist");
+        return;
+      }
+      setWishlistedIds((prev) => prev.filter((id) => id !== productId));
+      toast.success("Removed from wishlist");
+      window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: -1 } }));
+    } else {
+      const { error } = await supabase
+        .from("wishlist_items")
+        .insert([{ user_id: user.id, product_id: productId }]);
+      if (error) {
+        toast.error(error.message || "Could not add to wishlist");
+        return;
+      }
+      setWishlistedIds((prev) => [...prev, productId]);
+      toast.success("Added to wishlist");
+      window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { delta: 1 } }));
+    }
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -199,22 +273,26 @@ export default function NewProducts() {
                           % OFF
                         </div>
                       )}
-                    <div className="absolute top-2 right-2 space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="absolute top-2 right-2 space-y-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                       <button
+                        type="button"
                         className="bg-white/90 hover:bg-white text-gray-700 p-2 rounded-full shadow-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
+                        onClick={(e) => handleToggleWishlist(e, product.id)}
+                        aria-label={wishlistedIds.includes(product.id) ? "Remove from wishlist" : "Add to wishlist"}
                       >
-                        <Heart className="w-4 h-4" />
+                        <Heart
+                          className={`w-4 h-4 transition-colors ${
+                            wishlistedIds.includes(product.id)
+                              ? "text-red-500 fill-red-500"
+                              : ""
+                          }`}
+                        />
                       </button>
                       <button
+                        type="button"
                         className="bg-white/90 hover:bg-white text-gray-700 p-2 rounded-full shadow-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
+                        onClick={(e) => handleAddToCart(e, product)}
+                        aria-label="Add to cart"
                       >
                         <ShoppingCart className="w-4 h-4" />
                       </button>
