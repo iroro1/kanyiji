@@ -16,6 +16,7 @@ import { useFetchUserOrders } from "@/components/http/QueryHttp";
 import OrderTrackingModal from "@/components/orders/OrderTrackingModal";
 import InvoiceModal from "@/components/orders/InvoiceModal";
 import ReviewModal from "@/components/orders/ReviewModal";
+import { toast } from "react-hot-toast";
 
 interface Order {
   id: string;
@@ -525,10 +526,10 @@ export default function OrdersPage() {
                         }, 2000);
                       } else {
                         const err = await res.json().catch(() => ({}));
-                        alert(err.error || "Failed to submit return request");
+                        toast.error(err.error || "Failed to submit return request");
                       }
                     } catch {
-                      alert("Failed to submit return request");
+                      toast.error("Failed to submit return request");
                     } finally {
                       setReturnSubmitting(false);
                     }

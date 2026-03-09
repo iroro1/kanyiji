@@ -98,6 +98,42 @@ export async function GET(req: NextRequest) {
     const totalRevenue =
       revenueData?.reduce((sum, order: any) => sum + parseFloat(order.total_amount || "0"), 0) || 0;
 
+    // GMV = Gross Merchandise Value: total value of all products (price × quantity) on the website
+    const gmvByCategory: Record<string, number> = {};
+    let totalGmv = 0;
+    try {
+      const { data: productsForGmv, error: gmvError } = await adminSupabase
+        .from("products")
+        .select("price, category_id, stock_quantity");
+      if (gmvError) {
+        const fallback = await adminSupabase.from("products").select("price, category_id");
+        if (fallback.error) {
+          console.warn("Admin stats GMV query failed:", gmvError.message, fallback.error.message);
+        } else {
+          const products = (fallback.data || []) as { price?: number | string; category_id?: string | null }[];
+          for (const p of products) {
+            const price = typeof p.price === "string" ? parseFloat(p.price) : Number(p.price) || 0;
+            const value = price;
+            const catId = p.category_id ?? "__uncategorized__";
+            gmvByCategory[catId] = (gmvByCategory[catId] ?? 0) + value;
+            totalGmv += value;
+          }
+        }
+      } else {
+        const products = (productsForGmv || []) as { price?: number | string; category_id?: string | null; stock_quantity?: number | null }[];
+        for (const p of products) {
+          const price = typeof p.price === "string" ? parseFloat(p.price) : Number(p.price) || 0;
+          const qty = p.stock_quantity != null && p.stock_quantity > 0 ? Number(p.stock_quantity) : 1;
+          const value = price * qty;
+          const catId = p.category_id ?? "__uncategorized__";
+          gmvByCategory[catId] = (gmvByCategory[catId] ?? 0) + value;
+          totalGmv += value;
+        }
+      }
+    } catch (e) {
+      console.warn("Admin stats GMV calculation error:", e);
+    }
+
     return NextResponse.json({
       stats: {
         totalUsers: totalUsers || 0,
@@ -108,6 +144,8 @@ export async function GET(req: NextRequest) {
         totalOrders: totalOrders || 0,
         pendingOrders: pendingOrders || 0,
         totalRevenue: totalRevenue || 0,
+        totalGmv: totalGmv,
+        gmvByCategory,
       },
     });
   } catch (error: any) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Download, Printer, Share2, FileText, CheckCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { OrderInvoice, OrderItem } from "@/types/orders";
 
 interface InvoiceModalProps {
@@ -438,7 +439,7 @@ export default function InvoiceModal({
       } else {
         // Fallback: copy to clipboard
         await navigator.clipboard.writeText(window.location.href);
-        alert("Invoice link copied to clipboard!");
+        toast.success("Invoice link copied to clipboard!");
       }
       
     } catch (err) {

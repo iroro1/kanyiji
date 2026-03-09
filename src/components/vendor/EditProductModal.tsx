@@ -18,6 +18,7 @@ import {
 } from "./VendorAddProduct";
 import { CATEGORIES } from "@/data/categories";
 import { useEditVendorProduct } from "../http/QueryHttp";
+import { toast } from "react-hot-toast";
 
 // Type for EXISTING images loaded from DB
 type ExistingImage = {
@@ -214,14 +215,14 @@ function EditProductModal({
       !currentVariant.quantity ||
       Number(currentVariant.quantity) <= 0
     ) {
-      alert("Please fill all variant fields with a valid quantity.");
+      toast.error("Please fill all variant fields with a valid quantity.");
       return;
     }
     const exists = variants.some(
       (v) => v.size === currentVariant.size && v.color === currentVariant.color
     );
     if (exists) {
-      alert("This size and color combination already exists.");
+      toast.error("This size and color combination already exists.");
       return;
     }
     setVariants((prev) => [...prev, currentVariant]);

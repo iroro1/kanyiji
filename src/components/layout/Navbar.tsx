@@ -21,6 +21,7 @@ import { getWishlist } from "@/components/http/Api";
 import kanyiyi from "../../assets/Kanyiji-light.png";
 import { useFetchCurrentUser, useFetchVendorDetails } from "../http/QueryHttp";
 import UserNotificationDropdown from "@/components/user/UserNotificationDropdown";
+import { toast } from "react-hot-toast";
 
 // Logo Component
 const Logo = () => (
@@ -900,9 +901,9 @@ export default function Navbar() {
 
   const handleLanguageChange = (language: string) => {
     // TODO: Implement actual language switching with i18n
-    // For demo purposes, show an alert
-    alert(
-      `Language switching to ${language} will be implemented with internationalization. For now, the app is in English.`
+    toast(
+      `Language switching to ${language} will be implemented with internationalization. For now, the app is in English.`,
+      { icon: "ℹ️" }
     );
   };
 

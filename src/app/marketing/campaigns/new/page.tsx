@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { fetchJson } from "../../_lib/fetchJson";
 
 type Group = { id: string; name: string; members_count: number };
@@ -136,7 +137,7 @@ export default function NewCampaignPage() {
       });
       const sendData = await fetchJson<{ error?: string; sent?: number; failed?: number }>(sendRes);
       if (!sendRes.ok) throw new Error(sendData?.error || "Failed to send");
-      alert(`Campaign sent. ${sendData?.sent ?? 0} delivered, ${sendData?.failed ?? 0} failed.`);
+      toast.success(`Campaign sent. ${sendData?.sent ?? 0} delivered, ${sendData?.failed ?? 0} failed.`);
       router.push("/marketing/campaigns");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

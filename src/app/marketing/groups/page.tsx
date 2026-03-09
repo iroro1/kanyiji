@@ -11,6 +11,7 @@ import {
   X,
   Search,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { fetchJson } from "../_lib/fetchJson";
 
 type Group = {
@@ -133,7 +134,7 @@ export default function MarketingGroupsPage() {
       );
       fetchGroups();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to remove member");
+      toast.error(err instanceof Error ? err.message : "Failed to remove member");
     } finally {
       setRemovingUserId(null);
     }
@@ -252,7 +253,7 @@ export default function MarketingGroupsPage() {
       const data = await fetchJson<{ error?: string }>(res);
       throw new Error(data?.error || "Failed to delete");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete group");
+      toast.error(err instanceof Error ? err.message : "Failed to delete group");
     }
   };
 

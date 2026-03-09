@@ -1208,7 +1208,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Additional Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-4 sm:mt-6">
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
                     <div className="flex items-center">
                       <div className="p-2 sm:p-3 bg-blue-100 rounded-lg flex-shrink-0">
@@ -1223,6 +1223,25 @@ export default function AdminDashboard() {
                         </p>
                         <p className="text-xs text-gray-500">
                           {adminStats.pendingProducts} pending review
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 sm:p-3 bg-emerald-100 rounded-lg flex-shrink-0">
+                        <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+                      </div>
+                      <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">
+                          Gross Merchandise Value (GMV)
+                        </p>
+                        <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                          {formatCurrency(adminStats.totalGmv ?? 0)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Total value of all products on site
                         </p>
                       </div>
                     </div>
@@ -1258,6 +1277,63 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* GMV by category */}
+                <div className="mt-4 sm:mt-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-4 sm:px-6 py-3 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900">GMV by category</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Gross merchandise value of listed products per category</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 sm:px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                          <th className="px-4 sm:px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">GMV</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {CATEGORIES.map((category) => {
+                          const gmv = adminStats.gmvByCategory?.[category.id] ?? 0;
+                          return (
+                            <tr key={category.id} className="hover:bg-gray-50">
+                              <td className="px-4 sm:px-6 py-2 text-sm text-gray-900">
+                                {category.name}
+                              </td>
+                              <td className="px-4 sm:px-6 py-2 text-sm text-gray-900 text-right font-medium">
+                                {formatCurrency(gmv)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {(() => {
+                          const categoryIds = new Set(CATEGORIES.map((c) => c.id));
+                          const uncategorized =
+                            (adminStats.gmvByCategory?.["__uncategorized__"] ?? 0) +
+                            (adminStats.gmvByCategory
+                              ? Object.entries(adminStats.gmvByCategory).reduce(
+                                  (sum, [id, gmv]) => (id === "__uncategorized__" || categoryIds.has(id) ? sum : sum + gmv),
+                                  0
+                                )
+                              : 0);
+                          if (uncategorized > 0) {
+                            return (
+                              <tr className="hover:bg-gray-50">
+                                <td className="px-4 sm:px-6 py-2 text-sm text-gray-500">Uncategorized / other</td>
+                                <td className="px-4 sm:px-6 py-2 text-sm text-gray-900 text-right font-medium">{formatCurrency(uncategorized)}</td>
+                              </tr>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <tr className="bg-gray-50 font-semibold">
+                          <td className="px-4 sm:px-6 py-3 text-sm text-gray-900">Total</td>
+                          <td className="px-4 sm:px-6 py-3 text-sm text-gray-900 text-right">{formatCurrency(adminStats.totalGmv ?? 0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </>

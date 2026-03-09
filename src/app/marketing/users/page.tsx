@@ -10,6 +10,7 @@ import {
   Send,
   UserPlus,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { fetchJson } from "../_lib/fetchJson";
 
 type Group = { id: string; name: string; members_count: number };
@@ -131,9 +132,9 @@ export default function MarketingUsersPage() {
       setAddToGroupOpen(false);
       setSelectedIds(new Set());
       if (addToGroupId) router.replace("/marketing/users");
-      alert(`Added ${selectedIds.size} user(s) to the group.`);
+      toast.success(`Added ${selectedIds.size} user(s) to the group.`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to add to group");
+      toast.error(err instanceof Error ? err.message : "Failed to add to group");
     } finally {
       setAddingToGroupId(null);
     }

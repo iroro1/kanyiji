@@ -9,6 +9,10 @@ export interface AdminStats {
   totalOrders: number;
   pendingOrders: number;
   totalRevenue: number;
+  /** Gross Merchandise Value: total value of all products on the website (price × quantity) */
+  totalGmv: number;
+  /** GMV broken down by category_id (use "__uncategorized__" for products without category) */
+  gmvByCategory: Record<string, number>;
 }
 
 export async function fetchAdminStats(): Promise<AdminStats> {

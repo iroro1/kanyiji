@@ -19,6 +19,7 @@ import Link from "next/link";
 import CustomError from "@/app/error";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useRegisterVendor } from "@/components/http/QueryHttp";
+import { toast } from "react-hot-toast";
 
 export default function VendorRegistrationPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -736,7 +737,7 @@ export default function VendorRegistrationPage() {
                         if (file) {
                           const error = validateFileSize(file);
                           if (error) {
-                            alert(error);
+                            toast.error(error);
                             e.target.value = "";
                             return;
                           }
@@ -782,7 +783,7 @@ export default function VendorRegistrationPage() {
                         if (file) {
                           const error = validateFileSize(file);
                           if (error) {
-                            alert(error);
+                            toast.error(error);
                             e.target.value = "";
                             return;
                           }
@@ -828,7 +829,7 @@ export default function VendorRegistrationPage() {
                         if (file) {
                           const error = validateFileSize(file);
                           if (error) {
-                            alert(error);
+                            toast.error(error);
                             e.target.value = "";
                             return;
                           }
