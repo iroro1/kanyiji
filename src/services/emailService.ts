@@ -651,3 +651,35 @@ export async function sendReturnRequestToAdmin(params: SendReturnRequestToAdminP
   }
 }
 
+export interface SendMarketingEmailParams {
+  to: string;
+  subject: string;
+  html: string;
+  fromName?: string;
+  fromEmail?: string;
+}
+
+export async function sendMarketingEmail({
+  to,
+  subject,
+  html,
+  fromName = FROM_NAME,
+  fromEmail = FROM_EMAIL,
+}: SendMarketingEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const resend = getResend();
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: [to],
+      subject,
+      html,
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("sendMarketingEmail error:", message);
+    return { success: false, error: message };
+  }
+}
+
