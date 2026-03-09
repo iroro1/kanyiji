@@ -13,7 +13,7 @@ const supabaseAdmin =
 async function getAuthUser(req: NextRequest): Promise<{
   id: string;
   email: string;
-  user_metadata?: { full_name?: string; role?: string; phone?: string };
+  user_metadata?: { full_name?: string; name?: string; role?: string; phone?: string };
 } | null> {
   const cookieStore = await cookies();
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
