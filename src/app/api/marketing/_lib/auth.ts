@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,7 +11,7 @@ export const SERVICE_KEY_REQUIRED =
 
 export async function getMarketingAuth(): Promise<{
   authorized: boolean;
-  adminSupabase: ReturnType<typeof createClient> | null;
+  adminSupabase: SupabaseClient | null;
   serviceKeyMissing?: boolean;
 }> {
   try {
