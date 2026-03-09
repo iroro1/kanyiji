@@ -103,7 +103,7 @@ export default function NewCampaignPage() {
         });
         const createData = await fetchJson<{ error?: string; campaign?: { id?: string } }>(createRes);
         if (!createRes.ok) throw new Error(createData?.error || "Failed to create campaign");
-        campaignId = createData?.campaign?.id;
+        campaignId = createData?.campaign?.id ?? null;
       } else {
         const patchRes = await fetch(`/api/marketing/campaigns/${campaignId}`, {
           method: "PATCH",
@@ -123,6 +123,7 @@ export default function NewCampaignPage() {
         }
       }
 
+      if (!campaignId) throw new Error("Campaign ID is missing");
       const sendRes = await fetch(`/api/marketing/campaigns/${campaignId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,7 +136,7 @@ export default function NewCampaignPage() {
       });
       const sendData = await fetchJson<{ error?: string; sent?: number; failed?: number }>(sendRes);
       if (!sendRes.ok) throw new Error(sendData?.error || "Failed to send");
-      alert(`Campaign sent. ${sendData.sent} delivered, ${sendData.failed} failed.`);
+      alert(`Campaign sent. ${sendData?.sent ?? 0} delivered, ${sendData?.failed ?? 0} failed.`);
       router.push("/marketing/campaigns");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
