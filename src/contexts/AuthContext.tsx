@@ -350,6 +350,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               localStorage.setItem("kanyiji_auth_user", JSON.stringify(userFromSession));
             }
           }
+          // Ensure profile exists so wishlist_items FK (user_id → profiles.id) does not fail
+          if (session?.access_token && typeof window !== "undefined") {
+            const origin = window.location.origin;
+            fetch(`${origin}/api/ensure-profile`, {
+              method: "POST",
+              credentials: "include",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            }).catch(() => {});
+          }
           // Refresh from profile in background so role/name stay in sync; persist when we get it
           supabaseAuthService.getCurrentUser().then((currentUser) => {
             if (isMounted && currentUser) {
